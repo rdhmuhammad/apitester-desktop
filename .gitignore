@@ -1,0 +1,11 @@
+resource
+vendor
+.idea
+.env.stag
+.env.prod
+
+graphify-out
+.opencode
+AGENTS.md
+deployment/desktop/build
+deployment/desktop/installer

@@ -1,0 +1,110 @@
+import {type ClassValue, clsx} from "clsx"
+import {twMerge} from "tailwind-merge"
+import type {CollectionItem} from "@/pages/editor/types/api.ts";
+
+export function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs))
+}
+
+export function getJsonSizeInKB(data: Record<string, any> | string): string {
+    // 1. Ensure the data is serialized into a JSON string
+    const jsonString = typeof data === 'string' ? data : JSON.stringify(data);
+
+    // 2. Convert to UTF-8 bytes and count the bytes
+    const bytes = new TextEncoder().encode(jsonString).length;
+
+    // 3. Convert bytes to Kilobytes
+    return (bytes / 1024).toFixed(3);
+}
+
+export const getContentType = (currRequest: CollectionItem | null) => {
+    if (!currRequest) return '';
+    let header = currRequest?.request
+        ?.header?.filter(h => h?.key === 'Content-Type') ?? [];
+    if (header.length > 0) {
+        return header[0].value;
+    }
+    return '';
+}
+
+export const replaceUrlParams = (
+    url: string,
+    params: Record<string, string>
+) => {
+    let processedUrl = url;
+    Object.entries(params).forEach(([key, value]) => {
+        processedUrl = processedUrl.replace(`:${key}`, value);
+    });
+    return processedUrl;
+};
+
+export const isArrayEmpty = <T>(items?: readonly T[] | null): boolean => {
+    return !items || items.length === 0;
+}
+
+export const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.readAsDataURL(file);
+
+        reader.onload = () => {
+            // hasil base64 ada di reader.result
+            // resolve(reader.result as string);
+            const result = reader.result as string;
+            const base64 = result.split(',')[1]; // ambil hanya bagian base64-nya saja
+            resolve(base64);
+        };
+
+        reader.onerror = (error) => reject(error);
+    });
+};
+
+export const imageUrlToBase64 = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+
+    return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+            // hasil base64 ada di reader.result
+            // resolve(reader.result as string);
+            const result = reader.result as string;
+            const base64 = result.split(',')[1]; // ambil hanya bagian base64-nya saja
+            resolve(base64);
+        };
+
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+export function removeNullValues(obj: any): any {
+    for (const prop in obj) {
+        if (obj[prop] === null) {
+            delete obj[prop];
+        } else if (typeof obj[prop] === 'object') {
+            removeNullValues(obj[prop]);
+        }
+    }
+    return obj;
+}
+
+export function isValidHttpUrl(urlString: string) {
+    try {
+        const url = new URL(urlString);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) {
+        return false;
+    }
+}
+
+export const getIPAddress = ():string => {
+    return "localhost";
+}
+
+export const formatImageSrc = (value: string) => {
+    if (/^https?:\/\//i.test(value)) return value;
+    return `data:image/jpg;base64,${value}`;
+};
