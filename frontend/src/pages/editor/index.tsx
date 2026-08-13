@@ -12,10 +12,12 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {FileCode2, FileText, Plus, XIcon} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+import {useCallback, useRef, useState} from "react";
 import {
     type ColtReqMethod,
     createNewRequest,
     removeActiveRequest,
+    renameRequest,
     selectActiveTabId,
     selectCollectionInfo,
     selectDirtyRequestIds,
@@ -92,6 +94,34 @@ const Editor: React.FC = () => {
 
     const activeTab = allTabs.find(t => t.id === effectiveActiveTabId)
 
+    const [editingTabId, setEditingTabId] = useState<string | null>(null)
+    const [editValue, setEditValue] = useState('')
+    const editInputRef = useRef<HTMLInputElement | null>(null)
+
+    const startEditing = useCallback((tab: EditorTab) => {
+        if (tab.type !== 'request') return
+        setEditingTabId(tab.id)
+        setEditValue(tab.label)
+        setTimeout(() => editInputRef.current?.select(), 0)
+    }, [])
+
+    const commitEdit = useCallback(() => {
+        if (editingTabId && editValue.trim()) {
+            dispatch(renameRequest({ id: editingTabId, name: editValue.trim() }))
+        }
+        setEditingTabId(null)
+        setEditValue('')
+    }, [editingTabId, editValue, dispatch])
+
+    const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            commitEdit()
+        } else if (e.key === 'Escape') {
+            setEditingTabId(null)
+            setEditValue('')
+        }
+    }, [commitEdit])
+
     const handleTabChange = (id: string) => {
         if (!id) return
         dispatch(setActiveTabId({id}))
@@ -137,7 +167,25 @@ const Editor: React.FC = () => {
                                             className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-[0.16em] ${methodStyle[tab.method]}`}>
                                             {tab.method}
                                         </span>
-                                        <span className="max-w-[140px] truncate text-sm font-medium">{tab.label}</span>
+                                        {editingTabId === tab.id ? (
+                                            <input
+                                                ref={editInputRef}
+                                                value={editValue}
+                                                onChange={(e) => setEditValue(e.target.value)}
+                                                onBlur={commitEdit}
+                                                onKeyDown={handleEditKeyDown}
+                                                className="h-6 w-[120px] rounded border border-indigo-300 bg-white px-1.5 text-sm text-slate-800 outline-none focus:ring-1 focus:ring-indigo-400"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        ) : (
+                                            <span
+                                                className="max-w-[140px] truncate text-sm font-medium"
+                                                onDoubleClick={() => startEditing(tab)}
+                                                title="Double-click to rename"
+                                            >
+                                                {tab.label}
+                                            </span>
+                                        )}
                                         {tab.type === 'request' && dirtyRequestIds.includes(tab.id) && (
                                             <span className="ml-1 h-2 w-2 rounded-full bg-orange-400 inline-block shrink-0" />
                                         )}
