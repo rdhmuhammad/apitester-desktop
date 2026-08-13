@@ -259,6 +259,19 @@ const collectionSlices = createSlice({
             state.activeTabId = id
             state.dirtyRequestIds.push(id)
         },
+        renameRequest(state, action: PayloadAction<{ id: string; name: string }>) {
+            const { id, name } = action.payload
+
+            const target = diveActiveRequest(id, state.data?.item ?? [])
+            if (target) target.name = name
+
+            const treeNode = findDirTreeNode(state.dirTree, id)
+            if (treeNode) treeNode.name = name
+
+            if (!state.dirtyRequestIds.includes(id)) {
+                state.dirtyRequestIds.push(id)
+            }
+        },
         deleteRequest(state, action: PayloadAction<{ id: string }>) {
             if (!state.data?.item) return
 
@@ -287,6 +300,44 @@ const collectionSlices = createSlice({
             if (descendantIds.includes(state.activeTabId)) {
                 state.activeTabId = state.openRequestTabs[state.openRequestTabs.length - 1]?.id ?? ''
             }
+        },
+        moveItem(state, action: PayloadAction<{ movedId: string; targetId: string; position: 'before' | 'after' | 'inside' }>) {
+            if (!state.data?.item) return
+            const { movedId, targetId, position } = action.payload
+
+            if (movedId === targetId) return
+
+            if (position === 'inside') {
+                const targetNode = findDirTreeNode(state.dirTree, targetId)
+                if (!targetNode || targetNode.category === 'REQ') return
+                if (isDescendant(state.dirTree, targetId, movedId)) return
+            }
+
+            const srcResult = findNodeParentMap(state.dirTree, movedId)
+            if (!srcResult) return
+
+            const movedNode = { ...srcResult.node }
+            srcResult.parentMap.delete(movedId)
+
+            if (position === 'inside') {
+                const dstResult = findNodeParentMap(state.dirTree, targetId)
+                if (!dstResult) return
+                if (!dstResult.node.item) dstResult.node.item = new Map()
+                dstResult.node.item.set(movedId, movedNode)
+            } else {
+                const dstResult = findNodeParentMap(state.dirTree, targetId)
+                if (!dstResult) return
+                const offset = position === 'before' ? 0 : 1
+                const insertPoint = Array.from(dstResult.parentMap.keys()).indexOf(targetId) + offset
+                const newMap = insertIntoMapAt(dstResult.parentMap, [movedNode], insertPoint)
+
+                dstResult.parentMap.clear()
+                for (const [k, v] of newMap) {
+                    dstResult.parentMap.set(k, v)
+                }
+            }
+
+            moveCollectionItem(state.data.item, movedId, targetId, position)
         },
     },
     extraReducers: (builder) => {
@@ -368,8 +419,10 @@ export const {
     setScriptMutations,
     saveExampleResponse,
     createNewRequest,
+    renameRequest,
     deleteRequest,
     deleteFolder,
+    moveItem,
 } = collectionSlices.actions
 
 export const setActiveRequest = addActiveRequest
@@ -660,4 +713,96 @@ const collectDescendantIds = (node: DirTree): string[] => {
         ids.push(...collectDescendantIds(child))
     }
     return ids
+}
+
+const findNodeParentMap = (
+    tree: Map<string, DirTree>,
+    id: string
+): { parentMap: Map<string, DirTree>; node: DirTree } | null => {
+    for (const [, node] of tree) {
+        if (node.id === id) return { parentMap: tree, node }
+        if (node.item) {
+            const found = findNodeParentMap(node.item, id)
+            if (found) return found
+        }
+    }
+    return null
+}
+
+const isDescendant = (tree: Map<string, DirTree>, nodeId: string, ancestorId: string): boolean => {
+    const node = findDirTreeNode(tree, nodeId)
+    if (!node?.item) return false
+    return findDirTreeNode(node.item, ancestorId) !== undefined
+}
+
+const dirTreeToOrderedArray = (map: Map<string, DirTree>): DirTree[] => {
+    const result: DirTree[] = []
+    for (const [, node] of map) {
+        result.push({
+            ...node,
+            item: node.item ? new Map(node.item) : undefined,
+        })
+    }
+    return result
+}
+
+const orderedArrayToDirTree = (arr: DirTree[]): Map<string, DirTree> => {
+    const map = new Map<string, DirTree>()
+    for (const node of arr) {
+        map.set(node.id, { ...node, item: node.item ? new Map(node.item) : undefined })
+    }
+    return map
+}
+
+const insertIntoMapAt = (
+    map: Map<string, DirTree>,
+    nodes: DirTree[],
+    index: number
+): Map<string, DirTree> => {
+    const arr = dirTreeToOrderedArray(map)
+    arr.splice(index, 0, ...nodes)
+    return orderedArrayToDirTree(arr)
+}
+
+const findCollectionItemParent = (
+    items: CollectionItem[],
+    id: string
+): { parent: CollectionItem[]; idx: number } | null => {
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].id === id) return { parent: items, idx: i }
+        if (items[i].item) {
+            const found = findCollectionItemParent(items[i].item, id)
+            if (found) return found
+        }
+    }
+    return null
+}
+
+const moveCollectionItem = (
+    items: CollectionItem[],
+    movedId: string,
+    targetId: string,
+    position: 'before' | 'after' | 'inside'
+): boolean => {
+    const src = findCollectionItemParent(items, movedId)
+    if (!src) return false
+
+    const moved = src.parent.splice(src.idx, 1)[0]
+
+    if (position === 'inside') {
+        const dst = findCollectionItemParent(items, targetId)
+        if (!dst) return false
+        const target = dst.parent[dst.idx]
+        if (!target.item) target.item = []
+        target.item.push(moved)
+        return true
+    }
+
+    const dst = findCollectionItemParent(items, targetId)
+    if (!dst) return false
+
+    const insertIdx = position === 'before' ? dst.idx : dst.idx + 1
+    const adjustedIdx = src.parent === dst.parent && src.idx < dst.idx ? insertIdx - 1 : insertIdx
+    dst.parent.splice(adjustedIdx, 0, moved)
+    return true
 }
