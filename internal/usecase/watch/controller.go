@@ -31,6 +31,12 @@ type UsecaseInterface interface {
 	ReadTest(id, name string) (TestFileContent, error)
 	WriteTest(id, name string, payload TestFileContent) error
 	DeleteTest(id, name string) error
+	ListAutomation(id string) ([]AutomationFileInfo, error)
+	ReadAutomation(id, name string) (AutomationFileContent, error)
+	WriteAutomation(id, name string, payload AutomationFileContent) error
+	DeleteAutomation(id, name string) error
+	RunAutomation(id, name string, req AutomationRunRequest) (AutomationRunResult, error)
+	AutomationRuntime() AutomationRuntimeInfo
 }
 
 func NewController(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) Controller {
@@ -177,6 +183,51 @@ func (ctrl Controller) DeleteTest(c *gin.Context) {
 	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Test deleted successfully"), err)
 }
 
+func (ctrl Controller) ListAutomation(c *gin.Context) {
+	res, err := ctrl.Uc.ListAutomation(c.Param("id"))
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponse(res, "Success"), err)
+}
+
+func (ctrl Controller) ReadAutomation(c *gin.Context) {
+	res, err := ctrl.Uc.ReadAutomation(c.Param("id"), c.Param("name"))
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponse(res, "Success"), err)
+}
+
+func (ctrl Controller) WriteAutomation(c *gin.Context) {
+	var req AutomationFileContent
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
+		return
+	}
+
+	err := ctrl.Uc.WriteAutomation(c.Param("id"), c.Param("name"), req)
+	if invalid, invalidErr := ctrl.mapper.IsInvalidDataError(err); invalid {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(invalidErr.Error()))
+		return
+	}
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Automation file written successfully"), err)
+}
+
+func (ctrl Controller) DeleteAutomation(c *gin.Context) {
+	err := ctrl.Uc.DeleteAutomation(c.Param("id"), c.Param("name"))
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Automation file deleted successfully"), err)
+}
+
+func (ctrl Controller) RunAutomation(c *gin.Context) {
+	var req AutomationRunRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
+		return
+	}
+
+	res, err := ctrl.Uc.RunAutomation(c.Param("id"), c.Param("name"), req)
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponse(res, "Automation run completed"), err)
+}
+
+func (ctrl Controller) AutomationRuntime(c *gin.Context) {
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponse(ctrl.Uc.AutomationRuntime(), "Success"), nil)
+}
+
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection := rg.Group("/collection")
 	collection.GET("/read/:id", ctrl.Read)
@@ -192,4 +243,10 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection.GET("/:id/tests/:name", ctrl.ReadTest)
 	collection.PUT("/:id/tests/:name", ctrl.WriteTest)
 	collection.DELETE("/:id/tests/:name", ctrl.DeleteTest)
+	collection.GET("/:id/automation", ctrl.ListAutomation)
+	collection.GET("/:id/automation/runtime", ctrl.AutomationRuntime)
+	collection.GET("/:id/automation/:name", ctrl.ReadAutomation)
+	collection.POST("/:id/automation/:name/run", ctrl.RunAutomation)
+	collection.PUT("/:id/automation/:name", ctrl.WriteAutomation)
+	collection.DELETE("/:id/automation/:name", ctrl.DeleteAutomation)
 }
