@@ -1,7 +1,4 @@
 import Axios from "axios";
-import { LOCALSTORAGE_KEY } from "./constant/localstorage";
-import { getData } from "@/hooks/useLocalStorage";
-import Swal from "sweetalert2";
 import type {AxiosError, AxiosResponse, InternalAxiosRequestConfig} from "axios";
 
 const getBaseURL = () => {

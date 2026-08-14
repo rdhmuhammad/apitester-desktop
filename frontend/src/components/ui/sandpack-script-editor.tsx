@@ -5,6 +5,8 @@ import {
     useSandpack,
 } from "@codesandbox/sandpack-react"
 import { autocompletion, completionKeymap, type CompletionSource } from "@codemirror/autocomplete"
+import type { Extension } from "@codemirror/state"
+import { yaml } from "@codemirror/lang-yaml"
 import { useEffect, useMemo, useRef } from "react"
 
 export interface SandpackScriptEditorProps {
@@ -13,21 +15,25 @@ export interface SandpackScriptEditorProps {
     readOnly?: boolean
     editorKey?: string
     autoComplete?: boolean | CompletionSource[]
+    completionSources?: CompletionSource[]
+    fileName?: string
+    extensions?: Extension[]
 }
 
-function SyncScript({ onChange }: { onChange: (code: string) => void }) {
+function SyncScript({ onChange, fileName }: { onChange: (code: string) => void; fileName: string }) {
     const { sandpack } = useSandpack()
-    const lastCodeRef = useRef(sandpack.files["/index.js"]?.code ?? "")
+    const filePath = `/${fileName}`
+    const lastCodeRef = useRef(sandpack.files[filePath]?.code ?? "")
     const onChangeRef = useRef(onChange)
     onChangeRef.current = onChange
 
     useEffect(() => {
-        const code = sandpack.files["/index.js"]?.code
+        const code = sandpack.files[filePath]?.code
         if (code !== undefined && code !== lastCodeRef.current) {
             lastCodeRef.current = code
             onChangeRef.current(code)
         }
-    }, [sandpack.files])
+    }, [filePath, sandpack.files])
 
     return null
 }
@@ -35,38 +41,69 @@ function SyncScript({ onChange }: { onChange: (code: string) => void }) {
 export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
                                                                               value,
                                                                               onChange,
-                                                                              readOnly,
-                                                                              editorKey,
-                                                                              autoComplete = false,
-                                                                          }) => {
+                                                                               readOnly,
+                                                                               editorKey,
+                                                                               autoComplete = false,
+                                                                               completionSources = [],
+                                                                               fileName = "index.js",
+                                                                               extensions = [],
+                                                                           }) => {
+    const entryFile = "/__apitester_entry__.js"
     const files = useMemo(() => ({
-        "/index.js": { code: value, active: true },
-    }), [value])
+        [`/${fileName}`]: { code: value, active: true },
+        [entryFile]: { code: "export default {};", hidden: true },
+    }), [entryFile, fileName, value])
+
+    const yamlLanguage = useMemo(() => {
+        if (!/\.(ya?ml)$/i.test(fileName)) return undefined
+        return yaml()
+    }, [fileName])
+
+    const additionalLanguages = useMemo(() => {
+        if (!yamlLanguage) return undefined
+        return [{
+            name: "yaml",
+            extensions: ["yml", "yaml"],
+            language: yamlLanguage,
+        }]
+    }, [yamlLanguage])
+
+    const languageExtensions = useMemo(() => {
+        const result: Extension[] = [...extensions]
+        if (yamlLanguage) {
+            if (completionSources.length > 0) {
+                result.unshift(yamlLanguage.language.data.of({autocomplete: completionSources}))
+            }
+        }
+        return result
+    }, [completionSources, extensions, yamlLanguage])
 
     const editorExtensions = useMemo(() => {
         if (!autoComplete) return undefined
         if (autoComplete === true) return {
-            extensions: [autocompletion()],
-            extensionsKeymap: [completionKeymap],
+            extensions: [autocompletion(), ...languageExtensions],
+            extensionsKeymap: completionKeymap.slice(),
         }
         return {
-            extensions: [autocompletion({ override: autoComplete })],
-            extensionsKeymap: [completionKeymap],
+            extensions: [autocompletion({ override: autoComplete }), ...languageExtensions],
+            extensionsKeymap: completionKeymap.slice(),
         }
-    }, [autoComplete])
+    }, [autoComplete, languageExtensions])
 
     return (
         <SandpackProvider
             key={editorKey}
             files={files}
             customSetup={{
-                entry: "/index.js",
+                entry: entryFile,
             }}
             options={{
                 autorun: false,
+                activeFile: `/${fileName}`,
+                visibleFiles: [`/${fileName}`],
             }}
         >
-            <SyncScript onChange={onChange} />
+            <SyncScript onChange={onChange} fileName={fileName} />
             <SandpackLayout>
                 <SandpackCodeEditor
                     showTabs={false}
@@ -74,7 +111,9 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
                     showRunButton={false}
                     wrapContent
                     readOnly={readOnly}
+                    additionalLanguages={additionalLanguages}
                     {...editorExtensions}
+                    extensions={editorExtensions?.extensions ?? languageExtensions}
                 />
             </SandpackLayout>
         </SandpackProvider>

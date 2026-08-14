@@ -771,7 +771,7 @@ const findCollectionItemParent = (
     for (let i = 0; i < items.length; i++) {
         if (items[i].id === id) return { parent: items, idx: i }
         if (items[i].item) {
-            const found = findCollectionItemParent(items[i].item, id)
+            const found = findCollectionItemParent(items[i].item ?? [], id)
             if (found) return found
         }
     }

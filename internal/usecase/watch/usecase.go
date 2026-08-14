@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
+	"github.com/rdhmuhammad/apitester/pkg/ansible"
 	"github.com/rdhmuhammad/apitester/pkg/bbolt"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
@@ -23,10 +24,12 @@ type Usecase struct {
 	watcher        *watcher.FileWatcher
 	errHandler     localerror.HandleError
 	collectionRepo bbolt.RepositoryInterface[domain.Collection]
+	ansibleRunner  *ansible.Runner
 }
 
 func NewUsecase(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) *Usecase {
 	fw := watcher.New(lg)
+	ansibleRunner := ansible.NewRunnerFromEnvironment()
 
 	if selected := findSelectedCollection(collectionRepo); selected != nil {
 		fw.Watch(selected.Path)
@@ -36,6 +39,7 @@ func NewUsecase(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domai
 		errHandler:     localerror.NewHandlerError(lg),
 		watcher:        fw,
 		collectionRepo: collectionRepo,
+		ansibleRunner:  ansibleRunner,
 	}
 }
 
@@ -203,6 +207,10 @@ func testsDir(collectionPath string) string {
 	return filepath.Join(filepath.Dir(collectionPath), "tests")
 }
 
+func automationDir(collectionPath string) string {
+	return filepath.Join(filepath.Dir(collectionPath), "automation")
+}
+
 func validateTestName(name string) error {
 	if name == "" || strings.ContainsAny(name, `/\\`) || strings.Contains(name, "..") {
 		return localerror.InvalidData("Invalid test name")
@@ -343,6 +351,187 @@ func (u *Usecase) DeleteTest(id, name string) error {
 	}
 
 	return nil
+}
+
+func (u *Usecase) ListAutomation(id string) ([]AutomationFileInfo, error) {
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return nil, u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return nil, localerror.InvalidData("Collection not found")
+	}
+
+	entries, err := os.ReadDir(automationDir(collection.Path))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []AutomationFileInfo{}, nil
+		}
+		return nil, u.errHandler.ErrorReturn(err)
+	}
+
+	result := make([]AutomationFileInfo, 0)
+	for _, entry := range entries {
+		if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".yml") && !strings.HasSuffix(entry.Name(), ".yaml")) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		result = append(result, AutomationFileInfo{
+			Name:     strings.TrimSuffix(strings.TrimSuffix(entry.Name(), ".yaml"), ".yml"),
+			Filename: entry.Name(),
+			Size:     info.Size(),
+		})
+	}
+	return result, nil
+}
+
+func (u *Usecase) ReadAutomation(id, name string) (AutomationFileContent, error) {
+	if err := validateAutomationName(name); err != nil {
+		return AutomationFileContent{}, err
+	}
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return AutomationFileContent{}, u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return AutomationFileContent{}, localerror.InvalidData("Collection not found")
+	}
+
+	path := automationFilePath(collection.Path, name)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return AutomationFileContent{}, localerror.InvalidData("Automation file not found")
+		}
+		return AutomationFileContent{}, u.errHandler.ErrorReturn(err)
+	}
+	return AutomationFileContent{Name: name, Content: string(content)}, nil
+}
+
+func (u *Usecase) WriteAutomation(id, name string, payload AutomationFileContent) error {
+	if err := validateAutomationName(name); err != nil {
+		return err
+	}
+	if strings.TrimSpace(payload.Content) == "" {
+		return localerror.InvalidData("Automation content is required")
+	}
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return localerror.InvalidData("Collection not found")
+	}
+	root := automationDir(collection.Path)
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	if err := os.WriteFile(automationFilePath(collection.Path, name), []byte(payload.Content), 0644); err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	return nil
+}
+
+func (u *Usecase) DeleteAutomation(id, name string) error {
+	if err := validateAutomationName(name); err != nil {
+		return err
+	}
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return localerror.InvalidData("Collection not found")
+	}
+	if err := os.Remove(automationFilePath(collection.Path, name)); err != nil && !os.IsNotExist(err) {
+		return u.errHandler.ErrorReturn(err)
+	}
+	return nil
+}
+
+func (u *Usecase) RunAutomation(id, name string, req AutomationRunRequest) (AutomationRunResult, error) {
+	if err := validateAutomationName(name); err != nil {
+		return AutomationRunResult{}, err
+	}
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return AutomationRunResult{}, localerror.InvalidData("Collection not found")
+	}
+
+	playbookPath := automationFilePath(collection.Path, name)
+	if _, err := os.Stat(playbookPath); err != nil {
+		if os.IsNotExist(err) {
+			return AutomationRunResult{}, localerror.InvalidData("Automation file not found")
+		}
+		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
+	}
+
+	var extraVars map[string]interface{}
+	if extra := strings.TrimSpace(req.ExtraVars); extra != "" {
+		if err := json.Unmarshal([]byte(extra), &extraVars); err != nil {
+			return AutomationRunResult{}, localerror.InvalidData("extraVars must be a valid JSON object")
+		}
+	}
+
+	runRequest := ansible.RunRequest{
+		Playbook:   playbookPath,
+		WorkingDir: automationDir(collection.Path),
+		Inventory:  req.InventoryPath,
+		Limit:      req.Limit,
+		Tags:       req.Tags,
+		ExtraVars:  extraVars,
+		Check:      req.CheckMode,
+		Diff:       req.DiffMode,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	result, err := u.ansibleRunner.Run(ctx, runRequest)
+	if err != nil {
+		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
+	}
+
+	return AutomationRunResult{
+		Stdout:     result.Stdout,
+		Stderr:     result.Stderr,
+		DurationMs: result.Duration.Milliseconds(),
+	}, nil
+}
+
+func (u *Usecase) AutomationRuntime() AutomationRuntimeInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	runtime := u.ansibleRunner.Runtime(ctx)
+	return AutomationRuntimeInfo{
+		Available:     runtime.Available,
+		Name:          runtime.Name,
+		Version:       runtime.Version,
+		PythonVersion: runtime.PythonVersion,
+		Binary:        runtime.Binary,
+		RuntimePath:   runtime.RuntimePath,
+		Message:       runtime.Message,
+	}
+}
+
+func validateAutomationName(name string) error {
+	if name == "" || strings.ContainsAny(name, `/\\`) || strings.Contains(name, "..") {
+		return localerror.InvalidData("Invalid automation file name")
+	}
+	if !strings.HasSuffix(name, ".yml") && !strings.HasSuffix(name, ".yaml") {
+		return localerror.InvalidData("Automation files must use .yml or .yaml")
+	}
+	return nil
+}
+
+func automationFilePath(collectionPath, name string) string {
+	return filepath.Join(automationDir(collectionPath), name)
 }
 
 func (u *Usecase) UploadCollection(fileBytes []byte) error {

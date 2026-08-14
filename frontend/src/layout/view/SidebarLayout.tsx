@@ -15,6 +15,7 @@ import {
 } from "@/app/slices/collectionSlices.ts";
 import {cn} from "@/lib/utils.ts";
 import TestScenarioSidebar from "@/layout/components/TestScenarioSidebar.tsx";
+import AutomationSidebar from "@/layout/components/AutomationSidebar.tsx";
 import WarningDialog from "@/components/common/WarningDialog.tsx";
 import {
     DndContext,
@@ -459,6 +460,7 @@ const SidebarLayout: React.FC = () => {
                     </DndContext>
                 )}
                 <TestScenarioSidebar searchQuery={searchQuery}/>
+                <AutomationSidebar searchQuery={searchQuery}/>
             </SidebarContent>
             <WarningDialog
                 open={deleteTarget !== null}
