@@ -1,15 +1,19 @@
 import {useEffect, useState} from "react"
-import {AlertTriangle, BookOpen, Check, Code2, ExternalLink, FileCode2, Loader2, Play, Save, Settings2, ShieldCheck} from "lucide-react"
+import {AlertTriangle, BookOpen, Check, Code2, ExternalLink, FileCode2, FilePlus2, Loader2, Play, Save, Settings2, ShieldCheck, Trash2} from "lucide-react"
 import {toast} from "sonner"
 import {Button} from "@/components/ui/button.tsx"
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx"
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
 import {
   fetchAutomationContent,
+  createAutomationInventory,
+  openAutomationInventoryTab,
   runAutomation,
+  saveAutomationConfig,
   saveAutomationFile,
   selectActiveAutomation,
   selectAutomationConfig,
+  selectAutomationInventories,
   selectAutomationRunningId,
   selectAutomationRunResult,
   selectAutomationRuntime,
@@ -18,6 +22,8 @@ import {
   updateAutomationContent,
 } from "@/app/slices/automationSlice.ts"
 import {cn} from "@/lib/utils.ts"
+import {toAutomationInventoryTabId} from "@/lib/tabUtils.ts"
+import {setActiveTabId} from "@/app/slices/collectionSlices.ts"
 import {ansibleCompletionSource, YAML_SYNTAX_DOCS, ANSIBLE_CATALOG_VERSION} from "@/lib/ansibleCompletions.ts"
 
 const AutomationEditor: React.FC = () => {
@@ -30,6 +36,7 @@ const AutomationEditor: React.FC = () => {
   }
   const unsaved = useAppSelector(state => file ? selectAutomationUnsaved(state, file.id) : false)
   const config = useAppSelector(state => file ? selectAutomationConfig(state, file.id) : null)
+  const inventories = useAppSelector(selectAutomationInventories)
   const runningId = useAppSelector(selectAutomationRunningId)
   const runResult = useAppSelector(state => selectAutomationRunResult(state, file?.id ?? ''))
   const [content, setContent] = useState('')
@@ -47,6 +54,7 @@ const AutomationEditor: React.FC = () => {
   }
 
   const updateConfig = (value: Partial<typeof config>) => {
+    if (!config) return
     dispatch(updateAutomationConfig({id: file.id, config: value}))
   }
 
@@ -64,9 +72,52 @@ const AutomationEditor: React.FC = () => {
   const run = async () => {
     try {
       if (unsaved) await dispatch(saveAutomationFile({filename: file.filename, content})).unwrap()
+      await dispatch(saveAutomationConfig({id: file.id, config})).unwrap()
       await dispatch(runAutomation({id: file.id, filename: file.filename, config})).unwrap()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Playbook run failed')
+    }
+  }
+
+  const persistConfig = async (nextConfig: typeof config) => {
+    if (!nextConfig) return
+    try {
+      await dispatch(saveAutomationConfig({id: file.id, config: nextConfig})).unwrap()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Configuration save failed')
+    }
+  }
+
+  const attachInventory = (filename: string) => {
+    if (!filename || config.inventoryFiles.includes(filename)) return
+    const nextConfig = {
+      ...config,
+      inventoryFiles: [...config.inventoryFiles, filename],
+      inventoryFile: config.inventoryFile || filename,
+    }
+    updateConfig(nextConfig)
+    void persistConfig(nextConfig)
+  }
+
+  const detachInventory = (filename: string) => {
+    const nextConfig = {
+      ...config,
+      inventoryFiles: config.inventoryFiles.filter(item => item !== filename),
+      inventoryFile: config.inventoryFile === filename ? '' : config.inventoryFile,
+    }
+    updateConfig(nextConfig)
+    void persistConfig(nextConfig)
+  }
+
+  const createInventory = async () => {
+    const filename = window.prompt('Inventory filename', 'inventory-1.ini')
+    if (!filename?.trim()) return
+    try {
+      const created = await dispatch(createAutomationInventory({automationId: file.id, filename: filename.trim()})).unwrap()
+      dispatch(openAutomationInventoryTab(created.inventory.id))
+      dispatch(setActiveTabId({id: toAutomationInventoryTabId(created.inventory.id)}))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Inventory creation failed')
     }
   }
 
@@ -156,10 +207,52 @@ const AutomationEditor: React.FC = () => {
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Settings2 className="h-4 w-4 text-violet-600" />
-              <h3 className="text-sm font-semibold text-slate-900">Run configuration</h3>
+              <h3 className="flex-1 text-sm font-semibold text-slate-900">Run configuration</h3>
+              <Button variant="ghost" size="sm" onClick={() => void persistConfig(config)} className="h-7 px-2 text-[11px] text-violet-700">
+                <Save className="mr-1 h-3 w-3" /> Save defaults
+              </Button>
             </div>
             <div className="space-y-3">
-              <label className="block text-xs font-medium text-slate-600">Inventory path<input value={config.inventoryPath} onChange={event => updateConfig({inventoryPath: event.target.value})} placeholder="inventory/staging" className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-xs font-mono outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400" /></label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-600">Inventory file</label>
+                  <Button variant="ghost" size="sm" onClick={() => void createInventory()} className="h-6 px-1.5 text-[11px] text-amber-700">
+                    <FilePlus2 className="mr-1 h-3 w-3" /> New inventory
+                  </Button>
+                </div>
+                <select
+                  value={config.inventoryFile}
+                  onChange={event => {
+                    const nextConfig = {...config, inventoryFile: event.target.value}
+                    updateConfig(nextConfig)
+                    void persistConfig(nextConfig)
+                  }}
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs font-mono outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400"
+                >
+                  <option value="">No inventory</option>
+                  {config.inventoryFiles.map(filename => <option key={filename} value={filename}>{filename}</option>)}
+                </select>
+                <div className="flex flex-wrap gap-1.5">
+                  {config.inventoryFiles.map(filename => (
+                    <span key={filename} className={cn('inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600', config.inventoryFile === filename && 'bg-amber-100 text-amber-800')}>
+                      {filename}
+                      <button type="button" title={`Detach ${filename}`} onClick={() => detachInventory(filename)} className="text-slate-400 hover:text-rose-600">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {inventories.some(inventory => !config.inventoryFiles.includes(inventory.filename)) && (
+                  <select
+                    value=""
+                    onChange={event => attachInventory(event.target.value)}
+                    className="h-8 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-2 text-xs text-slate-600 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400"
+                  >
+                    <option value="">Attach existing inventory…</option>
+                    {inventories.filter(inventory => !config.inventoryFiles.includes(inventory.filename)).map(inventory => <option key={inventory.filename} value={inventory.filename}>{inventory.filename}</option>)}
+                  </select>
+                )}
+              </div>
               <label className="block text-xs font-medium text-slate-600">Limit<input value={config.limit} onChange={event => updateConfig({limit: event.target.value})} placeholder="web:&staging" className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-xs font-mono outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400" /></label>
               <label className="block text-xs font-medium text-slate-600">Tags<input value={config.tags} onChange={event => updateConfig({tags: event.target.value})} placeholder="deploy,configure" className="mt-1 h-8 w-full rounded-md border border-slate-200 px-2 text-xs font-mono outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400" /></label>
               <label className="block text-xs font-medium text-slate-600">Extra vars (JSON)<textarea value={config.extraVars} onChange={event => updateConfig({extraVars: event.target.value})} className="mt-1 min-h-20 w-full rounded-md border border-slate-200 p-2 text-xs font-mono outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-400" /></label>

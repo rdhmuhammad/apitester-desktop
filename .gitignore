@@ -9,3 +9,4 @@ graphify-out
 AGENTS.md
 deployment/desktop/build
 deployment/desktop/installer
+deployment/desktop/wheelhouse

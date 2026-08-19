@@ -3,6 +3,7 @@ import ResponseView from "@/pages/editor/components/ResponseView.tsx";
 import WelcomeEditor from "@/pages/editor/components/WelcomeEditor.tsx";
 import TestScenarioEditor from "@/pages/editor/components/TestScenarioEditor.tsx";
 import AutomationEditor from "@/pages/editor/components/AutomationEditor.tsx";
+import InventoryEditor from "@/pages/editor/components/InventoryEditor.tsx";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {
@@ -33,8 +34,8 @@ import {
     selectActiveTestIds,
     selectScenarios,
 } from "@/app/slices/testScenarioSlice.ts";
-import {closeAutomationTab, createAutomationFile, selectAutomationFiles} from "@/app/slices/automationSlice.ts";
-import {fromAutomationTabId, fromTestTabId, toAutomationTabId} from "@/lib/tabUtils.ts";
+import {closeAutomationInventoryTab, closeAutomationTab, createAutomationFile, selectAutomationFiles, selectAutomationInventories} from "@/app/slices/automationSlice.ts";
+import {fromAutomationInventoryTabId, fromAutomationTabId, fromTestTabId, toAutomationInventoryTabId, toAutomationTabId} from "@/lib/tabUtils.ts";
 import {cn} from "@/lib/utils.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST', string> = {
@@ -50,7 +51,7 @@ interface EditorTab {
     id: string
     label: string
     method: ColtReqMethod | 'TEST'
-    type: 'request' | 'test' | 'automation'
+    type: 'request' | 'test' | 'automation' | 'inventory'
 }
 
 const Editor: React.FC = () => {
@@ -60,11 +61,13 @@ const Editor: React.FC = () => {
     const activeTabId = useAppSelector(selectActiveTabId)
     const scenarios = useAppSelector(selectScenarios)
     const automationFiles = useAppSelector(selectAutomationFiles)
+    const automationInventories = useAppSelector(selectAutomationInventories)
 
     const {allTabs, effectiveActiveTabId} = useAppSelector((state) => {
         const openRequestTabs = selectOpenRequestTabs(state)
         const activeTestIds = selectActiveTestIds(state)
         const activeAutomationIds = state.automation.activeIds
+        const activeInventoryIds = state.automation.activeInventoryIds
 
         const requestTabs: EditorTab[] = openRequestTabs.map((item) => {
             const requestItem = selectRequestById(state, item.id)
@@ -97,7 +100,17 @@ const Editor: React.FC = () => {
             }
         })
 
-        const tabs = [...requestTabs, ...testTabs, ...automationTabs]
+        const inventoryTabs: EditorTab[] = activeInventoryIds.map((fileId) => {
+            const file = automationInventories.find(item => item.id === fileId)
+            return {
+                id: toAutomationInventoryTabId(fileId),
+                type: 'inventory',
+                label: file?.filename ?? fileId,
+                method: 'TEST',
+            }
+        })
+
+        const tabs = [...requestTabs, ...testTabs, ...automationTabs, ...inventoryTabs]
         const effectiveId = (activeTabId && tabs.some(t => t.id === activeTabId) ? activeTabId : tabs[tabs.length - 1]?.id) || ""
 
         return {
@@ -148,6 +161,10 @@ const Editor: React.FC = () => {
             dispatch(setActiveTabId({id: remaining[remaining.length - 1]?.id ?? ''}))
         } else if (tab.type === 'automation') {
             dispatch(closeAutomationTab(fromAutomationTabId(tab.id)))
+            const remaining = allTabs.filter(t => t.id !== tab.id)
+            dispatch(setActiveTabId({id: remaining[remaining.length - 1]?.id ?? ''}))
+        } else if (tab.type === 'inventory') {
+            dispatch(closeAutomationInventoryTab(fromAutomationInventoryTabId(tab.id)))
             const remaining = allTabs.filter(t => t.id !== tab.id)
             dispatch(setActiveTabId({id: remaining[remaining.length - 1]?.id ?? ''}))
         } else {
@@ -284,6 +301,13 @@ const Editor: React.FC = () => {
                             ' bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)]')
                         }>
                         <AutomationEditor/>
+                    </div>
+                ) : activeTab.type === 'inventory' ? (
+                    <div
+                        className={cn('rounded-2xl border border-t-0 border-slate-200',
+                            ' bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)]')
+                        }>
+                        <InventoryEditor/>
                     </div>
                 ) : (
                     <div

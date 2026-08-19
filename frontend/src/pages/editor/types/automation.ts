@@ -9,8 +9,17 @@ export interface AutomationFile {
   lastRunSummary?: string
 }
 
+export interface AutomationInventoryFile {
+  id: string
+  name: string
+  filename: string
+  content: string
+  size: number
+}
+
 export interface AutomationRunConfig {
-  inventoryPath: string
+  inventoryFiles: string[]
+  inventoryFile: string
   limit: string
   tags: string
   extraVars: string
