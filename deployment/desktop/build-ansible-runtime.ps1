@@ -421,7 +421,8 @@ $workerInit = Join-Path $pythonRoot "Lib\site-packages\ansible\executor\process\
 $workerContent = Get-Content -LiteralPath $workerInit -Raw
 $workerChecks = @(
     @("            os.setsid()", "            if hasattr(os, 'setsid'):  # Windows: no process groups`n                os.setsid()"),
-    @("((STDIN_FILENO,), os.O_RDWR | os.O_NONBLOCK),", "((STDIN_FILENO,), os.O_RDWR),  # Windows: O_NONBLOCK unsupported")
+    @("((STDIN_FILENO,), os.O_RDWR | os.O_NONBLOCK),", "((STDIN_FILENO,), os.O_RDWR),  # Windows: O_NONBLOCK unsupported"),
+    @("        display.set_queue(self._final_q)`n        self._detach()", "        display.set_queue(self._final_q)`n        # Windows: the collection import finder is installed by CLI.run in the main`n        # process. Under spawn, the worker starts fresh and must install it before`n        # resolving module/action plugins from collections.`n        from ansible.plugins.loader import init_plugin_loader`n        init_plugin_loader()`n        self._detach()")
 )
 foreach ($workerCheck in $workerChecks) {
     if (-not $workerContent.Contains($workerCheck[0])) {

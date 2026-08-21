@@ -3,6 +3,7 @@ import {Plus, Trash2} from "lucide-react"
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog.tsx"
 import {Button} from "@/components/ui/button.tsx"
 import {Input} from "@/components/ui/input.tsx"
+import PromptDialog from "@/components/common/PromptDialog.tsx"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx"
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
 import {
@@ -32,6 +33,7 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
   const [editing, setEditing] = useState<Record<string, string>>({})
   const [newKey, setNewKey] = useState("")
   const [newValue, setNewValue] = useState("")
+  const [promptOpen, setPromptOpen] = useState(false)
 
   useEffect(() => {
     if (open && collectionId) {
@@ -89,14 +91,14 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
     })
   }
 
-  const handleCreateEnv = () => {
-    const name = prompt("Environment name:")
-    if (!name || environments.some(e => e.name === name)) return
+  const handleCreateEnv = (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || environments.some(e => e.name === trimmed)) return
 
-    const updated = [...environments, {name, variables: {}}]
+    const updated = [...environments, {name: trimmed, variables: {}}]
     if (!collectionId) return
     dispatch(saveEnvironments({collectionId, environments: updated})).then(() => {
-      dispatch(setActiveEnvironment(name))
+      dispatch(setActiveEnvironment(trimmed))
     })
   }
 
@@ -116,8 +118,9 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
   const loading = status === 'pending'
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Environment Variables</DialogTitle>
           <DialogDescription>
@@ -138,7 +141,7 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={handleCreateEnv} className="text-xs">
+            <Button variant="outline" size="sm" onClick={() => setPromptOpen(true)} className="text-xs">
               <Plus className="w-3.5 h-3.5 mr-1"/>New
             </Button>
             {environments.length > 1 && selectedName && (
@@ -231,8 +234,19 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
             Save
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <PromptDialog
+        open={promptOpen}
+        title="Environment name"
+        submitLabel="Create"
+        onCancel={() => setPromptOpen(false)}
+        onSubmit={(name) => {
+          setPromptOpen(false)
+          handleCreateEnv(name)
+        }}
+      />
+    </>
   )
 }
 

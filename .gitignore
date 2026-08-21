@@ -6,7 +6,6 @@ vendor
 
 graphify-out
 .opencode
-AGENTS.md
 deployment/desktop/build
 deployment/desktop/installer
 deployment/desktop/wheelhouse

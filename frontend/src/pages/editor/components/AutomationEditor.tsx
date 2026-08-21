@@ -22,6 +22,7 @@ import {
   updateAutomationContent,
 } from "@/app/slices/automationSlice.ts"
 import {cn} from "@/lib/utils.ts"
+import PromptDialog from "@/components/common/PromptDialog.tsx"
 import {toAutomationInventoryTabId} from "@/lib/tabUtils.ts"
 import {setActiveTabId} from "@/app/slices/collectionSlices.ts"
 import {ansibleCompletionSource, YAML_SYNTAX_DOCS, ANSIBLE_CATALOG_VERSION} from "@/lib/ansibleCompletions.ts"
@@ -40,6 +41,7 @@ const AutomationEditor: React.FC = () => {
   const runningId = useAppSelector(selectAutomationRunningId)
   const runResult = useAppSelector(state => selectAutomationRunResult(state, file?.id ?? ''))
   const [content, setContent] = useState('')
+  const [inventoryPromptOpen, setInventoryPromptOpen] = useState(false)
   const fileId = file?.id
   const fileContent = file?.content
 
@@ -109,8 +111,7 @@ const AutomationEditor: React.FC = () => {
     void persistConfig(nextConfig)
   }
 
-  const createInventory = async () => {
-    const filename = window.prompt('Inventory filename', 'inventory-1.ini')
+  const handleCreateInventory = async (filename: string) => {
     if (!filename?.trim()) return
     try {
       const created = await dispatch(createAutomationInventory({automationId: file.id, filename: filename.trim()})).unwrap()
@@ -216,7 +217,7 @@ const AutomationEditor: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-slate-600">Inventory file</label>
-                  <Button variant="ghost" size="sm" onClick={() => void createInventory()} className="h-6 px-1.5 text-[11px] text-amber-700">
+                  <Button variant="ghost" size="sm" onClick={() => setInventoryPromptOpen(true)} className="h-6 px-1.5 text-[11px] text-amber-700">
                     <FilePlus2 className="mr-1 h-3 w-3" /> New inventory
                   </Button>
                 </div>
@@ -296,6 +297,17 @@ const AutomationEditor: React.FC = () => {
           </section>
         </div>
       </div>
+      <PromptDialog
+        open={inventoryPromptOpen}
+        title="Inventory filename"
+        defaultValue="inventory-1.ini"
+        submitLabel="Create"
+        onCancel={() => setInventoryPromptOpen(false)}
+        onSubmit={(name) => {
+          setInventoryPromptOpen(false)
+          void handleCreateInventory(name)
+        }}
+      />
     </div>
   )
 }
