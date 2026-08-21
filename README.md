@@ -132,7 +132,7 @@ Before running the project **locally**, ensure the following tools are installed
 * **MySQL**: Version 8.0
 * **NodeJS**: Version 22.0
 * **PNPM**: Version [10.23.0](https://pnpm.io/10.x/installation#on-windows)
-* **Ansible**: `ansible-playbook` available in `PATH` (or configure `ANSIBLE_PLAYBOOK_BINARY`)
+* **Ansible**: run via the bundled Python Flask service in `python/` (configure `PYTHON_SERVICE_URL`, default `http://localhost:5000`)
 
 For the Windows desktop installer, build the private Ansible runtime before compiling
 the Inno Setup installer. The build requires a full Windows Python distribution and

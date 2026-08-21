@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rdhmuhammad/apitester/internal/domain"
+	"github.com/rdhmuhammad/apitester/internal/usecase/automation"
 	"github.com/rdhmuhammad/apitester/internal/usecase/environment"
+	"github.com/rdhmuhammad/apitester/internal/usecase/testsuits"
 	"github.com/rdhmuhammad/apitester/internal/usecase/watch"
 	"github.com/rdhmuhammad/apitester/pkg/bbolt"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
@@ -31,6 +33,8 @@ func Default() *Api {
 	routers := []Router{
 		watch.NewController(&lg, collectionRepo),
 		environment.NewController(&lg, collectionRepo),
+		testsuits.NewController(&lg, collectionRepo),
+		automation.NewController(&lg, collectionRepo),
 	}
 
 	api.routers = routers
