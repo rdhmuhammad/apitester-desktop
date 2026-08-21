@@ -1,4 +1,4 @@
-package watch
+package testsuits
 
 import (
 	"encoding/json"

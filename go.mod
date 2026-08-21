@@ -3,7 +3,6 @@ module github.com/rdhmuhammad/apitester
 go 1.25.0
 
 require (
-	github.com/apenella/go-ansible/v2 v2.4.1
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/getsentry/sentry-go v0.47.0
 	github.com/getsentry/sentry-go/gin v0.47.0
@@ -21,8 +20,6 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/apenella/go-common-utils/data v0.0.0-20220913191136-86daaa87e7df // indirect
-	github.com/apenella/go-common-utils/error v0.0.0-20220913191136-86daaa87e7df // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect

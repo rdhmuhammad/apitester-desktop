@@ -1,4 +1,4 @@
-package watch
+package automation
 
 import (
 	"path/filepath"

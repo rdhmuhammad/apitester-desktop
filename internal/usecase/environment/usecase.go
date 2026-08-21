@@ -43,6 +43,9 @@ func (u *Usecase) ReadEnvironments(id string) (ReadEnvironmentsResponse, error) 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+				return ReadEnvironmentsResponse{}, u.errHandler.ErrorReturn(err)
+			}
 			if err := os.WriteFile(path, []byte("{}"), 0644); err != nil {
 				return ReadEnvironmentsResponse{}, u.errHandler.ErrorReturn(err)
 			}
