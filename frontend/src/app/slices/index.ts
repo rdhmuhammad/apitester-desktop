@@ -17,11 +17,19 @@ export interface DirTree {
     category: ColtCat
 }
 
+export interface EditorTab {
+    id: string
+    label: string
+    method: ColtReqMethod | 'TEST' | 'AUTO' | 'INV'
+    type: 'request' | 'test' | 'automation' | 'inventory'
+}
+
 export interface CollectionState {
     data: DocsContent | null
     variable: CollectionVar[]
     baseUrl: CollectionVar[]
     activeTabId: string
+    activeEditorTab: EditorTab | null
     openRequestTabs: ActiveItem[]
     cachedRequest: CollectionItem[]
     dirTree: Map<string, DirTree>
@@ -50,6 +58,7 @@ export const fetchCollections = createAppAsyncThunk(
 export const initialState: CollectionState = {
     data: null,
     activeTabId: '',
+    activeEditorTab: null,
     openRequestTabs: [],
     cachedRequest: [],
     variable: [],

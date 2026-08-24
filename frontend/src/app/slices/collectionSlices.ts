@@ -8,6 +8,7 @@ import {
     type ColtCat,
     type ColtReqMethod,
     type DirTree,
+    type EditorTab,
     fetchCollections,
     initialState
 } from "@/app/slices/index.ts";
@@ -68,6 +69,9 @@ const collectionSlices = createSlice({
         },
         setActiveTabId(state, action: PayloadAction<{ id: string }>) {
             state.activeTabId = action.payload.id
+        },
+        setActiveEditorTab(state, action: PayloadAction<EditorTab | null>) {
+            state.activeEditorTab = action.payload
         },
         setCurrentRequest(state, action: PayloadAction<CollectionItem>) {
             const currentIndex = findCurrentActiveRequestIndex(state.openRequestTabs, action.payload.id)
@@ -400,6 +404,7 @@ export const {
     addActiveRequest,
     removeActiveRequest,
     setActiveTabId,
+    setActiveEditorTab,
     setActiveTree,
     setCurrentRequest,
     setCurrentResponse,
@@ -446,6 +451,9 @@ export const selectBaseUrlValues = (state: RootState): string[] =>
 
 export const selectActiveTabId = (state: RootState): string =>
     state.collection?.activeTabId ?? ''
+
+export const selectActiveEditorTab = (state: RootState): EditorTab | null =>
+    state.collection?.activeEditorTab ?? null
 
 export const selectActiveRequestTab = (state: RootState): ActiveItem | null => {
     return getActiveRequestById(state, state.collection?.activeTabId)

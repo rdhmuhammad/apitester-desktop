@@ -18,6 +18,7 @@ export interface SandpackScriptEditorProps {
     completionSources?: CompletionSource[]
     fileName?: string
     extensions?: Extension[]
+    className?: string
 }
 
 function SyncScript({ onChange, fileName }: { onChange: (code: string) => void; fileName: string }) {
@@ -47,6 +48,7 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
                                                                                completionSources = [],
                                                                                fileName = "index.js",
                                                                                extensions = [],
+                                                                               className,
                                                                            }) => {
     const entryFile = "/__apitester_entry__.js"
     const files = useMemo(() => ({
@@ -104,8 +106,10 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
             }}
         >
             <SyncScript onChange={onChange} fileName={fileName} />
-            <SandpackLayout>
+            <SandpackLayout className={className}>
                 <SandpackCodeEditor
+                    className={className}
+                    style={className ? {height: "100%"} : undefined}
                     showTabs={false}
                     showLineNumbers
                     showRunButton={false}

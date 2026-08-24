@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {
     type ColtReqMethod,
     createNewRequest,
@@ -25,9 +25,11 @@ import {
     selectDirtyRequestIds,
     selectOpenRequestTabs,
     selectRequestById,
+    setActiveEditorTab,
     setActiveTabId,
     setActiveTree,
 } from "@/app/slices/collectionSlices.ts";
+import type {EditorTab} from "@/app/slices/index.ts";
 import {
     closeTestScenarioTab,
     createTestFile,
@@ -38,21 +40,16 @@ import {closeAutomationInventoryTab, closeAutomationTab, createAutomationFile, s
 import {fromAutomationInventoryTabId, fromAutomationTabId, fromTestTabId, toAutomationInventoryTabId, toAutomationTabId} from "@/lib/tabUtils.ts";
 import {cn} from "@/lib/utils.ts";
 
-const methodStyle: Record<ColtReqMethod | 'TEST', string> = {
+const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
     POST: "bg-amber-100 text-amber-700",
     PUT: "bg-blue-100 text-blue-700",
     PATCH: "bg-violet-100 text-violet-700",
     DELETE: "bg-rose-100 text-rose-700",
     TEST: "bg-indigo-100 text-indigo-700",
+    AUTO: "bg-violet-100 text-violet-700",
+    INV: "bg-amber-100 text-amber-700",
 };
-
-interface EditorTab {
-    id: string
-    label: string
-    method: ColtReqMethod | 'TEST'
-    type: 'request' | 'test' | 'automation' | 'inventory'
-}
 
 const Editor: React.FC = () => {
     const dispatch = useAppDispatch()
@@ -96,7 +93,7 @@ const Editor: React.FC = () => {
                 id: `automation-${fileId}`,
                 type: 'automation',
                 label: file?.filename ?? fileId,
-                method: 'TEST',
+                method: 'AUTO',
             }
         })
 
@@ -106,7 +103,7 @@ const Editor: React.FC = () => {
                 id: toAutomationInventoryTabId(fileId),
                 type: 'inventory',
                 label: file?.filename ?? fileId,
-                method: 'TEST',
+                method: 'INV',
             }
         })
 
@@ -120,6 +117,21 @@ const Editor: React.FC = () => {
     })
 
     const activeTab = allTabs.find(t => t.id === effectiveActiveTabId)
+    const activeEditorTabId = activeTab?.id
+    const activeEditorTabLabel = activeTab?.label
+    const activeEditorTabMethod = activeTab?.method
+    const activeEditorTabType = activeTab?.type
+
+    useEffect(() => {
+        dispatch(activeEditorTabId
+            ? setActiveEditorTab({
+                id: activeEditorTabId,
+                label: activeEditorTabLabel ?? '',
+                method: activeEditorTabMethod ?? 'TEST',
+                type: activeEditorTabType ?? 'request',
+            })
+            : setActiveEditorTab(null))
+    }, [activeEditorTabId, activeEditorTabLabel, activeEditorTabMethod, activeEditorTabType, dispatch])
 
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
     const [editValue, setEditValue] = useState('')

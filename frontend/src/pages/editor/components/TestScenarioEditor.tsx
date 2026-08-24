@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react"
 import {
   Play, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle2, XCircle,
-  Clock, Code, MoveUp, MoveDown, Layers, Settings,
+  Clock, MoveUp, MoveDown,
 } from "lucide-react"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx"
 import {Input} from "@/components/ui/input.tsx"
@@ -12,17 +12,15 @@ import {
   selectActiveScenario,
   selectTestResults,
   selectIsRunning,
-  selectHasUnsavedChanges,
   updateScenarioSteps,
   updateScenarioRawContent,
   fetchTestContent,
-  saveTestFile,
+  selectViewMode,
 } from "@/app/slices/testScenarioSlice.ts"
 import {selectAllRequests, type FlatRequest} from "@/app/slices/collectionSlices.ts"
 import {useTestRunner} from "@/layout/hooks/useTestRunner.ts"
 import type {AssertionRule, CaptureRule, HttpMethod, StepResult, TestHeader, TestStep} from "@/pages/editor/types/testScenario.ts"
 import {cn} from "@/lib/utils.ts"
-import EnvironmentVariablesDialog from "@/pages/editor/components/EnvironmentVariablesDialog.tsx"
 
 const methodColors: Record<HttpMethod, string> = {
   GET: 'bg-emerald-100 text-emerald-700',
@@ -65,22 +63,18 @@ const TestScenarioEditor: React.FC = () => {
   const scenario = useAppSelector(selectActiveScenario)
   const results = useAppSelector(selectTestResults)
   const isRunning = useAppSelector(selectIsRunning)
-  const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges)
 
-  const [viewMode, setViewMode] = useState<'visual' | 'raw'>('visual')
-  const [rawContent, setRawContent] = useState('')
-  const [rawContentDirty, setRawContentDirty] = useState(false)
-  const [envDialogOpen, setEnvDialogOpen] = useState(false)
+  const viewMode = useAppSelector(selectViewMode)
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({})
   const allRequests = useAppSelector(selectAllRequests)
   const [stepSearch, setStepSearch] = useState<Record<string, {open: boolean; query: string}>>({})
-  const {run: runTests, runStep} = useTestRunner()
+  const {runStep} = useTestRunner()
 
   useEffect(() => {
     if (scenario && !scenario.content && scenario.id) {
       dispatch(fetchTestContent(scenario.id))
     }
-  }, [scenario?.id, dispatch])
+  }, [scenario, dispatch])
 
   if (!scenario) {
     return (
@@ -108,21 +102,6 @@ const TestScenarioEditor: React.FC = () => {
     const updatedList = [...steps]
     updatedList[index] = {...updatedList[index], ...updated}
     handleUpdateSteps(updatedList)
-  }
-
-  const handleAddStep = () => {
-    const newStep: TestStep = {
-      id: `step-${Date.now()}`,
-      name: `Step ${steps.length + 1} — New Request`,
-      method: 'GET',
-      url: '{{baseUrl}}/resource',
-      headers: [{key: 'Content-Type', value: 'application/json'}],
-      body: '',
-      assertions: [{id: `ast-${Date.now()}`, expression: 'response.status === 200'}],
-      captures: [],
-    }
-    handleUpdateSteps([...steps, newStep])
-    setExpandedSteps((prev) => ({...prev, [newStep.id]: true}))
   }
 
   const handleInsertStep = (index: number) => {
@@ -233,79 +212,15 @@ const TestScenarioEditor: React.FC = () => {
     })
   }
 
-  const handleViewRaw = () => {
-    if (viewMode === 'visual') {
-      setRawContent(scenario.content)
-      setRawContentDirty(false)
-      setViewMode('raw')
-    } else {
-      if (rawContentDirty) {
-        dispatch(updateScenarioRawContent({id: scenario.id, content: rawContent}))
-      }
-      setViewMode('visual')
-    }
-  }
-
-  const handleSave = () => {
-    dispatch(saveTestFile({name: scenario.id, steps: scenario.steps}))
-  }
-
-  const handleRunAll = () => {
-    runTests()
-  }
-
   return (
     <div className="space-y-4 p-4">
-      {/* Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 p-3 rounded-xl shadow-sm">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 text-xs font-medium text-slate-600">
-            <Layers className="w-4 h-4 text-indigo-500"/>
-            <span>
-              Total Steps: <strong className="text-slate-900">{steps.length}</strong>
-            </span>
-          </div>
-          <div className="h-4 w-px bg-slate-200"/>
-          <span className="text-xs text-slate-500 font-mono">tests/{scenario.filename}</span>
-          {hasUnsavedChanges && (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
-              Unsaved
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={handleViewRaw} className="text-xs">
-            <Code className="w-3.5 h-3.5 mr-1"/>
-            {viewMode === 'visual' ? 'View Raw' : 'Visual'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setEnvDialogOpen(true)} className="text-xs">
-            <Settings className="w-3.5 h-3.5 mr-1"/>
-            Variables
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleSave} disabled={!hasUnsavedChanges} className="text-xs">
-            Save
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleAddStep} className="text-xs">
-            <Plus className="w-3.5 h-3.5 mr-1"/>
-            Add Step
-          </Button>
-          <Button size="sm" onClick={handleRunAll} disabled={isRunning}
-                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
-            <Play className="w-3.5 h-3.5 mr-1"/>
-            Run All
-          </Button>
-        </div>
-      </div>
-
       {/* Raw View */}
       {viewMode === 'raw' && (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <textarea
-            value={rawContent}
+            value={scenario.content}
             onChange={(e) => {
-              setRawContent(e.target.value)
-              setRawContentDirty(true)
+              dispatch(updateScenarioRawContent({id: scenario.id, content: e.target.value}))
             }}
             className="w-full h-[600px] p-4 font-mono text-xs text-slate-800 bg-transparent resize-none focus:outline-none"
             spellCheck={false}
@@ -576,7 +491,6 @@ const TestScenarioEditor: React.FC = () => {
           })}
         </div>
       )}
-      <EnvironmentVariablesDialog open={envDialogOpen} onOpenChange={setEnvDialogOpen}/>
     </div>
   )
 }

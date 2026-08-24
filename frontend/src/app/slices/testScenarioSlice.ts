@@ -14,6 +14,7 @@ interface TestScenarioState {
     isRunning: boolean
     capturedVariables: Record<string, string>
     hasUnsavedChanges: boolean
+    viewMode: 'visual' | 'raw'
     status: 'idle' | 'pending' | 'succeeded' | 'rejected'
 }
 
@@ -25,6 +26,7 @@ const initialState: TestScenarioState = {
     isRunning: false,
     capturedVariables: {},
     hasUnsavedChanges: false,
+    viewMode: 'visual',
     status: 'idle',
 }
 
@@ -168,6 +170,9 @@ const testScenarioSlice = createSlice({
             scenario.content = action.payload.content
             state.hasUnsavedChanges = true
         },
+        setViewMode(state, action: PayloadAction<'visual' | 'raw'>) {
+            state.viewMode = action.payload
+        },
         saveScenario(state, _action: PayloadAction<string>) {
             state.hasUnsavedChanges = false
         },
@@ -268,6 +273,7 @@ export const {
     setTestResults,
     setIsRunning,
     setCapturedVariables,
+    setViewMode,
 } = testScenarioSlice.actions
 
 export const selectScenarios = (state: RootState): TestScenario[] => state.testScenario.scenarios
@@ -282,6 +288,7 @@ export const selectTestResults = (state: RootState): StepResult[] => state.testS
 export const selectIsRunning = (state: RootState): boolean => state.testScenario.isRunning
 export const selectCapturedVariables = (state: RootState): Record<string, string> => state.testScenario.capturedVariables
 export const selectHasUnsavedChanges = (state: RootState): boolean => state.testScenario.hasUnsavedChanges
+export const selectViewMode = (state: RootState): 'visual' | 'raw' => state.testScenario.viewMode
 export const selectTestFilesStatus = (state: RootState): string => state.testScenario.status
 
 export const selectCollectionId = (state: RootState): string | null => state.testScenario.collectionId

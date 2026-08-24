@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react'
+import React, {useMemo, useState} from 'react'
 
 // Component Import
 import {Badge} from "@/components/ui/badge.tsx";
@@ -66,29 +66,41 @@ const IndicatorConfigTabs: React.FC = () => {
 
     // ===============> Authorization
     const authType = useAppSelector(selectAuthType)
-    const prevAuthType = useRef(authType)
-    useEffect(() => {
-        if (prevAuthType.current === authType) return
-        prevAuthType.current = authType
+    const authorizationHeader = headers.find(h => h.key.toLowerCase() === 'authorization')
 
-        if (authType === 'inherit') {
-            const authId = headers.find(h => h.key === 'Authorization')?.id ?? crypto.randomUUID()
-            dispatch(updateHeader({
-                header: {
-                    id: authId,
-                    key: 'Authorization',
-                    value: (rootAuth.bearer && rootAuth.bearer[0].value) ?? ''
-                }
-            }))
-        } else if (authType === 'bearer') {
-            const authId = headers.find(h => h.key === 'Authorization')?.id
-            if (authId) dispatch(removeHeader({id: authId}))
-            dispatch(updateHeader({header: {key: 'Authorization', value: '', id: crypto.randomUUID()}}))
-        } else if (authType === 'none') {
-            const authId = headers.find(h => h.key === 'Authorization')?.id
-            if (authId) dispatch(removeHeader({id: authId}))
+    const setAuthorizationHeader = (value: string) => {
+        const header = {
+            id: authorizationHeader?.id ?? crypto.randomUUID(),
+            key: authorizationHeader?.key ?? 'Authorization',
+            value,
         }
-    }, [authType]);
+
+        if (authorizationHeader) {
+            dispatch(updateHeader({header}))
+        } else {
+            dispatch(addHeader({header}))
+        }
+    }
+
+    const handleAuthTypeChange = (value: string) => {
+        const nextAuthType = value as AuthType
+
+        switch (nextAuthType) {
+            case 'inherit':
+                setAuthorizationHeader(rootAuth.bearer?.[0]?.value ?? '')
+                break
+            case 'bearer':
+                setAuthorizationHeader('')
+                break
+            case 'none':
+                if (authorizationHeader?.id) {
+                    dispatch(removeHeader({id: authorizationHeader.id}))
+                }
+                break
+        }
+
+        dispatch(setAuthType({authType: nextAuthType}))
+    }
 
     const bearerToken = headers.find(h => h.key === 'Authorization')?.value ?? ''
 
@@ -131,25 +143,7 @@ const IndicatorConfigTabs: React.FC = () => {
     const [contentType, setContentType] = useState<ContentType>(
         requestBody?.mode === "formdata" ? "multipart/form-data" : "application/json"
     )
-    useEffect(() => {
-        const ct = headers.find(h => h.key === 'Content-Type')
-        if (!ct) return
-        dispatch(updateHeader({
-            header: {
-                ...ct,
-                value: contentType,
-                disabled: false
-            }
-        }))
-    }, [contentType]);
-
-    useEffect(() => {
-        const nextType = requestBody?.mode === "formdata" ? "multipart/form-data" : "application/json"
-        if (nextType !== contentType) {
-            setContentType(nextType as ContentType)
-        }
-    }, [requestBody?.mode])
-
+    
     return (
         <section className="rounded-b-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -306,7 +300,7 @@ const IndicatorConfigTabs: React.FC = () => {
                             <p className="text-sm font-medium text-slate-700">Auth Type</p>
                             <Select
                                 value={authType}
-                                onValueChange={(val) => dispatch(setAuthType({authType: val as AuthType}))}
+                                onValueChange={handleAuthTypeChange}
                             >
                                 <SelectTrigger>
                                     <SelectValue/>

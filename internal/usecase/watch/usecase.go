@@ -81,6 +81,8 @@ func (u *Usecase) Read(id string) (ReadResponse, error) {
 		}
 	}
 
+	docsContent.Item = setContentType(docsContent.Item)
+	docsContent.Item = setBearerAuthorization(docsContent.Item, docsContent.Auth)
 	docsContent.Item = setId(docsContent.Item)
 	return ReadResponse{
 		Content:   docsContent,
@@ -267,6 +269,90 @@ func setId(item []CollectionItem) []CollectionItem {
 	}
 
 	return item
+}
+
+func setContentType(items []CollectionItem) []CollectionItem {
+	for i := range items {
+		if request := items[i].Request; request != nil && request.Body != nil {
+			if contentType := contentTypeForBodyMode(request.Body.Mode); contentType != "" {
+				found := false
+				for j := range request.Header {
+					if strings.EqualFold(strings.TrimSpace(request.Header[j].Key), "Content-Type") {
+						request.Header[j].Value = contentType
+						found = true
+					}
+				}
+				if !found {
+					request.Header = append(request.Header, Header{Key: "Content-Type", Value: contentType})
+				}
+			}
+		}
+
+		if items[i].Item != nil {
+			items[i].Item = setContentType(items[i].Item)
+		}
+	}
+
+	return items
+}
+
+func contentTypeForBodyMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "raw", "graphql":
+		return "application/json"
+	case "formdata", "form-data":
+		return "multipart/form-data"
+	case "urlencoded":
+		return "application/x-www-form-urlencoded"
+	case "file":
+		return "application/octet-stream"
+	default:
+		return ""
+	}
+}
+
+func setBearerAuthorization(items []CollectionItem, auth *CollectionAuth) []CollectionItem {
+	if auth == nil || !strings.EqualFold(strings.TrimSpace(auth.Type), "bearer") {
+		return items
+	}
+
+	token := ""
+	for _, property := range auth.Bearer {
+		if strings.EqualFold(strings.TrimSpace(property.Key), "token") {
+			token = property.Value
+			break
+		}
+		if token == "" && property.Value != "" {
+			token = property.Value
+		}
+	}
+	if token == "" {
+		return items
+	}
+
+	for i := range items {
+		if request := items[i].Request; request != nil {
+			hasAuthorization := false
+			for _, header := range request.Header {
+				if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
+					hasAuthorization = true
+					break
+				}
+			}
+			if !hasAuthorization {
+				request.Header = append(request.Header, Header{
+					Key:   "Authorization",
+					Value: "Bearer " + token,
+				})
+			}
+		}
+
+		if items[i].Item != nil {
+			items[i].Item = setBearerAuthorization(items[i].Item, auth)
+		}
+	}
+
+	return items
 }
 
 func isBaseURLVar(s string) bool {
