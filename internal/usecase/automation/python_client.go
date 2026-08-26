@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -40,6 +41,7 @@ type pythonRunResult struct {
 	Stdout     string
 	Stderr     string
 	DurationMs int64
+	Canceled   bool
 }
 
 type pythonJobResponse struct {
@@ -64,6 +66,13 @@ type pythonErrorResponse struct {
 type pythonClient struct {
 	baseURL    string
 	httpClient *http.Client
+	mu         sync.Mutex
+	activeRuns map[string]*pythonActiveRun
+}
+
+type pythonActiveRun struct {
+	jobID           string
+	cancelRequested bool
 }
 
 func newPythonClient() *pythonClient {
@@ -74,6 +83,7 @@ func newPythonClient() *pythonClient {
 	return &pythonClient{
 		baseURL:    baseURL,
 		httpClient: &http.Client{},
+		activeRuns: make(map[string]*pythonActiveRun),
 	}
 }
 
@@ -92,8 +102,24 @@ func (c *pythonClient) Runtime(ctx context.Context) (pythonRuntimeInfo, error) {
 	return info, nil
 }
 
-func (c *pythonClient) Run(ctx context.Context, request pythonRunRequest) (pythonRunResult, error) {
+func (c *pythonClient) Run(ctx context.Context, runKey string, request pythonRunRequest) (pythonRunResult, error) {
 	var result pythonRunResult
+	activeRun := &pythonActiveRun{}
+	c.mu.Lock()
+	if _, exists := c.activeRuns[runKey]; exists {
+		c.mu.Unlock()
+		return result, fmt.Errorf("playbook is already running")
+	}
+	c.activeRuns[runKey] = activeRun
+	c.mu.Unlock()
+	defer func() {
+		c.mu.Lock()
+		if c.activeRuns[runKey] == activeRun {
+			delete(c.activeRuns, runKey)
+		}
+		c.mu.Unlock()
+	}()
+
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return result, err
@@ -114,7 +140,46 @@ func (c *pythonClient) Run(ctx context.Context, request pythonRunRequest) (pytho
 		return result, fmt.Errorf("python service returned no job id")
 	}
 
+	c.mu.Lock()
+	activeRun.jobID = job.JobID
+	cancelRequested := activeRun.cancelRequested
+	c.mu.Unlock()
+	if cancelRequested {
+		if err := c.cancelJob(ctx, job.JobID); err != nil {
+			return result, err
+		}
+	}
+
 	return c.pollJob(ctx, job.JobID)
+}
+
+func (c *pythonClient) Cancel(ctx context.Context, runKey string) error {
+	c.mu.Lock()
+	activeRun := c.activeRuns[runKey]
+	if activeRun == nil {
+		c.mu.Unlock()
+		return nil
+	}
+	if activeRun.jobID == "" {
+		activeRun.cancelRequested = true
+		c.mu.Unlock()
+		return nil
+	}
+	jobID := activeRun.jobID
+	c.mu.Unlock()
+
+	return c.cancelJob(ctx, jobID)
+}
+
+func (c *pythonClient) cancelJob(ctx context.Context, jobID string) error {
+	body, statusCode, err := c.do(ctx, http.MethodPost, "/api/v1/jobs/"+jobID+"/cancel", nil)
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusAccepted {
+		return c.errorFrom(statusCode, body)
+	}
+	return nil
 }
 
 func (c *pythonClient) pollJob(ctx context.Context, jobID string) (pythonRunResult, error) {
@@ -137,6 +202,10 @@ func (c *pythonClient) pollJob(ctx context.Context, jobID string) (pythonRunResu
 				Stdout:     status.Stdout,
 				Stderr:     status.Stderr,
 				DurationMs: status.DurationMs,
+			}
+			if status.Status == "canceled" {
+				result.Canceled = true
+				return result, nil
 			}
 			if status.Status == "failed" {
 				return result, fmt.Errorf("%s", failureDetail(status))

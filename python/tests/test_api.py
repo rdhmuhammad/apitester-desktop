@@ -1,5 +1,6 @@
 import sys
 import threading
+import time
 import types
 
 import pytest
@@ -10,6 +11,7 @@ from app import create_app
 class FakeRunner:
     def __init__(self):
         self.rc = 0
+        self.status = "successful"
 
 
 @pytest.fixture
@@ -70,6 +72,48 @@ def test_invalid_payload(client):
 
 def test_status_not_found(client):
     response = client.get("/api/v1/jobs/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_cancel_job(client, monkeypatch):
+    started = threading.Event()
+
+    def fake_run_async(**kwargs):
+        runner = FakeRunner()
+        runner.rc = None
+        runner.status = "running"
+
+        def execute():
+            started.set()
+            while not kwargs["cancel_callback"]():
+                time.sleep(0.01)
+            runner.rc = 254
+            runner.status = "canceled"
+            kwargs["finished_callback"](runner)
+
+        thread = threading.Thread(target=execute)
+        thread.start()
+        return thread, runner
+
+    monkeypatch.setattr("app.services.runner_service._run_async", fake_run_async)
+    response = client.post("/api/v1/jobs/run", json={"playbook": "deploy.yml"})
+    job_id = response.get_json()["job_id"]
+    assert started.wait(timeout=1)
+
+    cancel = client.post(f"/api/v1/jobs/{job_id}/cancel")
+    assert cancel.status_code == 202
+    assert cancel.get_json() == {"job_id": job_id, "status": "cancelling"}
+
+    for _ in range(100):
+        status = client.get(f"/api/v1/jobs/{job_id}").get_json()
+        if status["status"] == "canceled":
+            break
+        time.sleep(0.01)
+    assert status["status"] == "canceled"
+
+
+def test_cancel_job_not_found(client):
+    response = client.post("/api/v1/jobs/does-not-exist/cancel")
     assert response.status_code == 404
 
 

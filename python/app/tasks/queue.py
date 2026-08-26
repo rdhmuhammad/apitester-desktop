@@ -14,6 +14,7 @@ class Job:
     _stdout_lines: List[str] = field(default_factory=list)
     _stderr_lines: List[str] = field(default_factory=list)
     _lock: threading.Lock = field(default_factory=threading.Lock)
+    cancel_requested: threading.Event = field(default_factory=threading.Event)
     finished_at: Optional[datetime] = None
 
     def append_stdout(self, text: str) -> None:
@@ -25,6 +26,9 @@ class Job:
     def mark_finished(self) -> None:
         with self._lock:
             self.finished_at = datetime.now(timezone.utc)
+
+    def request_cancel(self) -> None:
+        self.cancel_requested.set()
 
     def snapshot(self) -> tuple:
         with self._lock:
@@ -43,6 +47,13 @@ class JobRegistry:
     def get(self, job_id: str) -> Optional[Job]:
         with self._lock:
             return self._jobs.get(job_id)
+
+    def request_cancel(self, job_id: str) -> Optional[Job]:
+        job = self.get(job_id)
+        if job is None:
+            return None
+        job.request_cancel()
+        return job
 
     def status(self, job_id: str) -> Optional[Dict[str, Any]]:
         job = self.get(job_id)
@@ -63,7 +74,11 @@ class JobRegistry:
             return payload
 
         rc = _runner_rc(job.runner)
-        payload["status"] = "successful" if rc == 0 else "failed"
+        runner_status = getattr(job.runner, "status", None)
+        if runner_status in {"canceled", "timeout", "successful", "failed"}:
+            payload["status"] = runner_status
+        else:
+            payload["status"] = "successful" if rc == 0 else "failed"
         payload["rc"] = rc
         end = finished_at or datetime.now(timezone.utc)
         payload["duration_ms"] = int((end - job.created_at).total_seconds() * 1000)

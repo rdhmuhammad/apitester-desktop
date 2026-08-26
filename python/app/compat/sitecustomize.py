@@ -59,6 +59,19 @@ def _install_posix_attr_shims():
     os.register_at_fork (ansible/utils/display.py), os.setsid and
     os.O_NONBLOCK (ansible/executor/process/worker.py)."""
     try:
+        if hasattr(os, "get_blocking"):
+            original_get_blocking = os.get_blocking
+
+            def get_blocking(fd):
+                try:
+                    return original_get_blocking(fd)
+                except OSError:
+                    # Windows console and pipe handles are not always accepted
+                    # by os.get_blocking, but Ansible requires blocking IO.
+                    return True
+
+            os.get_blocking = get_blocking
+
         if not hasattr(os, "register_at_fork"):
 
             def register_at_fork(*args, **kwargs):
@@ -213,11 +226,46 @@ def _install_import_patchers():
 
         shell_base._normalize_system_tmpdirs = _normalize_system_tmpdirs
 
+    def collection_finder_patch(loader, module):
+        # The collection loader only recognizes paths beginning with '/',
+        # which rejects absolute Windows drive paths.
+        loader.exec_module(module)
+        base_loader = getattr(module, "_AnsibleCollectionPkgLoaderBase", None)
+        if base_loader is None or getattr(base_loader, "get_data", None) is None:
+            return
+
+        original_get_data = base_loader.get_data
+
+        def get_data(self, path):
+            if isinstance(path, str):
+                if os.path.isabs(path) and not path.startswith("/"):
+                    candidate_paths = [path]
+                elif not os.path.isabs(path) and self._subpackage_search_paths:
+                    candidate_paths = [
+                        os.path.join(package_path, path)
+                        for package_path in self._subpackage_search_paths
+                    ]
+                else:
+                    candidate_paths = []
+
+                if candidate_paths:
+                    for candidate in candidate_paths:
+                        if os.path.isfile(candidate):
+                            with open(candidate, "rb") as fd:
+                                return fd.read()
+                        if candidate.endswith("__init__.py") and os.path.isdir(os.path.dirname(candidate)):
+                            return ""
+                    return None
+            return original_get_data(self, path)
+
+        base_loader.get_data = get_data
+
     patchers = {
         "ansible.parsing.dataloader": dataloader_exec,
         "ansible._internal._datatag._tags": tags_patch,
         "ansible.executor.process.worker": worker_patch,
         "ansible.plugins.shell": shell_patch,
+        "ansible.utils.collection_loader._collection_finder": collection_finder_patch,
     }
     done = set()
 

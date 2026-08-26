@@ -36,8 +36,20 @@ import {
     selectActiveTestIds,
     selectScenarios,
 } from "@/app/slices/testScenarioSlice.ts";
-import {closeAutomationInventoryTab, closeAutomationTab, createAutomationFile, selectAutomationFiles, selectAutomationInventories} from "@/app/slices/automationSlice.ts";
-import {fromAutomationInventoryTabId, fromAutomationTabId, fromTestTabId, toAutomationInventoryTabId, toAutomationTabId} from "@/lib/tabUtils.ts";
+import {
+    closeAutomationInventoryTab,
+    closeAutomationTab,
+    createAutomationFile,
+    selectAutomationFiles,
+    selectAutomationInventories
+} from "@/app/slices/automationSlice.ts";
+import {
+    fromAutomationInventoryTabId,
+    fromAutomationTabId,
+    fromTestTabId,
+    toAutomationInventoryTabId,
+    toAutomationTabId
+} from "@/lib/tabUtils.ts";
 import {cn} from "@/lib/utils.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
@@ -146,7 +158,7 @@ const Editor: React.FC = () => {
 
     const commitEdit = useCallback(() => {
         if (editingTabId && editValue.trim()) {
-            dispatch(renameRequest({ id: editingTabId, name: editValue.trim() }))
+            dispatch(renameRequest({id: editingTabId, name: editValue.trim()}))
         }
         setEditingTabId(null)
         setEditValue('')
@@ -196,8 +208,8 @@ const Editor: React.FC = () => {
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                             Workspace
                         </p>
-                        <h3 className="mt-1 text-3xl font-semibold text-slate-900">{collectionInfo ? collectionInfo?.name : 'Collection' }</h3>
-                        <h3 className="mt-1 text-sm font-normal text-slate-500">{collectionInfo ? collectionInfo?.description : '' }</h3>
+                        <h3 className="mt-1 text-3xl font-semibold text-slate-900">{collectionInfo ? collectionInfo?.name : 'Collection'}</h3>
+                        <h3 className="mt-1 text-sm font-normal text-slate-500">{collectionInfo ? collectionInfo?.description : ''}</h3>
                     </div>
 
                     <Tabs value={effectiveActiveTabId} onValueChange={handleTabChange} className="gap-0">
@@ -234,7 +246,8 @@ const Editor: React.FC = () => {
                                             </span>
                                         )}
                                         {tab.type === 'request' && dirtyRequestIds.includes(tab.id) && (
-                                            <span className="ml-1 h-2 w-2 rounded-full bg-orange-400 inline-block shrink-0" />
+                                            <span
+                                                className="ml-1 h-2 w-2 rounded-full bg-orange-400 inline-block shrink-0"/>
                                         )}
                                         <span
                                             className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 group-data-[state=active]:text-slate-500">
@@ -268,11 +281,11 @@ const Editor: React.FC = () => {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
                                     <DropdownMenuItem onClick={() => dispatch(createNewRequest())}>
-                                        <FileCode2 className="mr-2 h-4 w-4 text-emerald-600" />
+                                        <FileCode2 className="mr-2 h-4 w-4 text-emerald-600"/>
                                         New Request
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => dispatch(createTestFile())}>
-                                        <FileText className="mr-2 h-4 w-4 text-indigo-600" />
+                                        <FileText className="mr-2 h-4 w-4 text-indigo-600"/>
                                         Create Test Suite
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
@@ -282,7 +295,7 @@ const Editor: React.FC = () => {
                                             })
                                         }}
                                     >
-                                        <Wrench className="mr-2 h-4 w-4 text-violet-600" />
+                                        <Wrench className="mr-2 h-4 w-4 text-violet-600"/>
                                         New Automation
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>

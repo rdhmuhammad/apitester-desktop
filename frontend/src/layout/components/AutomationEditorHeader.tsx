@@ -1,15 +1,17 @@
 import {useEffect} from "react"
-import {FileCode2, Loader2, Play} from "lucide-react"
+import {FileCode2, Play, Square} from "lucide-react"
 import {toast} from "sonner"
 import {Button} from "@/components/ui/button.tsx"
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
 import {
   fetchAutomationContent,
+  cancelAutomation,
   runAutomation,
   saveAutomationConfig,
   saveAutomationFile,
   selectActiveAutomation,
   selectAutomationConfig,
+  selectAutomationCancellingId,
   selectAutomationRuntime,
   selectAutomationRunningId,
   selectAutomationUnsaved,
@@ -27,9 +29,11 @@ const AutomationEditorHeader: React.FC = () => {
   const unsaved = useAppSelector(state => file ? selectAutomationUnsaved(state, file.id) : false)
   const config = useAppSelector(state => file ? selectAutomationConfig(state, file.id) : null)
   const runningId = useAppSelector(selectAutomationRunningId)
+  const cancellingId = useAppSelector(selectAutomationCancellingId)
   const fileId = file?.id
   const fileContent = file?.content
   const isRunning = runningId === file?.id
+  const isCancelling = cancellingId === file?.id
 
   useEffect(() => {
     if (!fileId || fileContent) return
@@ -43,8 +47,16 @@ const AutomationEditorHeader: React.FC = () => {
       if (unsaved) await dispatch(saveAutomationFile({filename: file.filename, content: file.content ?? ''})).unwrap()
       await dispatch(saveAutomationConfig({id: file.id, config})).unwrap()
       await dispatch(runAutomation({id: file.id, filename: file.filename, config})).unwrap()
+    } catch {
+      toast.error('Playbook run failed')
+    }
+  }
+
+  const stop = async () => {
+    try {
+      await dispatch(cancelAutomation({id: file.id, filename: file.filename})).unwrap()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Playbook run failed')
+      toast.error(error instanceof Error ? error.message : 'Playbook cancellation failed')
     }
   }
 
@@ -63,8 +75,8 @@ const AutomationEditorHeader: React.FC = () => {
         </div>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <Button onClick={run} disabled={!runtime.available || isRunning} className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap">
-          {isRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />} {isRunning ? 'Running…' : 'Run Playbook'}
+        <Button onClick={isRunning ? stop : run} disabled={!runtime.available || isCancelling} className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap">
+          {isRunning ? <Square className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />} {isRunning ? 'Stop Playbook' : 'Run Playbook'}
         </Button>
       </div>
     </div>

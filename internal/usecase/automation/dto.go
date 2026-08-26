@@ -60,4 +60,5 @@ type AutomationRunResult struct {
 	Stdout     string `json:"stdout"`
 	Stderr     string `json:"stderr"`
 	DurationMs int64  `json:"durationMs"`
+	Canceled   bool   `json:"canceled"`
 }

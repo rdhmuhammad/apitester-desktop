@@ -123,6 +123,9 @@ const AutomationEditor: React.FC = () => {
             case 'failed':
                 return <span
                     className="rounded-full bg-rose-100 px-2 py-1 text-[10px] font-semibold text-rose-700">FAILED</span>
+            case 'canceled':
+                return <span
+                    className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">CANCELED</span>
             default:
                 return <span
                     className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">UNRUN</span>

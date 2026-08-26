@@ -4,7 +4,7 @@ export interface AutomationFile {
   filename: string
   content: string
   size: number
-  lastRunStatus: 'passed' | 'failed' | 'running' | 'check' | 'unrun'
+  lastRunStatus: 'passed' | 'failed' | 'canceled' | 'running' | 'check' | 'unrun'
   lastRunAt?: string
   lastRunSummary?: string
 }
@@ -38,7 +38,12 @@ export interface AutomationRuntime {
 }
 
 export interface AutomationRunResult {
-	stdout: string
-	stderr: string
-	durationMs: number
+  stdout: string
+  stderr: string
+  durationMs: number
+  canceled?: boolean
+}
+
+export interface AutomationRunFailure {
+  message: string
 }

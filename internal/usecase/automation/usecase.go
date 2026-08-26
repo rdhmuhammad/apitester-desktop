@@ -45,6 +45,10 @@ func automationConfigPath(collectionPath string) string {
 	return filepath.Join(automationDir(collectionPath), ".config.json")
 }
 
+func automationRunKey(collectionID, name string) string {
+	return collectionID + "\x00" + name
+}
+
 func automationFilePath(collectionPath, name string) string {
 	return filepath.Join(automationDir(collectionPath), name)
 }
@@ -585,7 +589,7 @@ func (u *Usecase) RunAutomation(id, name string, req AutomationRunRequest) (Auto
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	result, err := u.pythonClient.Run(ctx, runRequest)
+	result, err := u.pythonClient.Run(ctx, automationRunKey(id, name), runRequest)
 	if err != nil {
 		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
 	}
@@ -594,7 +598,20 @@ func (u *Usecase) RunAutomation(id, name string, req AutomationRunRequest) (Auto
 		Stdout:     result.Stdout,
 		Stderr:     result.Stderr,
 		DurationMs: result.DurationMs,
+		Canceled:   result.Canceled,
 	}, nil
+}
+
+func (u *Usecase) CancelAutomation(id, name string) error {
+	if err := validateAutomationName(name); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := u.pythonClient.Cancel(ctx, automationRunKey(id, name)); err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	return nil
 }
 
 func (u *Usecase) AutomationRuntime() AutomationRuntimeInfo {

@@ -19,6 +19,21 @@ export interface AutomationInventoryFileInfo {
   size: number
 }
 
+export interface AutomationFileUpdate {
+  filename: string
+  content: string
+}
+
+export interface AutomationInventoryUpdate {
+  filename: string
+  content: string
+}
+
+export interface AutomationConfigUpdate {
+  filename: string
+  config: AutomationRunConfig
+}
+
 export const AutomationServices = {
   list: async (collectionId: string): Promise<AutomationFileInfo[]> => {
     const response = await axios.get<Response<AutomationFileInfo[]>>(`/collection/${collectionId}/automation`)
@@ -84,6 +99,19 @@ export const AutomationServices = {
     return response.data.message
   },
 
+  push: async (
+    collectionId: string,
+    files: AutomationFileUpdate[],
+    inventories: AutomationInventoryUpdate[],
+    configs: AutomationConfigUpdate[],
+  ): Promise<void> => {
+    await Promise.all([
+      ...files.map(file => AutomationServices.write(collectionId, file.filename, file.content)),
+      ...inventories.map(file => AutomationServices.writeInventory(collectionId, file.filename, file.content)),
+    ])
+    await Promise.all(configs.map(({filename, config}) => AutomationServices.writeConfig(collectionId, filename, config)))
+  },
+
   runtime: async (collectionId: string): Promise<AutomationRuntime> => {
     const response = await axios.get<Response<AutomationRuntime>>(`/collection/${collectionId}/automation/runtime`)
     return response.data.data
@@ -95,5 +123,10 @@ export const AutomationServices = {
       config,
     )
     return response.data.data
+  },
+
+  cancel: async (collectionId: string, filename: string): Promise<string> => {
+    const response = await axios.post<Response<null>>(`/collection/${collectionId}/automation/${filename}/cancel`)
+    return response.data.message
   },
 }

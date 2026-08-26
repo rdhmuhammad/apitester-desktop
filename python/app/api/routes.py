@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
 from app.api.schemas import RunJobRequest
-from app.services.runner_service import get_job_status, get_runtime_info, trigger_playbook_async
+from app.services.runner_service import cancel_job, get_job_status, get_runtime_info, trigger_playbook_async
 
 bp = Blueprint("jobs", __name__)
 
@@ -40,6 +40,14 @@ def job_status(job_id):
     if status is None:
         return jsonify({"error": "not_found", "detail": f"job {job_id} not found"}), 404
     return jsonify(status), 200
+
+
+@bp.post("/jobs/<job_id>/cancel")
+def cancel_job_route(job_id):
+    job = cancel_job(job_id)
+    if job is None:
+        return jsonify({"error": "not_found", "detail": f"job {job_id} not found"}), 404
+    return jsonify({"job_id": job_id, "status": "cancelling"}), 202
 
 
 @bp.get("/runtime")

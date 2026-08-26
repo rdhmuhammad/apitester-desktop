@@ -3,7 +3,8 @@ import type {RootState} from "@/app/store/store.ts"
 import {createAppAsyncThunk} from "@/app/store/withTypes.ts"
 import {CollectionServices} from "@/layout/services/collection.ts"
 import {AutomationServices} from "@/layout/services/automation.ts"
-import type {AutomationFile, AutomationInventoryFile, AutomationRunConfig, AutomationRunResult, AutomationRuntime} from "@/pages/editor/types/automation.ts"
+import type {AutomationFile, AutomationInventoryFile, AutomationRunConfig, AutomationRunFailure, AutomationRunResult, AutomationRuntime} from "@/pages/editor/types/automation.ts"
+import {isAxiosError} from "axios"
 
 interface AutomationState {
   collectionId: string | null
@@ -17,6 +18,7 @@ interface AutomationState {
   hasUnsavedChanges: Record<string, boolean>
   inventoryUnsavedChanges: Record<string, boolean>
   runningId: string | null
+  cancellingId: string | null
   runResults: Record<string, AutomationRunResult | null>
 }
 
@@ -42,6 +44,7 @@ const initialState: AutomationState = {
   hasUnsavedChanges: {},
   inventoryUnsavedChanges: {},
   runningId: null,
+  cancellingId: null,
   runResults: {},
 }
 
@@ -130,11 +133,28 @@ export const saveAutomationConfig = createAppAsyncThunk(
 
 export const runAutomation = createAppAsyncThunk(
   'automation/run',
-  async (payload: {id: string; filename: string; config: AutomationRunConfig}, {getState}) => {
+  async (payload: {id: string; filename: string; config: AutomationRunConfig}, {getState, rejectWithValue}) => {
     const collectionId = getState().automation.collectionId
     if (!collectionId) throw new Error('No active collection')
-    const result = await AutomationServices.run(collectionId, payload.filename, payload.config)
-    return {id: payload.id, config: payload.config, result}
+    try {
+      const result = await AutomationServices.run(collectionId, payload.filename, payload.config)
+      return {id: payload.id, config: payload.config, result}
+    } catch (error) {
+      const message = isAxiosError<AutomationRunFailure>(error)
+        ? error.response?.data?.message
+        : error instanceof Error ? error.message : undefined
+      return rejectWithValue({message: message || 'Playbook run failed'})
+    }
+  },
+)
+
+export const cancelAutomation = createAppAsyncThunk(
+  'automation/cancel',
+  async (payload: {id: string; filename: string}, {getState}) => {
+    const collectionId = getState().automation.collectionId
+    if (!collectionId) throw new Error('No active collection')
+    await AutomationServices.cancel(collectionId, payload.filename)
+    return payload.id
   },
 )
 
@@ -263,11 +283,13 @@ const automationSlice = createSlice({
         if (!validIds.has(id)) delete state.runResults[id]
       }
       if (state.runningId && !validIds.has(state.runningId)) state.runningId = null
+      if (state.cancellingId && !validIds.has(state.cancellingId)) state.cancellingId = null
       if (!sameCollection) {
         state.hasUnsavedChanges = {}
         state.inventoryUnsavedChanges = {}
         state.runResults = {}
       }
+      state.cancellingId = null
       state.status = 'succeeded'
     })
     builder.addCase(fetchAutomationFiles.rejected, state => { state.status = 'rejected' })
@@ -296,6 +318,7 @@ const automationSlice = createSlice({
       delete state.configs[action.payload]
       delete state.runResults[action.payload]
       if (state.runningId === action.payload) state.runningId = null
+      if (state.cancellingId === action.payload) state.cancellingId = null
     })
     builder.addCase(deleteAutomationInventory.fulfilled, (state, action) => {
       state.inventories = state.inventories.filter(file => file.id !== action.payload)
@@ -319,14 +342,28 @@ const automationSlice = createSlice({
     })
     builder.addCase(runAutomation.fulfilled, (state, action) => {
       state.runningId = null
+      state.cancellingId = null
       state.runResults[action.payload.id] = action.payload.result
       const file = state.files.find(item => item.id === action.payload.id)
-      if (file) file.lastRunStatus = action.payload.config.checkMode ? 'check' : 'passed'
+      if (file) file.lastRunStatus = action.payload.result.canceled ? 'canceled' : action.payload.config.checkMode ? 'check' : 'passed'
     })
     builder.addCase(runAutomation.rejected, (state, action) => {
       state.runningId = null
+      state.cancellingId = null
       const file = state.files.find(item => item.id === action.meta.arg.id)
       if (file) file.lastRunStatus = 'failed'
+      const failure = action.payload as AutomationRunFailure | undefined
+      state.runResults[action.meta.arg.id] = {
+        stdout: '',
+        stderr: failure?.message ?? 'Playbook run failed',
+        durationMs: 0,
+      }
+    })
+    builder.addCase(cancelAutomation.pending, (state, action) => {
+      state.cancellingId = action.meta.arg.id
+    })
+    builder.addCase(cancelAutomation.rejected, state => {
+      state.cancellingId = null
     })
     builder.addCase(createAutomationFile.fulfilled, (state, action) => {
       state.files.push({
@@ -369,6 +406,7 @@ export const selectAutomationRuntime = (state: RootState) => state.automation.ru
 export const selectAutomationUnsaved = (state: RootState, id: string) => Boolean(state.automation.hasUnsavedChanges[id])
 export const selectAutomationConfig = (state: RootState, id: string) => state.automation.configs[id] ?? defaultAutomationConfig()
 export const selectAutomationRunningId = (state: RootState) => state.automation.runningId
+export const selectAutomationCancellingId = (state: RootState) => state.automation.cancellingId
 export const selectAutomationRunResult = (state: RootState, id: string) => state.automation.runResults[id] ?? null
 export const selectActiveAutomationInventory = (state: RootState) => {
   const fileId = state.collection.activeTabId.replace(/^automation-inventory-/, '')

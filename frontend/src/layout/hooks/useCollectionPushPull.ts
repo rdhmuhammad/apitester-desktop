@@ -6,6 +6,8 @@ import {fetchTestFiles, clearActiveTestIds} from "@/app/slices/testScenarioSlice
 import {fetchAutomationFiles} from "@/app/slices/automationSlice.ts"
 import {store} from "@/app/store/store.ts"
 import {CollectionServices} from "@/layout/services/collection.ts"
+import {AutomationServices} from "@/layout/services/automation.ts"
+import {TestScenarioServices} from "@/layout/services/testScenario.ts"
 import CustomToast from "@/components/common/toast"
 import {fetchEnvironments} from "@/app/slices/environmentSlice.ts";
 
@@ -35,9 +37,36 @@ export function useCollectionPushPull() {
         setIsPushing(true)
         try {
             dispatch(saveActiveToData())
-            const data = selectCollectionData(store.getState())
             const active = await CollectionServices.getActiveCollection()
+            const state = store.getState()
+            const data = selectCollectionData(state)
+
+            const [automationFiles, automationInventories, testFiles] = await Promise.all([
+                Promise.all(state.automation.files.map(async file => ({
+                    filename: file.filename,
+                    content: file.content || (await AutomationServices.read(active.id, file.filename)).content,
+                }))),
+                Promise.all(state.automation.inventories.map(async file => ({
+                    filename: file.filename,
+                    content: file.content || (await AutomationServices.readInventory(active.id, file.filename)).content,
+                }))),
+                Promise.all(state.testScenario.scenarios.map(async scenario => {
+                    if (scenario.steps.length > 0) {
+                        return {name: scenario.name, steps: scenario.steps}
+                    }
+                    const content = await TestScenarioServices.readTest(active.id, scenario.name)
+                    return {name: scenario.name, steps: content.steps}
+                })),
+            ])
+
             await CollectionServices.writeCollection(active.id, JSON.stringify(data, null, 2))
+            await AutomationServices.push(
+                active.id,
+                automationFiles,
+                automationInventories,
+                Object.entries(state.automation.configs).map(([filename, config]) => ({filename, config})),
+            )
+            await TestScenarioServices.push(active.id, testFiles)
             dispatch(clearActiveTestIds())
             CustomToast.success("Collection pushed successfully")
         } catch {

@@ -1,3 +1,4 @@
+import os
 import platform
 import shutil
 import subprocess
@@ -67,6 +68,13 @@ def _inventory_path(inventory: str) -> Path:
     return path
 
 
+def _collections_path(root: Path) -> Path:
+    project_collections = root / "project" / "collections"
+    if project_collections.is_dir():
+        return project_collections
+    return root / "collections"
+
+
 def _build_cmdline(*, limit: Optional[str], tags: Optional[str], check_mode: bool, diff_mode: bool) -> Optional[str]:
     parts = []
     if limit:
@@ -102,6 +110,15 @@ def trigger_playbook_async(
         if stdout:
             job.append_stdout(stdout)
 
+    envvars = {
+        "ANSIBLE_COLLECTIONS_PATH": str(_collections_path(root)),
+    }
+    if os   .name == "nt":
+        powershell = shutil.which("powershell.exe")
+        if powershell:
+            # The local connection uses this value to launch local commands.
+            envvars["ANSIBLE_EXECUTABLE"] = powershell
+
     options: Dict[str, Any] = {
         "private_data_dir": str(root),
         "playbook": str(playbook),
@@ -109,6 +126,9 @@ def trigger_playbook_async(
         "ident": job_id,
         "quiet": False,
         "event_handler": handle_event,
+        "cancel_callback": job.cancel_requested.is_set,
+        "finished_callback": lambda _runner: job.mark_finished(),
+        "envvars": envvars,
     }
     rotate = current_app.config.get("ANSIBLE_ROTATE_ARTIFACTS", 0)
     if rotate > 0:
@@ -130,6 +150,10 @@ def trigger_playbook_async(
 
 def get_job_status(job_id: str):
     return registry.status(job_id)
+
+
+def cancel_job(job_id: str):
+    return registry.request_cancel(job_id)
 
 
 def _ansible_version() -> str:

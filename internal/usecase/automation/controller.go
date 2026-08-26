@@ -30,6 +30,7 @@ type UsecaseInterface interface {
 	ListAutomationConfigs(id string) (map[string]AutomationConfig, error)
 	WriteAutomationConfig(id, name string, config AutomationConfig) error
 	RunAutomation(id, name string, req AutomationRunRequest) (AutomationRunResult, error)
+	CancelAutomation(id, name string) error
 	AutomationRuntime() AutomationRuntimeInfo
 }
 
@@ -144,6 +145,11 @@ func (ctrl Controller) RunAutomation(c *gin.Context) {
 	ctrl.mapper.NewResponse(c, payload.NewSuccessResponse(res, "Automation run completed"), err)
 }
 
+func (ctrl Controller) CancelAutomation(c *gin.Context) {
+	err := ctrl.Uc.CancelAutomation(c.Param("id"), c.Param("name"))
+	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Automation cancellation requested"), err)
+}
+
 func (ctrl Controller) AutomationRuntime(c *gin.Context) {
 	ctrl.mapper.NewResponse(c, payload.NewSuccessResponse(ctrl.Uc.AutomationRuntime(), "Success"), nil)
 }
@@ -161,6 +167,7 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection.PUT("/:id/automation/:name/config", ctrl.WriteAutomationConfig)
 	collection.GET("/:id/automation/:name", ctrl.ReadAutomation)
 	collection.POST("/:id/automation/:name/run", ctrl.RunAutomation)
+	collection.POST("/:id/automation/:name/cancel", ctrl.CancelAutomation)
 	collection.PUT("/:id/automation/:name", ctrl.WriteAutomation)
 	collection.DELETE("/:id/automation/:name", ctrl.DeleteAutomation)
 }
