@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"errors"
+	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"net/http"
 	"os"
 
@@ -10,6 +12,7 @@ import (
 
 type Api struct {
 	server  *gin.Engine
+	socket  *socketio.IO
 	routers []Router
 	srv     *http.Server
 }
@@ -31,7 +34,8 @@ func (a *Api) Start() error {
 		Handler: a.server,
 	}
 
-	if err := a.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := a.srv.ListenAndServe(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 

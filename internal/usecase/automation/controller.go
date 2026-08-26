@@ -1,6 +1,7 @@
 package automation
 
 import (
+	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"io"
 	"net/http"
 
@@ -34,9 +35,9 @@ type UsecaseInterface interface {
 	AutomationRuntime() AutomationRuntimeInfo
 }
 
-func NewController(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) Controller {
+func NewController(lg logger.Logger, socket *socketio.IO, collectionRepo bbolt.RepositoryInterface[domain.Collection]) Controller {
 	return Controller{
-		Uc: NewUsecase(lg, collectionRepo),
+		Uc: NewUsecase(lg, socket, collectionRepo),
 	}
 }
 

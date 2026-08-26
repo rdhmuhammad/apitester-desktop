@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"os"
 	"path/filepath"
 
@@ -30,11 +31,23 @@ func Default() *Api {
 	lg := builder.Build()
 	collectionRepo := initCollectionRepo()
 
+	socket := socketio.New(socketio.Options{
+		Port:     "8993",
+		Endpoint: "/socket.io",
+	})
+
+	go func() {
+		lg.Infof("Socket.IO server starting on :8993/socket.io")
+		if err := socket.Listen(); err != nil {
+			lg.Errorf("Socket.IO server error: %v", err)
+		}
+	}()
+
 	routers := []Router{
 		watch.NewController(&lg, collectionRepo),
 		environment.NewController(&lg, collectionRepo),
 		testsuits.NewController(&lg, collectionRepo),
-		automation.NewController(&lg, collectionRepo),
+		automation.NewController(&lg, socket, collectionRepo),
 	}
 
 	api.routers = routers

@@ -3,6 +3,7 @@ package automation
 import (
 	"context"
 	"encoding/json"
+	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,12 +20,16 @@ type Usecase struct {
 	errHandler     localerror.HandleError
 	collectionRepo bbolt.RepositoryInterface[domain.Collection]
 	pythonClient   *pythonClient
+	socket         *socketio.NS
 }
 
-func NewUsecase(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) *Usecase {
+func NewUsecase(lg logger.Logger, socket *socketio.IO, collectionRepo bbolt.RepositoryInterface[domain.Collection]) *Usecase {
+	ns := socket.NewSpace("tracking", nil)
+	ns.Build()
 	return &Usecase{
 		errHandler:     localerror.NewHandlerError(lg),
 		collectionRepo: collectionRepo,
+		socket:         ns,
 		pythonClient:   newPythonClient(),
 	}
 }
