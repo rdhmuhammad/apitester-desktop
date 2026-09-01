@@ -13,19 +13,26 @@ import (
 )
 
 type Usecase struct {
-	errHandler     localerror.HandleError
-	collectionRepo bbolt.RepositoryInterface[domain.Collection]
+	errHandler    localerror.HandleError
+	testSuiteRepo bbolt.RepositoryInterface[domain.TestSuite]
 }
 
-func NewUsecase(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) *Usecase {
+func NewUsecase(lg logger.Logger, testSuiteRepo bbolt.RepositoryInterface[domain.TestSuite]) *Usecase {
 	return &Usecase{
-		errHandler:     localerror.NewHandlerError(lg),
-		collectionRepo: collectionRepo,
+		errHandler:    localerror.NewHandlerError(lg),
+		testSuiteRepo: testSuiteRepo,
 	}
 }
 
-func testsDir(collectionPath string) string {
-	return filepath.Join(filepath.Dir(collectionPath), "tests")
+func (u *Usecase) module(id string) (*domain.TestSuite, error) {
+	module, err := u.testSuiteRepo.View(context.Background(), id)
+	if err != nil {
+		return nil, u.errHandler.ErrorReturn(err)
+	}
+	if module == nil {
+		return nil, localerror.InvalidData("Test suite not found")
+	}
+	return module, nil
 }
 
 func validateTestName(name string) error {
@@ -36,16 +43,11 @@ func validateTestName(name string) error {
 }
 
 func (u *Usecase) ListTests(id string) ([]TestFileInfo, error) {
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, err
 	}
-	if collection == nil {
-		return nil, localerror.InvalidData("Collection not found")
-	}
-
-	testsDir := testsDir(collection.Path)
-	entries, err := os.ReadDir(testsDir)
+	entries, err := os.ReadDir(module.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []TestFileInfo{}, nil
@@ -66,7 +68,7 @@ func (u *Usecase) ListTests(id string) ([]TestFileInfo, error) {
 		base := strings.TrimSuffix(name, ".http")
 
 		totalSteps := 0
-		filePath := filepath.Join(testsDir, name)
+		filePath := filepath.Join(module.Path, name)
 		if content, err := os.ReadFile(filePath); err == nil {
 			steps := parser.parse(string(content))
 			totalSteps = len(steps)
@@ -89,15 +91,11 @@ func (u *Usecase) ReadTest(id, name string) (TestFileContent, error) {
 		return TestFileContent{}, err
 	}
 
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return TestFileContent{}, u.errHandler.ErrorReturn(err)
+		return TestFileContent{}, err
 	}
-	if collection == nil {
-		return TestFileContent{}, localerror.InvalidData("Collection not found")
-	}
-
-	path := filepath.Join(testsDir(collection.Path), name+".http")
+	path := filepath.Join(module.Path, name+".http")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -123,22 +121,17 @@ func (u *Usecase) WriteTest(id, name string, payload TestFileContent) error {
 		return localerror.InvalidData("Test steps are required")
 	}
 
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return u.errHandler.ErrorReturn(err)
+		return err
 	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-
-	testsDir := testsDir(collection.Path)
-	if err := os.MkdirAll(testsDir, 0755); err != nil {
+	if err := os.MkdirAll(module.Path, 0755); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
 
 	content := newHttpParser().serialize(payload.Steps)
 
-	path := filepath.Join(testsDir, name+".http")
+	path := filepath.Join(module.Path, name+".http")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
@@ -151,15 +144,11 @@ func (u *Usecase) DeleteTest(id, name string) error {
 		return err
 	}
 
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return u.errHandler.ErrorReturn(err)
+		return err
 	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-
-	path := filepath.Join(testsDir(collection.Path), name+".http")
+	path := filepath.Join(module.Path, name+".http")
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil

@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"errors"
-	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"net/http"
 	"os"
 
@@ -12,7 +11,6 @@ import (
 
 type Api struct {
 	server  *gin.Engine
-	socket  *socketio.IO
 	routers []Router
 	srv     *http.Server
 }

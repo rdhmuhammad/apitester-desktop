@@ -35,7 +35,6 @@ Source: "..\..\.env.prod"; DestDir: "{app}"
 
 [Dirs]
 Name: "{app}\resource\db"
-Name: "{app}\runtime\ansible"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\apitester.exe"; WorkingDir: "{app}"

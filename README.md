@@ -132,21 +132,7 @@ Before running the project **locally**, ensure the following tools are installed
 * **MySQL**: Version 8.0
 * **NodeJS**: Version 22.0
 * **PNPM**: Version [10.23.0](https://pnpm.io/10.x/installation#on-windows)
-* **Ansible**: run via the bundled Python Flask service in `python/` (configure `PYTHON_SERVICE_URL`, default `http://localhost:5000`)
-
-For the Windows desktop installer, build the private Ansible runtime before compiling
-the Inno Setup installer. The build requires a full Windows Python distribution and
-an offline wheelhouse containing the pinned packages:
-
-```powershell
-.\deployment\desktop\build-ansible-runtime.ps1 `
-  -PythonHome C:\path\to\python `
-  -Wheelhouse C:\path\to\wheelhouse
-```
-
-The generated runtime is placed in `deployment/desktop/build/runtime/ansible` and is
-packaged automatically by `deployment/desktop/setup.iss`. End users do not need to
-install Python or Ansible separately.
+* **Ansible**: playbooks and inventories are managed in the desktop editor. Execution is reserved for a future runner implementation.
 
 ### ▶️ How to Run
 

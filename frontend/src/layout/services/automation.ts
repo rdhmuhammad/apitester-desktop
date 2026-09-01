@@ -1,6 +1,6 @@
 import axios from "@/config/axios.ts"
 import type {Response} from "@/types/response.ts"
-import type {AutomationRunConfig, AutomationRunResult, AutomationRuntime} from "@/pages/editor/types/automation.ts"
+import type {AutomationRunConfig} from "@/pages/editor/types/automation.ts"
 
 export interface AutomationFileInfo {
   name: string
@@ -112,21 +112,4 @@ export const AutomationServices = {
     await Promise.all(configs.map(({filename, config}) => AutomationServices.writeConfig(collectionId, filename, config)))
   },
 
-  runtime: async (collectionId: string): Promise<AutomationRuntime> => {
-    const response = await axios.get<Response<AutomationRuntime>>(`/collection/${collectionId}/automation/runtime`)
-    return response.data.data
-  },
-
-  run: async (collectionId: string, filename: string, config: AutomationRunConfig): Promise<AutomationRunResult> => {
-    const response = await axios.post<Response<AutomationRunResult>>(
-      `/collection/${collectionId}/automation/${filename}/run`,
-      config,
-    )
-    return response.data.data
-  },
-
-  cancel: async (collectionId: string, filename: string): Promise<string> => {
-    const response = await axios.post<Response<null>>(`/collection/${collectionId}/automation/${filename}/cancel`)
-    return response.data.message
-  },
 }

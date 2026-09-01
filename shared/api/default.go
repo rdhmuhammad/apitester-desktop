@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"os"
 	"path/filepath"
 
@@ -29,25 +28,13 @@ func Default() *Api {
 		builder = builder.LogFile(p)
 	}
 	lg := builder.Build()
-	collectionRepo := initCollectionRepo()
-
-	socket := socketio.New(socketio.Options{
-		Port:     "8993",
-		Endpoint: "/socket.io",
-	})
-
-	go func() {
-		lg.Infof("Socket.IO server starting on :8993/socket.io")
-		if err := socket.Listen(); err != nil {
-			lg.Errorf("Socket.IO server error: %v", err)
-		}
-	}()
+	collectionRepo, testSuiteRepo, automationRepo := initRepositories()
 
 	routers := []Router{
-		watch.NewController(&lg, collectionRepo),
+		watch.NewController(&lg, collectionRepo, testSuiteRepo, automationRepo),
 		environment.NewController(&lg, collectionRepo),
-		testsuits.NewController(&lg, collectionRepo),
-		automation.NewController(&lg, socket, collectionRepo),
+		testsuits.NewController(&lg, testSuiteRepo),
+		automation.NewController(&lg, automationRepo),
 	}
 
 	api.routers = routers
@@ -55,19 +42,27 @@ func Default() *Api {
 	return &api
 }
 
-func initCollectionRepo() bbolt.RepositoryInterface[domain.Collection] {
+func initRepositories() (bbolt.RepositoryInterface[domain.Collection], bbolt.RepositoryInterface[domain.TestSuite], bbolt.RepositoryInterface[domain.Automation]) {
 	dbPath := collectionDBPath()
 	boltDB, err := bbolt.NewBoltDB(dbPath)
 	if err != nil {
 		panic(err)
 	}
 
-	repo, err := bbolt.NewRepository[domain.Collection](boltDB.DB())
+	collectionRepo, err := bbolt.NewRepository[domain.Collection](boltDB.DB())
 	if err != nil {
 		panic(err)
 	}
 
-	return repo
+	testSuiteRepo, err := bbolt.NewRepository[domain.TestSuite](boltDB.DB(), bbolt.WithBucketName("TestSuite"))
+	if err != nil {
+		panic(err)
+	}
+	automationRepo, err := bbolt.NewRepository[domain.Automation](boltDB.DB(), bbolt.WithBucketName("Automation"))
+	if err != nil {
+		panic(err)
+	}
+	return collectionRepo, testSuiteRepo, automationRepo
 }
 
 func collectionDBPath() string {

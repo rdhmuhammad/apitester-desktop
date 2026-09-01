@@ -576,7 +576,9 @@ const buildSelectedRequest = (state: RootState, current: ActiveItem): Collection
     }
 }
 
-// HELPER HOOKS
+// ============================================================================================================
+// ==================================          HELPER FUNCTION        =========================================
+// ============================================================================================================
 const diveActiveRequest = (id: string, item: CollectionItem[]): CollectionItem | null => {
     for (const it of item) {
         if (it.id === id) return it

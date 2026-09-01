@@ -1,5 +1,6 @@
-import RequestConfigTabs from "@/pages/editor/components/RequestConfigTabs.tsx";
-import ResponseView from "@/pages/editor/components/ResponseView.tsx";
+// Component imports
+import RequestConfigTabs from "@/pages/editor/components/RequestConfig/RequestConfigTabs.tsx";
+import ResponseView from "@/pages/editor/components/RequestConfig/ResponseView.tsx";
 import WelcomeEditor from "@/pages/editor/components/WelcomeEditor.tsx";
 import TestScenarioEditor from "@/pages/editor/components/TestScenarioEditor.tsx";
 import AutomationEditor from "@/pages/editor/components/AutomationEditor.tsx";
@@ -12,9 +13,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
-import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+
+// React & Utils Imports
 import {useCallback, useEffect, useRef, useState} from "react";
+import {cn} from "@/lib/utils.ts";
+import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
+
+
+// Store Imports
+import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+import type {EditorTab} from "@/app/slices/index.ts";
 import {
     type ColtReqMethod,
     createNewRequest,
@@ -29,7 +37,6 @@ import {
     setActiveTabId,
     setActiveTree,
 } from "@/app/slices/collectionSlices.ts";
-import type {EditorTab} from "@/app/slices/index.ts";
 import {
     closeTestScenarioTab,
     createTestFile,
@@ -50,7 +57,6 @@ import {
     toAutomationInventoryTabId,
     toAutomationTabId
 } from "@/lib/tabUtils.ts";
-import {cn} from "@/lib/utils.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
@@ -71,7 +77,6 @@ const Editor: React.FC = () => {
     const scenarios = useAppSelector(selectScenarios)
     const automationFiles = useAppSelector(selectAutomationFiles)
     const automationInventories = useAppSelector(selectAutomationInventories)
-
     const {allTabs, effectiveActiveTabId} = useAppSelector((state) => {
         const openRequestTabs = selectOpenRequestTabs(state)
         const activeTestIds = selectActiveTestIds(state)

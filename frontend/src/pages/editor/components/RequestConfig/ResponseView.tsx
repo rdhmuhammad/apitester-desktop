@@ -1,7 +1,7 @@
 import {Badge} from "@/components/ui/badge.tsx";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
+import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible.tsx";
 import {
     Dialog,
     DialogContent,
@@ -9,8 +9,8 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import {Input} from "@/components/ui/input";
+} from "@/components/ui/dialog.tsx";
+import {Input} from "@/components/ui/input.tsx";
 import {Download, Link2, Eye, EyeOff, ChevronDown} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {

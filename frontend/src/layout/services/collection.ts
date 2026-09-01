@@ -7,6 +7,8 @@ export interface Collection {
     name: string
     is_selected: boolean
     path: string
+    testsuite_id: string
+    automation_id: string
     updated_at: string
     created_at: string
 }

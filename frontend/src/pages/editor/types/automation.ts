@@ -26,24 +26,3 @@ export interface AutomationRunConfig {
   checkMode: boolean
   diffMode: boolean
 }
-
-export interface AutomationRuntime {
-	available: boolean
-	name: string
-	version?: string
-	pythonVersion?: string
-	binary?: string
-	runtimePath?: string
-	message: string
-}
-
-export interface AutomationRunResult {
-  stdout: string
-  stderr: string
-  durationMs: number
-  canceled?: boolean
-}
-
-export interface AutomationRunFailure {
-  message: string
-}

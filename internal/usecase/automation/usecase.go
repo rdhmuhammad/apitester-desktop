@@ -3,12 +3,10 @@ package automation
 import (
 	"context"
 	"encoding/json"
-	"github.com/rdhmuhammad/apitester/pkg/socketio"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	"github.com/rdhmuhammad/apitester/pkg/bbolt"
@@ -18,56 +16,53 @@ import (
 
 type Usecase struct {
 	errHandler     localerror.HandleError
-	collectionRepo bbolt.RepositoryInterface[domain.Collection]
-	pythonClient   *pythonClient
-	socket         *socketio.NS
+	automationRepo bbolt.RepositoryInterface[domain.Automation]
 }
 
-func NewUsecase(lg logger.Logger, socket *socketio.IO, collectionRepo bbolt.RepositoryInterface[domain.Collection]) *Usecase {
-	ns := socket.NewSpace("tracking", nil)
-	ns.Build()
+func NewUsecase(lg logger.Logger, automationRepo bbolt.RepositoryInterface[domain.Automation]) *Usecase {
 	return &Usecase{
 		errHandler:     localerror.NewHandlerError(lg),
-		collectionRepo: collectionRepo,
-		socket:         ns,
-		pythonClient:   newPythonClient(),
+		automationRepo: automationRepo,
 	}
 }
 
-func automationDir(collectionPath string) string {
-	return filepath.Join(filepath.Dir(collectionPath), "automation")
+func automationDir(modulePath string) string {
+	return modulePath
 }
 
-func automationInventoryDir(collectionPath string) string {
-	return filepath.Join(automationDir(collectionPath), "inventory")
+func automationInventoryDir(modulePath string) string {
+	return filepath.Join(modulePath, "inventory")
 }
 
 func automationInventoryFilePath(collectionPath, name string) string {
 	return filepath.Join(automationInventoryDir(collectionPath), name)
 }
 
-func automationConfigPath(collectionPath string) string {
-	return filepath.Join(automationDir(collectionPath), ".config.json")
+func automationConfigPath(modulePath string) string {
+	return filepath.Join(modulePath, ".config.json")
 }
 
-func automationRunKey(collectionID, name string) string {
-	return collectionID + "\x00" + name
+func automationFilePath(modulePath, name string) string {
+	return filepath.Join(modulePath, name)
 }
 
-func automationFilePath(collectionPath, name string) string {
-	return filepath.Join(automationDir(collectionPath), name)
-}
-
-func (u *Usecase) ListAutomation(id string) ([]AutomationFileInfo, error) {
-	collection, err := u.collectionRepo.View(context.Background(), id)
+func (u *Usecase) module(id string) (*domain.Automation, error) {
+	module, err := u.automationRepo.View(context.Background(), id)
 	if err != nil {
 		return nil, u.errHandler.ErrorReturn(err)
 	}
-	if collection == nil {
-		return nil, localerror.InvalidData("Collection not found")
+	if module == nil {
+		return nil, localerror.InvalidData("Automation module not found")
 	}
+	return module, nil
+}
 
-	entries, err := os.ReadDir(automationDir(collection.Path))
+func (u *Usecase) ListAutomation(id string) ([]AutomationFileInfo, error) {
+	module, err := u.module(id)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(automationDir(module.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []AutomationFileInfo{}, nil
@@ -97,15 +92,12 @@ func (u *Usecase) ReadAutomation(id, name string) (AutomationFileContent, error)
 	if err := validateAutomationName(name); err != nil {
 		return AutomationFileContent{}, err
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return AutomationFileContent{}, u.errHandler.ErrorReturn(err)
-	}
-	if collection == nil {
-		return AutomationFileContent{}, localerror.InvalidData("Collection not found")
+		return AutomationFileContent{}, err
 	}
 
-	path := automationFilePath(collection.Path, name)
+	path := automationFilePath(module.Path, name)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -123,18 +115,15 @@ func (u *Usecase) WriteAutomation(id, name string, payload AutomationFileContent
 	if strings.TrimSpace(payload.Content) == "" {
 		return localerror.InvalidData("Automation content is required")
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return u.errHandler.ErrorReturn(err)
+		return err
 	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-	root := automationDir(collection.Path)
+	root := automationDir(module.Path)
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
-	if err := os.WriteFile(automationFilePath(collection.Path, name), []byte(payload.Content), 0644); err != nil {
+	if err := os.WriteFile(automationFilePath(module.Path, name), []byte(payload.Content), 0644); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
 	return nil
@@ -144,23 +133,20 @@ func (u *Usecase) DeleteAutomation(id, name string) error {
 	if err := validateAutomationName(name); err != nil {
 		return err
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
+		return err
+	}
+	if err := os.Remove(automationFilePath(module.Path, name)); err != nil && !os.IsNotExist(err) {
 		return u.errHandler.ErrorReturn(err)
 	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-	if err := os.Remove(automationFilePath(collection.Path, name)); err != nil && !os.IsNotExist(err) {
-		return u.errHandler.ErrorReturn(err)
-	}
-	configs, err := u.readAutomationConfigs(collection.Path)
+	configs, err := u.readAutomationConfigs(module.Path)
 	if err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
 	if _, exists := configs[name]; exists {
 		delete(configs, name)
-		if err := u.writeAutomationConfigs(collection.Path, configs); err != nil {
+		if err := u.writeAutomationConfigs(module.Path, configs); err != nil {
 			return u.errHandler.ErrorReturn(err)
 		}
 	}
@@ -168,15 +154,11 @@ func (u *Usecase) DeleteAutomation(id, name string) error {
 }
 
 func (u *Usecase) ListAutomationInventories(id string) ([]AutomationInventoryFileInfo, error) {
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, err
 	}
-	if collection == nil {
-		return nil, localerror.InvalidData("Collection not found")
-	}
-
-	entries, err := os.ReadDir(automationInventoryDir(collection.Path))
+	entries, err := os.ReadDir(automationInventoryDir(module.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []AutomationInventoryFileInfo{}, nil
@@ -203,17 +185,14 @@ func (u *Usecase) ListAutomationInventories(id string) ([]AutomationInventoryFil
 }
 
 func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCreateRequest) (AutomationInventoryFileContent, error) {
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return AutomationInventoryFileContent{}, u.errHandler.ErrorReturn(err)
-	}
-	if collection == nil {
-		return AutomationInventoryFileContent{}, localerror.InvalidData("Collection not found")
+		return AutomationInventoryFileContent{}, err
 	}
 
 	filename := strings.TrimSpace(req.Filename)
 	if filename == "" {
-		entries, readErr := os.ReadDir(automationInventoryDir(collection.Path))
+		entries, readErr := os.ReadDir(automationInventoryDir(module.Path))
 		if readErr != nil && !os.IsNotExist(readErr) {
 			return AutomationInventoryFileContent{}, u.errHandler.ErrorReturn(readErr)
 		}
@@ -229,7 +208,7 @@ func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCr
 		return AutomationInventoryFileContent{}, err
 	}
 
-	path := automationInventoryFilePath(collection.Path, filename)
+	path := automationInventoryFilePath(module.Path, filename)
 	if _, statErr := os.Stat(path); statErr == nil {
 		return AutomationInventoryFileContent{}, localerror.InvalidData("Automation inventory file already exists")
 	} else if !os.IsNotExist(statErr) {
@@ -240,7 +219,7 @@ func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCr
 		if err := validateAutomationName(req.AutomationFilename); err != nil {
 			return AutomationInventoryFileContent{}, err
 		}
-		if _, statErr := os.Stat(automationFilePath(collection.Path, req.AutomationFilename)); statErr != nil {
+		if _, statErr := os.Stat(automationFilePath(module.Path, req.AutomationFilename)); statErr != nil {
 			if os.IsNotExist(statErr) {
 				return AutomationInventoryFileContent{}, localerror.InvalidData("Automation file not found")
 			}
@@ -249,7 +228,7 @@ func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCr
 	}
 
 	content := starterInventoryContent(filename)
-	if err := os.MkdirAll(automationInventoryDir(collection.Path), 0755); err != nil {
+	if err := os.MkdirAll(automationInventoryDir(module.Path), 0755); err != nil {
 		return AutomationInventoryFileContent{}, u.errHandler.ErrorReturn(err)
 	}
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -257,7 +236,7 @@ func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCr
 	}
 
 	if req.AutomationFilename != "" {
-		configs, readErr := u.readAutomationConfigs(collection.Path)
+		configs, readErr := u.readAutomationConfigs(module.Path)
 		if readErr != nil {
 			return AutomationInventoryFileContent{}, u.errHandler.ErrorReturn(readErr)
 		}
@@ -275,7 +254,7 @@ func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCr
 			config.InventoryFile = filename
 		}
 		configs[req.AutomationFilename] = config
-		if writeErr := u.writeAutomationConfigs(collection.Path, configs); writeErr != nil {
+		if writeErr := u.writeAutomationConfigs(module.Path, configs); writeErr != nil {
 			_ = os.Remove(path)
 			return AutomationInventoryFileContent{}, u.errHandler.ErrorReturn(writeErr)
 		}
@@ -315,15 +294,12 @@ func (u *Usecase) ReadAutomationInventory(id, name string) (AutomationInventoryF
 	if err := validateInventoryName(name); err != nil {
 		return AutomationInventoryFileContent{}, err
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return AutomationInventoryFileContent{}, u.errHandler.ErrorReturn(err)
-	}
-	if collection == nil {
-		return AutomationInventoryFileContent{}, localerror.InvalidData("Collection not found")
+		return AutomationInventoryFileContent{}, err
 	}
 
-	content, err := os.ReadFile(automationInventoryFilePath(collection.Path, name))
+	content, err := os.ReadFile(automationInventoryFilePath(module.Path, name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return AutomationInventoryFileContent{}, localerror.InvalidData("Automation inventory not found")
@@ -340,18 +316,15 @@ func (u *Usecase) WriteAutomationInventory(id, name string, payload AutomationIn
 	if strings.TrimSpace(payload.Content) == "" {
 		return localerror.InvalidData("Automation inventory content is required")
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return u.errHandler.ErrorReturn(err)
+		return err
 	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-	root := automationInventoryDir(collection.Path)
+	root := automationInventoryDir(module.Path)
 	if err := os.MkdirAll(root, 0755); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
-	if err := os.WriteFile(automationInventoryFilePath(collection.Path, name), []byte(payload.Content), 0644); err != nil {
+	if err := os.WriteFile(automationInventoryFilePath(module.Path, name), []byte(payload.Content), 0644); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
 	return nil
@@ -361,18 +334,15 @@ func (u *Usecase) DeleteAutomationInventory(id, name string) error {
 	if err := validateInventoryName(name); err != nil {
 		return err
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return u.errHandler.ErrorReturn(err)
+		return err
 	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-	if err := os.Remove(automationInventoryFilePath(collection.Path, name)); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(automationInventoryFilePath(module.Path, name)); err != nil && !os.IsNotExist(err) {
 		return u.errHandler.ErrorReturn(err)
 	}
 
-	configs, err := u.readAutomationConfigs(collection.Path)
+	configs, err := u.readAutomationConfigs(module.Path)
 	if err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
@@ -394,7 +364,7 @@ func (u *Usecase) DeleteAutomationInventory(id, name string) error {
 		configs[key] = config
 	}
 	if changed {
-		if err := u.writeAutomationConfigs(collection.Path, configs); err != nil {
+		if err := u.writeAutomationConfigs(module.Path, configs); err != nil {
 			return u.errHandler.ErrorReturn(err)
 		}
 	}
@@ -402,14 +372,11 @@ func (u *Usecase) DeleteAutomationInventory(id, name string) error {
 }
 
 func (u *Usecase) ListAutomationConfigs(id string) (map[string]AutomationConfig, error) {
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, err
 	}
-	if collection == nil {
-		return nil, localerror.InvalidData("Collection not found")
-	}
-	configs, err := u.readAutomationConfigs(collection.Path)
+	configs, err := u.readAutomationConfigs(module.Path)
 	if err != nil {
 		return nil, u.errHandler.ErrorReturn(err)
 	}
@@ -461,33 +428,30 @@ func (u *Usecase) WriteAutomationConfig(id, name string, config AutomationConfig
 			return localerror.InvalidData("Selected inventory must be attached to the automation")
 		}
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	module, err := u.module(id)
 	if err != nil {
-		return u.errHandler.ErrorReturn(err)
-	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
+		return err
 	}
 	for _, filename := range config.InventoryFiles {
-		if _, err := os.Stat(automationInventoryFilePath(collection.Path, filename)); err != nil {
+		if _, err := os.Stat(automationInventoryFilePath(module.Path, filename)); err != nil {
 			if os.IsNotExist(err) {
 				return localerror.InvalidData("Automation inventory not found")
 			}
 			return u.errHandler.ErrorReturn(err)
 		}
 	}
-	if _, err := os.Stat(automationFilePath(collection.Path, name)); err != nil {
+	if _, err := os.Stat(automationFilePath(module.Path, name)); err != nil {
 		if os.IsNotExist(err) {
 			return localerror.InvalidData("Automation file not found")
 		}
 		return u.errHandler.ErrorReturn(err)
 	}
-	configs, err := u.readAutomationConfigs(collection.Path)
+	configs, err := u.readAutomationConfigs(module.Path)
 	if err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
 	configs[name] = config
-	if err := u.writeAutomationConfigs(collection.Path, configs); err != nil {
+	if err := u.writeAutomationConfigs(module.Path, configs); err != nil {
 		return u.errHandler.ErrorReturn(err)
 	}
 	return nil
@@ -538,112 +502,6 @@ func (u *Usecase) writeAutomationConfigs(collectionPath string, configs map[stri
 		return err
 	}
 	return os.Rename(temporaryName, destination)
-}
-
-func (u *Usecase) RunAutomation(id, name string, req AutomationRunRequest) (AutomationRunResult, error) {
-	if err := validateAutomationName(name); err != nil {
-		return AutomationRunResult{}, err
-	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
-	if err != nil {
-		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
-	}
-	if collection == nil {
-		return AutomationRunResult{}, localerror.InvalidData("Collection not found")
-	}
-
-	playbookPath := automationFilePath(collection.Path, name)
-	if _, err := os.Stat(playbookPath); err != nil {
-		if os.IsNotExist(err) {
-			return AutomationRunResult{}, localerror.InvalidData("Automation file not found")
-		}
-		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
-	}
-
-	var extraVars map[string]interface{}
-	if extra := strings.TrimSpace(req.ExtraVars); extra != "" {
-		if err := json.Unmarshal([]byte(extra), &extraVars); err != nil {
-			return AutomationRunResult{}, localerror.InvalidData("extraVars must be a valid JSON object")
-		}
-	}
-
-	inventoryPath := ""
-	if req.InventoryFile != "" {
-		if err := validateInventoryName(req.InventoryFile); err != nil {
-			return AutomationRunResult{}, err
-		}
-		inventoryPath = automationInventoryFilePath(collection.Path, req.InventoryFile)
-		if _, err := os.Stat(inventoryPath); err != nil {
-			if os.IsNotExist(err) {
-				return AutomationRunResult{}, localerror.InvalidData("Automation inventory not found")
-			}
-			return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
-		}
-	}
-
-	runRequest := pythonRunRequest{
-		Playbook:  playbookPath,
-		Inventory: inventoryPath,
-		ExtraVars: extraVars,
-		Limit:     req.Limit,
-		Tags:      req.Tags,
-		CheckMode: req.CheckMode,
-		DiffMode:  req.DiffMode,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	defer cancel()
-
-	result, err := u.pythonClient.Run(ctx, automationRunKey(id, name), runRequest)
-	if err != nil {
-		return AutomationRunResult{}, u.errHandler.ErrorReturn(err)
-	}
-
-	return AutomationRunResult{
-		Stdout:     result.Stdout,
-		Stderr:     result.Stderr,
-		DurationMs: result.DurationMs,
-		Canceled:   result.Canceled,
-	}, nil
-}
-
-func (u *Usecase) CancelAutomation(id, name string) error {
-	if err := validateAutomationName(name); err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := u.pythonClient.Cancel(ctx, automationRunKey(id, name)); err != nil {
-		return u.errHandler.ErrorReturn(err)
-	}
-	return nil
-}
-
-func (u *Usecase) AutomationRuntime() AutomationRuntimeInfo {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	runtime, err := u.pythonClient.Runtime(ctx)
-	if err != nil {
-		return AutomationRuntimeInfo{
-			Available: false,
-			Name:      "Managed Ansible runner",
-			Message:   err.Error(),
-		}
-	}
-
-	info := AutomationRuntimeInfo{
-		Available:     runtime.Available,
-		Name:          runtime.Name,
-		Version:       runtime.Version,
-		PythonVersion: runtime.PythonVersion,
-		Binary:        runtime.Binary,
-		Message:       runtime.Message,
-	}
-	if info.Name == "" {
-		info.Name = "Managed Ansible runner"
-	}
-	return info
 }
 
 func validateAutomationName(name string) error {

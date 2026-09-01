@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -22,20 +23,84 @@ type Usecase struct {
 	watcher        *watcher.FileWatcher
 	errHandler     localerror.HandleError
 	collectionRepo bbolt.RepositoryInterface[domain.Collection]
+	testSuiteRepo  bbolt.RepositoryInterface[domain.TestSuite]
+	automationRepo bbolt.RepositoryInterface[domain.Automation]
 }
 
-func NewUsecase(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) *Usecase {
+func NewUsecase(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection], testSuiteRepo bbolt.RepositoryInterface[domain.TestSuite], automationRepo bbolt.RepositoryInterface[domain.Automation]) *Usecase {
 	fw := watcher.New(lg)
 
 	if selected := findSelectedCollection(collectionRepo); selected != nil {
 		fw.Watch(selected.Path)
 	}
 
-	return &Usecase{
+	u := &Usecase{
 		errHandler:     localerror.NewHandlerError(lg),
 		watcher:        fw,
 		collectionRepo: collectionRepo,
+		testSuiteRepo:  testSuiteRepo,
+		automationRepo: automationRepo,
 	}
+	u.backfillModuleEntities()
+	return u
+}
+
+func (u *Usecase) backfillModuleEntities() {
+	collections, err := u.collectionRepo.List(context.Background())
+	if err != nil {
+		return
+	}
+	for i := range collections {
+		_ = u.ensureModuleEntities(&collections[i])
+	}
+}
+
+func (u *Usecase) ensureModuleEntities(collection *domain.Collection) error {
+	now := time.Now()
+	if collection.TestSuiteID == "" {
+		collection.TestSuiteID = uuid.NewString()
+		module := domain.TestSuite{ID: collection.TestSuiteID, CollectionID: collection.ID, Path: filepath.Join(filepath.Dir(collection.Path), "tests"), CreatedAt: now, UpdatedAt: now}
+		if err := u.testSuiteRepo.Create(context.Background(), module.ID, &module); err != nil {
+			return err
+		}
+	} else {
+		module, err := u.testSuiteRepo.View(context.Background(), collection.TestSuiteID)
+		if err != nil {
+			return err
+		}
+		if module == nil {
+			module = &domain.TestSuite{ID: collection.TestSuiteID, CollectionID: collection.ID, CreatedAt: now}
+		}
+		module.Path = filepath.Join(filepath.Dir(collection.Path), "tests")
+		module.UpdatedAt = now
+		if err := u.testSuiteRepo.Update(context.Background(), module.ID, module); err != nil {
+			return err
+		}
+	}
+	if collection.AutomationID == "" {
+		collection.AutomationID = uuid.NewString()
+		module := domain.Automation{ID: collection.AutomationID, CollectionID: collection.ID, Path: filepath.Join(filepath.Dir(collection.Path), "automation"), CreatedAt: now, UpdatedAt: now}
+		if err := u.automationRepo.Create(context.Background(), module.ID, &module); err != nil {
+			if collection.TestSuiteID != "" {
+				_ = u.testSuiteRepo.Delete(context.Background(), collection.TestSuiteID)
+			}
+			return err
+		}
+	} else {
+		module, err := u.automationRepo.View(context.Background(), collection.AutomationID)
+		if err != nil {
+			return err
+		}
+		if module == nil {
+			module = &domain.Automation{ID: collection.AutomationID, CollectionID: collection.ID, CreatedAt: now}
+		}
+		module.Path = filepath.Join(filepath.Dir(collection.Path), "automation")
+		module.UpdatedAt = now
+		if err := u.automationRepo.Update(context.Background(), module.ID, module); err != nil {
+			return err
+		}
+	}
+	return u.collectionRepo.Update(context.Background(), collection.ID, collection)
 }
 
 func findSelectedCollection(repo bbolt.RepositoryInterface[domain.Collection]) *domain.Collection {
@@ -101,7 +166,13 @@ func (u *Usecase) CreateCollection(req CreateCollectionRequest) (domain.Collecti
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
+	collection.TestSuiteID = uuid.NewString()
+	collection.AutomationID = uuid.NewString()
 	if err := u.collectionRepo.Create(context.Background(), collection.ID, &collection); err != nil {
+		return domain.Collection{}, u.errHandler.ErrorReturn(err)
+	}
+	if err := u.ensureModuleEntities(&collection); err != nil {
+		_ = u.collectionRepo.Delete(context.Background(), collection.ID)
 		return domain.Collection{}, u.errHandler.ErrorReturn(err)
 	}
 	return collection, nil
@@ -122,6 +193,9 @@ func (u *Usecase) UpdateCollectionByID(id string, req UpdateCollectionRequest) (
 		collection.Path = req.Path
 	}
 	collection.UpdatedAt = time.Now()
+	if err := u.updateModulePaths(collection); err != nil {
+		return domain.Collection{}, u.errHandler.ErrorReturn(err)
+	}
 	if err := u.collectionRepo.Update(context.Background(), id, collection); err != nil {
 		return domain.Collection{}, u.errHandler.ErrorReturn(err)
 	}
@@ -129,7 +203,54 @@ func (u *Usecase) UpdateCollectionByID(id string, req UpdateCollectionRequest) (
 }
 
 func (u *Usecase) DeleteCollection(id string) error {
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return localerror.InvalidData("Collection not found")
+	}
+	if collection.TestSuiteID != "" {
+		if err := u.testSuiteRepo.Delete(context.Background(), collection.TestSuiteID); err != nil {
+			return u.errHandler.ErrorReturn(err)
+		}
+	}
+	if collection.AutomationID != "" {
+		if err := u.automationRepo.Delete(context.Background(), collection.AutomationID); err != nil {
+			return u.errHandler.ErrorReturn(err)
+		}
+	}
 	return u.collectionRepo.Delete(context.Background(), id)
+}
+
+func (u *Usecase) updateModulePaths(collection *domain.Collection) error {
+	if collection.TestSuiteID != "" {
+		module, err := u.testSuiteRepo.View(context.Background(), collection.TestSuiteID)
+		if err != nil {
+			return err
+		}
+		if module != nil {
+			module.Path = filepath.Join(filepath.Dir(collection.Path), "tests")
+			module.UpdatedAt = time.Now()
+			if err := u.testSuiteRepo.Update(context.Background(), module.ID, module); err != nil {
+				return err
+			}
+		}
+	}
+	if collection.AutomationID != "" {
+		module, err := u.automationRepo.View(context.Background(), collection.AutomationID)
+		if err != nil {
+			return err
+		}
+		if module != nil {
+			module.Path = filepath.Join(filepath.Dir(collection.Path), "automation")
+			module.UpdatedAt = time.Now()
+			if err := u.automationRepo.Update(context.Background(), module.ID, module); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (u *Usecase) SelectCollection(id string) (domain.Collection, error) {

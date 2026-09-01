@@ -2,7 +2,7 @@ import {SidebarProvider} from "@/components/ui/sidebar.tsx";
 import SidebarLayout from "@/layout/view/SidebarLayout.tsx";
 import HeaderLayout from "@/layout/view/Header.tsx";
 import ShortcutLegend from "@/layout/components/ShortcutLegend.tsx";
-import {createContext, useContext, useMemo, useState} from "react";
+import {createContext, useMemo, useState} from "react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
 
 interface IMainLayout {
@@ -13,12 +13,6 @@ interface IMainLayout {
 const HeaderActionCtx = createContext<{
     setHeaderAction: React.Dispatch<React.SetStateAction<HeaderAction>>
 } | null>(null)
-
-export const useHeaderAction = () => {
-    const ctx = useContext(HeaderActionCtx)
-    if (!ctx) throw new Error("useHeaderAction must be used inside MainLayout");
-    return ctx;
-}
 
 const MainLayout: React.FC<IMainLayout> = ({children}: IMainLayout) => {
     const [headerAction, setHeaderAction] = useState<HeaderAction>(null)

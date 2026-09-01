@@ -73,6 +73,7 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
     const languageExtensions = useMemo(() => {
         const result: Extension[] = [...extensions]
         if (yamlLanguage) {
+            console.log(yamlLanguage)
             if (completionSources.length > 0) {
                 result.unshift(yamlLanguage.language.data.of({autocomplete: completionSources}))
             }
@@ -82,7 +83,7 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
 
     const editorExtensions = useMemo(() => {
         if (!autoComplete) return undefined
-        if (autoComplete === true) return {
+        if (autoComplete) return {
             extensions: [autocompletion(), ...languageExtensions],
             extensionsKeymap: completionKeymap.slice(),
         }

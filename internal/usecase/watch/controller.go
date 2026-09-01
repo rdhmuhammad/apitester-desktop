@@ -29,9 +29,9 @@ type UsecaseInterface interface {
 	GetActiveCollection() (domain.Collection, error)
 }
 
-func NewController(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection]) Controller {
+func NewController(lg logger.Logger, collectionRepo bbolt.RepositoryInterface[domain.Collection], testSuiteRepo bbolt.RepositoryInterface[domain.TestSuite], automationRepo bbolt.RepositoryInterface[domain.Automation]) Controller {
 	return Controller{
-		Uc: NewUsecase(lg, collectionRepo),
+		Uc: NewUsecase(lg, collectionRepo, testSuiteRepo, automationRepo),
 	}
 }
 

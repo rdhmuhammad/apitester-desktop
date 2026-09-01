@@ -1,6 +1,5 @@
 import {useState} from "react"
 import {
-  AlertTriangle,
   BookOpen,
   Check,
   Code2,
@@ -23,9 +22,6 @@ import {
   selectActiveAutomation,
   selectAutomationConfig,
   selectAutomationInventories,
-  selectAutomationRunningId,
-  selectAutomationRunResult,
-  selectAutomationRuntime,
   updateAutomationConfig,
   updateAutomationContent,
 } from "@/app/slices/automationSlice.ts"
@@ -38,15 +34,8 @@ import {ansibleCompletionSource, YAML_SYNTAX_DOCS} from "@/lib/ansibleCompletion
 const AutomationEditor: React.FC = () => {
     const dispatch = useAppDispatch()
     const file = useAppSelector(selectActiveAutomation)
-    const runtime = useAppSelector(selectAutomationRuntime) ?? {
-        available: false,
-        name: 'Managed Ansible runner',
-        message: 'Runtime health is unavailable until a collection is loaded.',
-    }
     const config = useAppSelector(state => file ? selectAutomationConfig(state, file.id) : null)
     const inventories = useAppSelector(selectAutomationInventories)
-    const runningId = useAppSelector(selectAutomationRunningId)
-    const runResult = useAppSelector(state => selectAutomationRunResult(state, file?.id ?? ''))
     const [inventoryPromptOpen, setInventoryPromptOpen] = useState(false)
     if (!file || !config) {
         return <div className="flex items-center justify-center py-20 text-sm text-slate-400">Select a playbook from the
@@ -61,8 +50,6 @@ const AutomationEditor: React.FC = () => {
     const updateSource = (value: string) => {
         dispatch(updateAutomationContent({id: file.id, content: value}))
     }
-
-    const isRunning = runningId === file.id
 
     const persistConfig = async (nextConfig: typeof config) => {
         if (!nextConfig) return
@@ -134,27 +121,6 @@ const AutomationEditor: React.FC = () => {
 
     return (
         <div className="space-y-4 p-4">
-            {!runtime.available && (
-                <div
-                    className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"/>
-                    <div>
-                        <p className="font-semibold">Managed Ansible runner is not available</p>
-                        <p className="mt-1 text-amber-800">{runtime.message} You can still edit and save this playbook.
-                            Execution will be enabled when the backend runner is bundled.</p>
-                    </div>
-                </div>
-            )}
-
-            {runtime.available && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-                    <p className="font-semibold">{runtime.name} is ready</p>
-                    <p className="mt-1 text-emerald-800">
-                        Ansible {runtime.version ?? 'unknown'}{runtime.pythonVersion ? ` · ${runtime.pythonVersion}` : ''}
-                    </p>
-                </div>
-            )}
-
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
                 <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -289,8 +255,7 @@ const AutomationEditor: React.FC = () => {
                             <h3 className="text-sm font-semibold text-slate-900">Last run</h3>
                             {statusBadge()}
                         </div>
-                        {!runtime.available ? (
-                            <div className={cn('space-y-3 p-4 text-xs text-slate-500', 'bg-slate-50')}>
+                        <div className={cn('space-y-3 p-4 text-xs text-slate-500', 'bg-slate-50')}>
                                 <div className="flex items-center gap-2"><Check
                                     className="h-4 w-4 text-slate-300"/> Playbook output will appear here after the
                                     managed runner is ready.
@@ -299,46 +264,7 @@ const AutomationEditor: React.FC = () => {
                                     className="rounded-lg border border-dashed border-slate-200 p-3 font-mono text-[10px] text-slate-400">PLAY
                                     RECAP · no execution yet
                                 </div>
-                            </div>
-                        ) : isRunning ? (
-                            <div className="space-y-3 p-4 text-xs text-slate-500">
-                                <div className="flex items-center gap-2 text-amber-700"><Loader2
-                                    className="h-4 w-4 animate-spin"/> Running ansible-playbook — output will appear
-                                    when it finishes.
-                                </div>
-                                <div
-                                    className="rounded-lg border border-dashed border-slate-200 p-3 font-mono text-[10px] text-slate-400">PLAY
-                                    RECAP · running…
-                                </div>
-                            </div>
-                        ) : runResult ? (
-                            <div className="space-y-3 p-4 text-xs text-slate-500">
-                                {runResult.stdout && (
-                                    <pre
-                                        className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-[10px] text-slate-100">{runResult.stdout}</pre>
-                                )}
-                                {runResult.stderr && (
-                                    <pre
-                                        className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg border border-rose-200 bg-rose-50 p-3 font-mono text-[10px] text-rose-700">{runResult.stderr}</pre>
-                                )}
-                                {!runResult.stdout && !runResult.stderr &&
-                                    <div className="text-slate-400">No output captured.</div>}
-                                <div
-                                    className="rounded-lg border border-dashed border-slate-200 p-3 font-mono text-[10px] text-slate-400">PLAY
-                                    RECAP · {(runResult.durationMs / 1000).toFixed(1)}s
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-3 p-4 text-xs text-slate-500">
-                                <div className="flex items-center gap-2"><Check className="h-4 w-4 text-slate-300"/> Hit
-                                    Run Playbook to execute this file against the active inventory.
-                                </div>
-                                <div
-                                    className="rounded-lg border border-dashed border-slate-200 p-3 font-mono text-[10px] text-slate-400">PLAY
-                                    RECAP · no execution yet
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </section>
                 </div>
             </div>

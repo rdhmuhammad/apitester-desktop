@@ -83,8 +83,8 @@ export const fetchTestFiles = createAppAsyncThunk(
     'testScenario/fetchTestFiles',
     async () => {
         const active = await CollectionServices.getActiveCollection()
-        const files = await TestScenarioServices.listTests(active.id)
-        return {collectionId: active.id, files}
+        const files = await TestScenarioServices.listTests(active.testsuite_id)
+        return {collectionId: active.testsuite_id, files}
     }
 )
 
