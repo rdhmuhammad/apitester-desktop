@@ -6,16 +6,16 @@ import (
 	"testing"
 
 	"github.com/rdhmuhammad/apitester/internal/domain"
-	"github.com/rdhmuhammad/apitester/pkg/bbolt"
+	"github.com/rdhmuhammad/apitester/pkg/db"
 )
 
 func TestModulePathIsUsedForTestFiles(t *testing.T) {
-	db, err := bbolt.NewBoltDB(filepath.Join(t.TempDir(), "test.db"))
+	boltDB, err := db.NewBoltDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
-	repo, err := bbolt.NewRepository[domain.TestSuite](db.DB())
+	defer boltDB.Close()
+	repo, err := db.NewRepository[domain.TestSuite](boltDB.DB())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package watch
+package collection
 
 import "time"
 
@@ -29,6 +29,7 @@ type CollectionItem struct {
 	Request     *Request             `json:"request,omitempty"`
 	Response    []CollectionResponse `json:"response,omitempty"`
 	Event       []CollectionEvent    `json:"event,omitempty"`
+	ApiTester   bool                 `json:"apiTester,omitempty"`
 	ID          string               `json:"id"`
 	Description string               `json:"description,omitempty"`
 }
@@ -87,11 +88,13 @@ type CollectionAuth struct {
 }
 
 type Property struct {
-	Id    string `json:"id"`
-	Key   string `json:"key"`
-	Value string `json:"value"`
-	Type  string `json:"type,omitempty"`
-	Src   string `json:"src,omitempty"`
+	Id          string `json:"id"`
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	Type        string `json:"type,omitempty"`
+	Src         string `json:"src,omitempty"`
+	Description string `json:"description,omitempty"`
+	Disabled    bool   `json:"disabled,omitempty"`
 }
 
 type CollectionEvent struct {
@@ -112,6 +115,12 @@ type CreateCollectionRequest struct {
 type UpdateCollectionRequest struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
+}
+
+type WriteCollectionRequest struct {
+	StartPos int    `json:"startPos"`
+	EndPost  int    `json:"endPost"`
+	Content  string `json:"content"`
 }
 
 type CollectionVar struct {

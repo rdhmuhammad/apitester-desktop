@@ -7,17 +7,23 @@ import (
 	"strings"
 
 	"github.com/rdhmuhammad/apitester/internal/domain"
-	"github.com/rdhmuhammad/apitester/pkg/bbolt"
+	"github.com/rdhmuhammad/apitester/pkg/db"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
+	"go.etcd.io/bbolt"
 )
 
 type Usecase struct {
 	errHandler    localerror.HandleError
-	testSuiteRepo bbolt.RepositoryInterface[domain.TestSuite]
+	testSuiteRepo db.RepositoryInterface[domain.TestSuite]
 }
 
-func NewUsecase(lg logger.Logger, testSuiteRepo bbolt.RepositoryInterface[domain.TestSuite]) *Usecase {
+func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
+	testSuiteRepo, err := db.NewRepository[domain.TestSuite](database, db.WithBucketName("TestSuite"))
+	if err != nil {
+		panic(err)
+	}
+
 	return &Usecase{
 		errHandler:    localerror.NewHandlerError(lg),
 		testSuiteRepo: testSuiteRepo,
