@@ -1,4 +1,4 @@
-import type {GetCollectionResponse} from "@/pages/editor/types/api.ts";
+import type {CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api.ts";
 import axios from "@/config/axios.ts";
 import type {Response} from "@/types/response.ts";
 
@@ -21,6 +21,38 @@ export interface RequestTree {
     isActive: boolean
     method?: string
     category: "REQ" | "FOLD"
+}
+
+export interface CreateCollectionVariableRequest {
+    baseVersion: string
+    key: string
+    value?: string
+    type?: string
+}
+
+export interface CreateCollectionVariableResponse {
+    variable: CollectionVar
+    version: string
+}
+
+export interface UpdateCollectionVariableRequest extends CreateCollectionVariableRequest {
+    id: string
+}
+
+export interface DeleteCollectionVariableRequest {
+    id: string
+    baseVersion: string
+}
+
+export interface UpdateCollectionPreScriptRequest {
+    baseVersion: string
+    script: string
+    type?: string
+}
+
+export interface UpdateCollectionPreScriptResponse {
+    script: string
+    version: string
 }
 
 export const CollectionServices = {
@@ -67,6 +99,61 @@ export const CollectionServices = {
 
     getActiveCollection: async (): Promise<Collection> => {
         const response = await axios.get<Response<Collection>>('/collection/get-active')
+        return response.data.data
+    },
+
+    getVariables: async (): Promise<CollectionVar[]> => {
+        const response = await axios.get<Response<CollectionVar[]>>('/collection/variables')
+        return response.data.data ?? []
+    },
+
+    getPreScript: async (): Promise<string> => {
+        const response = await axios.get<Response<string>>('/collection/pre-script')
+        return response.data.data ?? ""
+    },
+
+    updatePreScript: async (
+        data: UpdateCollectionPreScriptRequest,
+    ): Promise<UpdateCollectionPreScriptResponse> => {
+        const response = await axios.put<Response<UpdateCollectionPreScriptResponse>>(
+            '/collection/pre-script',
+            {
+                baseVersion: data.baseVersion,
+                exec: data.script.split("\n"),
+                type: data.type ?? "text/javascript",
+            },
+        )
+        return response.data.data
+    },
+
+    createVariable: async (
+        data: CreateCollectionVariableRequest,
+    ): Promise<CreateCollectionVariableResponse> => {
+        const response = await axios.post<Response<CreateCollectionVariableResponse>>(
+            '/collection/variable',
+            data,
+        )
+        return response.data.data
+    },
+
+    updateVariable: async (
+        data: UpdateCollectionVariableRequest,
+    ): Promise<CreateCollectionVariableResponse> => {
+        const {id, ...payload} = data
+        const response = await axios.put<Response<CreateCollectionVariableResponse>>(
+            `/collection/variable/${id}`,
+            payload,
+        )
+        return response.data.data
+    },
+
+    deleteVariable: async (
+        data: DeleteCollectionVariableRequest,
+    ): Promise<CreateCollectionVariableResponse> => {
+        const response = await axios.delete<Response<CreateCollectionVariableResponse>>(
+            `/collection/variable/${data.id}`,
+            {data: {baseVersion: data.baseVersion}},
+        )
         return response.data.data
     },
 

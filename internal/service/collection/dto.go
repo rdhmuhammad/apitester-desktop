@@ -6,13 +6,15 @@ type ReadResponse struct {
 	Changed   bool        `json:"changed"`
 	Content   DocsContent `json:"content"`
 	UpdatedAt time.Time   `json:"updatedAt"`
+	Version   string      `json:"version"`
 }
 
 type DocsContent struct {
-	Info     CollectionInfo   `json:"info"`
-	Item     []CollectionItem `json:"item"`
-	Auth     *CollectionAuth  `json:"auth,omitempty"`
-	Variable []CollectionVar  `json:"variable"`
+	Info     CollectionInfo    `json:"info"`
+	Item     []CollectionItem  `json:"item"`
+	Auth     *CollectionAuth   `json:"auth,omitempty"`
+	Variable []CollectionVar   `json:"variable"`
+	Event    []CollectionEvent `json:"event"`
 }
 
 type CollectionInfo struct {
@@ -107,6 +109,17 @@ type EventScript struct {
 	Type string   `json:"type"`
 }
 
+type UpdatePreScriptRequest struct {
+	BaseVersion string   `json:"baseVersion" binding:"required"`
+	Exec        []string `json:"exec"`
+	Type        string   `json:"type"`
+}
+
+type UpdatePreScriptResponse struct {
+	Script  string `json:"script"`
+	Version string `json:"version"`
+}
+
 type CreateCollectionRequest struct {
 	Name string `json:"name" binding:"required"`
 	Path string `json:"path" binding:"required"`
@@ -129,4 +142,27 @@ type CollectionVar struct {
 	Category string `json:"category"`
 	Value    string `json:"value"`
 	Type     string `json:"type"`
+}
+
+type CreateVariableRequest struct {
+	BaseVersion string `json:"baseVersion" binding:"required"`
+	Key         string `json:"key" binding:"required"`
+	Value       string `json:"value"`
+	Type        string `json:"type"`
+}
+
+type CreateVariableResponse struct {
+	Variable CollectionVar `json:"variable"`
+	Version  string        `json:"version"`
+}
+
+type UpdateVariableRequest struct {
+	BaseVersion string `json:"baseVersion" binding:"required"`
+	Key         string `json:"key" binding:"required"`
+	Value       string `json:"value"`
+	Type        string `json:"type"`
+}
+
+type DeleteVariableRequest struct {
+	BaseVersion string `json:"baseVersion" binding:"required"`
 }

@@ -4,6 +4,7 @@ export interface GetCollectionResponse {
   changed: boolean;
   content: DocsContent;
   updatedAt: string;
+  version: string;
 }
 
 export interface DocsContent {

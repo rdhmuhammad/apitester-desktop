@@ -7,7 +7,7 @@ import {useRequestEditor} from "@/layout/context/requestEditorContext.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Settings} from "lucide-react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
-import CollectionManagerDialog from "@/layout/components/CollectionManagerDialog.tsx";
+import Index from "@/layout/components/collectionManager";
 import RequestHeader from "@/layout/components/RequestHeader.tsx";
 import type {RequestHeaderHandle} from "@/layout/types/HeaderSync.ts";
 import {useCollectionPushPull} from "@/layout/hooks/useCollectionPushPull.ts";
@@ -68,7 +68,7 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
                     >
                         <Settings className="h-4 w-4"/>
                     </Button>
-                    <CollectionManagerDialog open={managerOpen} onOpenChange={setManagerOpen}/>
+                    <Index open={managerOpen} onOpenChange={setManagerOpen}/>
                 </div>
             </div>
             {activeEditorTab?.type === 'test' ? (

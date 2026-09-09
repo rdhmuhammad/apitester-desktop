@@ -14,12 +14,12 @@ export interface RestRequestResponse {
     version: string
 }
 
-type Versioned = {baseVersion: string}
+export type Versioned = {baseVersion: string}
 
 const endpoint = (collectionId: string, requestId: string, field: string) =>
     `/restrequest/${collectionId}/${requestId}/${field}`
 
-export const RestRequestServices = {
+export const RequestConfigServices = {
     get: async (collectionId: string, requestId: string): Promise<RestRequestResponse> => {
         const response = await axios.get<Response<RestRequestResponse>>(
             `/restrequest/${collectionId}/${requestId}`

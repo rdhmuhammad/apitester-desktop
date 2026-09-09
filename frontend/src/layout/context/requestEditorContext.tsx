@@ -2,7 +2,8 @@ import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useS
 import {useAppSelector} from "@/app/store/hooks.ts"
 import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts"
 import {CollectionServices, type Collection} from "@/layout/services/collection.ts"
-import {RestRequestServices, type RestRequestResponse} from "@/layout/services/restRequest.ts"
+import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts"
+import type {RestRequestResponse} from "@/pages/editor/components/RequestConfig/services/requestConfig.ts"
 import type {CollectionVar, DocsContent, ItemUrl, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
 
 type Mutation = () => Promise<RestRequestResponse>
@@ -53,25 +54,27 @@ export const RequestEditorProvider = ({children}: {children: ReactNode}) => {
         return () => { cancelled = true }
     }, [])
 
+    const requestConfig = useRequestConfig(collection?.id ?? "", activeTabId)
+    const requestQuery = requestConfig.requestQuery
+
     useEffect(() => {
         if (!collection?.id || !activeTabId) {
             setRequest(null)
             return
         }
-        let cancelled = false
-        setLoading(true)
-        void RestRequestServices.get(collection.id, activeTabId).then((next) => {
-            if (cancelled) return
-            versionRef.current = next.version
-            setRequest(next)
+        if (requestQuery.data) {
+            versionRef.current = requestQuery.data.version
+            setRequest(requestQuery.data)
             setError(null)
-        }).catch((reason: unknown) => {
-            if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason))
-        }).finally(() => {
-            if (!cancelled) setLoading(false)
-        })
-        return () => { cancelled = true }
-    }, [collection?.id, activeTabId])
+        }
+    }, [activeTabId, collection?.id, requestQuery.data])
+
+    useEffect(() => {
+        if (requestQuery.error) {
+            setError(requestQuery.error instanceof Error ? requestQuery.error.message : String(requestQuery.error))
+        }
+        setLoading(requestQuery.isLoading || requestQuery.isFetching)
+    }, [requestQuery.error, requestQuery.isFetching, requestQuery.isLoading])
 
     const enqueue = useCallback((key: string, mutation: Mutation) => {
         const timer = timers.current.get(key)
@@ -92,66 +95,66 @@ export const RequestEditorProvider = ({children}: {children: ReactNode}) => {
     const updateMethod = useCallback((method: string) => {
         if (!request || !collection?.id) return
         setRequest((current) => current ? {...current, method} : current)
-        enqueue("method", () => RestRequestServices.updateMethod(collection.id, request.id, {
+        enqueue("method", () => requestConfig.updateMethodMutation.mutateAsync({
             baseVersion: versionRef.current, method,
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateMethodMutation])
 
     const updateUrl = useCallback((url: RequestURL) => {
         if (!request || !collection?.id) return
         setRequest((current) => current ? {...current, url} : current)
-        enqueue("url", () => RestRequestServices.updateUrl(collection.id, request.id, {
+        enqueue("url", () => requestConfig.updateUrlMutation.mutateAsync({
             baseVersion: versionRef.current, url,
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateUrlMutation])
 
     const updateHeaders = useCallback((headers: ItemUrl[]) => {
         if (!request || !collection?.id) return
         setRequest((current) => current ? {...current, headers} : current)
-        enqueue("headers", () => RestRequestServices.updateHeaders(collection.id, request.id, {
+        enqueue("headers", () => requestConfig.updateHeadersMutation.mutateAsync({
             baseVersion: versionRef.current, headers,
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateHeadersMutation])
 
     const updateQuery = useCallback((query: ItemUrl[]) => {
         if (!request || !collection?.id) return
         setRequest((current) => current ? {...current, query, url: {...current.url, query}} : current)
-        enqueue("query", () => RestRequestServices.updateQuery(collection.id, request.id, {
+        enqueue("query", () => requestConfig.updateQueryMutation.mutateAsync({
             baseVersion: versionRef.current, query,
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateQueryMutation])
 
     const updateJsonBody = useCallback((raw: string) => {
         if (!request || !collection?.id) return
         const body: RequestBody = {mode: "raw", raw}
         setRequest((current) => current ? {...current, body} : current)
-        enqueue("body", () => RestRequestServices.updateJsonBody(collection.id, request.id, {
+        enqueue("body", () => requestConfig.updateJsonBodyMutation.mutateAsync({
             baseVersion: versionRef.current, raw,
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateJsonBodyMutation])
 
     const updateFormDataBody = useCallback((formdata: ItemUrl[]) => {
         if (!request || !collection?.id) return
         const body: RequestBody = {mode: "formdata", formdata}
         setRequest((current) => current ? {...current, body} : current)
-        enqueue("body", () => RestRequestServices.updateFormDataBody(collection.id, request.id, {
+        enqueue("body", () => requestConfig.updateFormDataBodyMutation.mutateAsync({
             baseVersion: versionRef.current, formdata,
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateFormDataBodyMutation])
 
     const updateScript = useCallback((script: string) => {
         if (!request || !collection?.id) return
         setRequest((current) => current ? {...current, script} : current)
-        enqueue("script", () => RestRequestServices.updatePostRequestScript(collection.id, request.id, {
+        enqueue("script", () => requestConfig.updateScriptMutation.mutateAsync({
             baseVersion: versionRef.current, exec: script.split("\n"), type: "text/javascript",
         }))
-    }, [collection?.id, enqueue, request])
+    }, [collection?.id, enqueue, request, requestConfig.updateScriptMutation])
 
     const deleteRequest = useCallback(async () => {
         if (!request || !collection?.id) return
-        await RestRequestServices.delete(collection.id, request.id, {baseVersion: versionRef.current})
+        await requestConfig.deleteMutation.mutateAsync({baseVersion: versionRef.current})
         setRequest(null)
-    }, [collection?.id, request])
+    }, [collection?.id, request, requestConfig.deleteMutation])
 
     const value = useMemo<RequestEditorContextValue>(() => ({
         collection,

@@ -3,12 +3,7 @@ import {FileText, Save} from "lucide-react"
 import {toast} from "sonner"
 import {Button} from "@/components/ui/button.tsx"
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
-import {
-  fetchAutomationInventoryContent,
-  saveAutomationInventory,
-  selectActiveAutomationInventory,
-  selectAutomationInventoryUnsaved,
-} from "@/app/slices/automationSlice.ts"
+
 
 const InventoryEditorHeader: React.FC = () => {
   const dispatch = useAppDispatch()

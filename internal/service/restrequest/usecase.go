@@ -1,44 +1,26 @@
 package restrequest
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"strings"
-	"sync"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
-	"github.com/rdhmuhammad/apitester/pkg/db"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
+	"github.com/rdhmuhammad/apitester/shared/base"
 	"go.etcd.io/bbolt"
 )
 
 type Usecase struct {
-	errHandler     localerror.HandleError
-	collectionRepo db.RepositoryInterface[domain.Collection]
-	historyRepo    db.RepositoryInterface[domain.CollectionHistory]
-	writeMu        sync.Mutex
+	*base.Port
 }
 
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
-	collectionRepo, err := db.NewRepository[domain.Collection](database)
-	if err != nil {
-		panic(err)
-	}
-	historyRepo, err := db.NewRepository[domain.CollectionHistory](database, db.WithBucketName("collection_history"))
-	if err != nil {
-		panic(err)
-	}
 	return &Usecase{
-		errHandler:     localerror.NewHandlerError(lg),
-		collectionRepo: collectionRepo,
-		historyRepo:    historyRepo,
+		Port: base.NewPort(lg, database),
 	}
 }
 
@@ -55,14 +37,14 @@ func (u *Usecase) Get(collectionID, requestID string) (RequestResponse, error) {
 }
 
 func (u *Usecase) UpdateURL(collectionID, requestID string, req UpdateURLRequest) (RequestResponse, error) {
-	u.writeMu.Lock()
-	defer u.writeMu.Unlock()
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
 
 	collection, docs, content, err := u.loadCollection(collectionID)
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if version(content) != req.BaseVersion {
+	if u.Version(content) != req.BaseVersion {
 		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
 	}
 	item := findRequest(docs.Item, requestID)
@@ -77,21 +59,21 @@ func (u *Usecase) UpdateURL(collectionID, requestID string, req UpdateURLRequest
 		return RequestResponse{}, err
 	}
 
-	if err := u.recordHistory(collection, requestID, "update_url", "request.url", oldValue, req.URL, content, updated); err != nil {
+	if err := u.RecordHistory(collection, requestID, "update_url", "request.url", oldValue, req.URL, content, updated); err != nil {
 		return RequestResponse{}, err
 	}
 	return requestResponse(collection, updated, item), nil
 }
 
 func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeadersRequest) (RequestResponse, error) {
-	u.writeMu.Lock()
-	defer u.writeMu.Unlock()
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
 
 	collection, docs, content, err := u.loadCollection(collectionID)
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if version(content) != req.BaseVersion {
+	if u.Version(content) != req.BaseVersion {
 		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
 	}
 
@@ -106,7 +88,7 @@ func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeader
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if err := u.recordHistory(collection, requestID, "update_headers", "request.headers", oldValue, req.Headers, content, updated); err != nil {
+	if err := u.RecordHistory(collection, requestID, "update_headers", "request.headers", oldValue, req.Headers, content, updated); err != nil {
 		return RequestResponse{}, err
 	}
 
@@ -171,14 +153,14 @@ func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req Up
 }
 
 func (u *Usecase) Delete(collectionID, requestID string, req DeleteRequest) (RequestResponse, error) {
-	u.writeMu.Lock()
-	defer u.writeMu.Unlock()
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
 
 	collection, docs, content, err := u.loadCollection(collectionID)
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if version(content) != req.BaseVersion {
+	if u.Version(content) != req.BaseVersion {
 		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before deleting")
 	}
 
@@ -193,22 +175,22 @@ func (u *Usecase) Delete(collectionID, requestID string, req DeleteRequest) (Req
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if err := u.recordHistory(collection, requestID, "delete_request", "request", *deleted, nil, content, updated); err != nil {
+	if err := u.RecordHistory(collection, requestID, "delete_request", "request", *deleted, nil, content, updated); err != nil {
 		return RequestResponse{}, err
 	}
-	deletedResponse.Version = version(updated)
+	deletedResponse.Version = u.Version(updated)
 	return deletedResponse, nil
 }
 
 func (u *Usecase) update(collectionID, requestID, baseVersion, operation, field string, newValue any, apply func(*collectionService.CollectionItem) any) (RequestResponse, error) {
-	u.writeMu.Lock()
-	defer u.writeMu.Unlock()
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
 
 	collection, docs, content, err := u.loadCollection(collectionID)
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if version(content) != baseVersion {
+	if u.Version(content) != baseVersion {
 		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
 	}
 	item := findRequest(docs.Item, requestID)
@@ -220,57 +202,21 @@ func (u *Usecase) update(collectionID, requestID, baseVersion, operation, field 
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if err := u.recordHistory(collection, requestID, operation, field, oldValue, newValue, content, updated); err != nil {
+	if err := u.RecordHistory(collection, requestID, operation, field, oldValue, newValue, content, updated); err != nil {
 		return RequestResponse{}, err
 	}
 	return requestResponse(collection, updated, item), nil
 }
 
 func (u *Usecase) recordHistory(collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
-	oldJSON, err := json.Marshal(oldValue)
-	if err != nil {
-		return u.errHandler.ErrorReturn(err)
-	}
-	newJSON, err := json.Marshal(newValue)
-	if err != nil {
-		return u.errHandler.ErrorReturn(err)
-	}
-	line := mutationLine(newContent, requestID, field)
-	history := domain.CollectionHistory{
-		ID:           uuid.NewString(),
-		CollectionID: collection.ID,
-		RequestID:    requestID,
-		Operation:    operation,
-		Field:        field,
-		OldValue:     oldJSON,
-		NewValue:     newJSON,
-		OldHash:      version(oldContent),
-		NewHash:      version(newContent),
-		FilePath:     collection.Path,
-		Line:         line,
-		CreatedAt:    time.Now(),
-	}
-	if err := u.historyRepo.Create(context.Background(), history.ID, &history); err != nil {
-		return u.errHandler.ErrorReturn(err)
-	}
-	return nil
+	return u.Port.RecordHistory(collection, requestID, operation, field, oldValue, newValue, oldContent, newContent)
 }
 
 func (u *Usecase) loadCollection(id string) (*domain.Collection, *collectionService.DocsContent, []byte, error) {
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	collection, content, err := u.Port.LoadCollection(id)
 	if err != nil {
-		return nil, nil, nil, u.errHandler.ErrorReturn(err)
+		return nil, nil, nil, err
 	}
-	if collection == nil {
-		return nil, nil, nil, localerror.InvalidData("Collection not found")
-	}
-
-	content, err := os.ReadFile(collection.Path)
-	if err != nil {
-		return nil, nil, nil, u.errHandler.ErrorReturn(err)
-	}
-	content = []byte(strings.TrimPrefix(string(content), "\uFEFF"))
-
 	var docs collectionService.DocsContent
 	if err := json.Unmarshal(content, &docs); err != nil {
 		return nil, nil, nil, localerror.InvalidData("Invalid collection.json file")
@@ -281,18 +227,9 @@ func (u *Usecase) loadCollection(id string) (*domain.Collection, *collectionServ
 func (u *Usecase) saveCollection(collection *domain.Collection, docs *collectionService.DocsContent) ([]byte, error) {
 	content, err := json.MarshalIndent(docs, "", "  ")
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, u.ErrHandler.ErrorReturn(err)
 	}
-	if err := atomicWrite(collection.Path, content); err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
-	}
-
-	collection.UpdatedAt = time.Now()
-	if err := u.collectionRepo.Update(context.Background(), collection.ID, collection); err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
-	}
-
-	return content, nil
+	return u.Port.SaveCollection(collection, content)
 }
 
 func findRequest(items []collectionService.CollectionItem, id string) *collectionService.CollectionItem {
@@ -329,6 +266,11 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 			break
 		}
 	}
+	// version is computed via base's Version; to keep function pure we compute via same logic
+	// but we can't access Port here, so compute inline hash directly
+	// callers that need version after save will override Version field
+	// For consistency, compute hash here without Port dependency
+	// We'll use a local helper that mirrors base.Port.Version
 	return RequestResponse{
 		ID:      item.ID,
 		Name:    item.Name,
