@@ -1,0 +1,366 @@
+package restrequest
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/rdhmuhammad/apitester/internal/domain"
+	collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
+	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/localerror"
+	"github.com/rdhmuhammad/apitester/pkg/logger"
+	"go.etcd.io/bbolt"
+)
+
+type Usecase struct {
+	errHandler     localerror.HandleError
+	collectionRepo db.RepositoryInterface[domain.Collection]
+	historyRepo    db.RepositoryInterface[domain.CollectionHistory]
+	writeMu        sync.Mutex
+}
+
+func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
+	collectionRepo, err := db.NewRepository[domain.Collection](database)
+	if err != nil {
+		panic(err)
+	}
+	historyRepo, err := db.NewRepository[domain.CollectionHistory](database, db.WithBucketName("collection_history"))
+	if err != nil {
+		panic(err)
+	}
+	return &Usecase{
+		errHandler:     localerror.NewHandlerError(lg),
+		collectionRepo: collectionRepo,
+		historyRepo:    historyRepo,
+	}
+}
+
+func (u *Usecase) Get(collectionID, requestID string) (RequestResponse, error) {
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	item := findRequest(docs.Item, requestID)
+	if item == nil || item.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+	return requestResponse(collection, content, item), nil
+}
+
+func (u *Usecase) UpdateURL(collectionID, requestID string, req UpdateURLRequest) (RequestResponse, error) {
+	u.writeMu.Lock()
+	defer u.writeMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if version(content) != req.BaseVersion {
+		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
+	}
+	item := findRequest(docs.Item, requestID)
+	if item == nil || item.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+	oldValue := item.Request.URL
+	item.Request.URL = req.URL
+
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+
+	if err := u.recordHistory(collection, requestID, "update_url", "request.url", oldValue, req.URL, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+	return requestResponse(collection, updated, item), nil
+}
+
+func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeadersRequest) (RequestResponse, error) {
+	u.writeMu.Lock()
+	defer u.writeMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if version(content) != req.BaseVersion {
+		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
+	}
+
+	item := findRequest(docs.Item, requestID)
+	if item == nil || item.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+
+	oldValue := append([]collectionService.Header(nil), item.Request.Header...)
+	item.Request.Header = req.Headers
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if err := u.recordHistory(collection, requestID, "update_headers", "request.headers", oldValue, req.Headers, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+
+	return requestResponse(collection, updated, item), nil
+}
+
+func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodRequest) (RequestResponse, error) {
+	return u.update(collectionID, requestID, req.BaseVersion, "update_method", "request.method", req.Method,
+		func(item *collectionService.CollectionItem) any {
+			old := item.Request.Method
+			item.Request.Method = req.Method
+			return old
+		})
+}
+
+func (u *Usecase) UpdateQuery(collectionID, requestID string, req UpdateQueryRequest) (RequestResponse, error) {
+	return u.update(collectionID, requestID, req.BaseVersion, "update_query", "request.url.query", req.Query,
+		func(item *collectionService.CollectionItem) any {
+			old := item.Request.URL.Query
+			item.Request.URL.Query = req.Query
+			return old
+		})
+}
+
+func (u *Usecase) UpdateJSONBody(collectionID, requestID string, req UpdateJSONBodyRequest) (RequestResponse, error) {
+	body := &collectionService.RequestBody{Mode: "raw", Raw: req.Raw}
+	return u.update(collectionID, requestID, req.BaseVersion, "update_body_json", "request.body", body,
+		func(item *collectionService.CollectionItem) any {
+			old := item.Request.Body
+			item.Request.Body = body
+			return old
+		})
+}
+
+func (u *Usecase) UpdateFormDataBody(collectionID, requestID string, req UpdateFormDataBodyRequest) (RequestResponse, error) {
+	body := &collectionService.RequestBody{Mode: "formdata", FormData: req.FormData}
+	return u.update(collectionID, requestID, req.BaseVersion, "update_body_formdata", "request.body", body,
+		func(item *collectionService.CollectionItem) any {
+			old := item.Request.Body
+			item.Request.Body = body
+			return old
+		})
+}
+
+func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req UpdatePostRequestScriptRequest) (RequestResponse, error) {
+	script := collectionService.EventScript{Exec: req.Exec, Type: req.Type}
+	if script.Type == "" {
+		script.Type = "text/javascript"
+	}
+	return u.update(collectionID, requestID, req.BaseVersion, "update_post_request_script", "event.script", script,
+		func(item *collectionService.CollectionItem) any {
+			for i := range item.Event {
+				if strings.EqualFold(item.Event[i].Listen, "test") || strings.EqualFold(item.Event[i].Listen, "post-request") {
+					old := item.Event[i].Script
+					item.Event[i].Script = script
+					return old
+				}
+			}
+			item.Event = append(item.Event, collectionService.CollectionEvent{Listen: "test", Script: script})
+			return nil
+		})
+}
+
+func (u *Usecase) Delete(collectionID, requestID string, req DeleteRequest) (RequestResponse, error) {
+	u.writeMu.Lock()
+	defer u.writeMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if version(content) != req.BaseVersion {
+		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before deleting")
+	}
+
+	var deleted *collectionService.CollectionItem
+	docs.Item, deleted = removeRequest(docs.Item, requestID)
+	if deleted == nil || deleted.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+	deletedResponse := requestResponse(collection, content, deleted)
+
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if err := u.recordHistory(collection, requestID, "delete_request", "request", *deleted, nil, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+	deletedResponse.Version = version(updated)
+	return deletedResponse, nil
+}
+
+func (u *Usecase) update(collectionID, requestID, baseVersion, operation, field string, newValue any, apply func(*collectionService.CollectionItem) any) (RequestResponse, error) {
+	u.writeMu.Lock()
+	defer u.writeMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if version(content) != baseVersion {
+		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
+	}
+	item := findRequest(docs.Item, requestID)
+	if item == nil || item.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+	oldValue := apply(item)
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if err := u.recordHistory(collection, requestID, operation, field, oldValue, newValue, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+	return requestResponse(collection, updated, item), nil
+}
+
+func (u *Usecase) recordHistory(collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
+	oldJSON, err := json.Marshal(oldValue)
+	if err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	newJSON, err := json.Marshal(newValue)
+	if err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	line := mutationLine(newContent, requestID, field)
+	history := domain.CollectionHistory{
+		ID:           uuid.NewString(),
+		CollectionID: collection.ID,
+		RequestID:    requestID,
+		Operation:    operation,
+		Field:        field,
+		OldValue:     oldJSON,
+		NewValue:     newJSON,
+		OldHash:      version(oldContent),
+		NewHash:      version(newContent),
+		FilePath:     collection.Path,
+		Line:         line,
+		CreatedAt:    time.Now(),
+	}
+	if err := u.historyRepo.Create(context.Background(), history.ID, &history); err != nil {
+		return u.errHandler.ErrorReturn(err)
+	}
+	return nil
+}
+
+func (u *Usecase) loadCollection(id string) (*domain.Collection, *collectionService.DocsContent, []byte, error) {
+	collection, err := u.collectionRepo.View(context.Background(), id)
+	if err != nil {
+		return nil, nil, nil, u.errHandler.ErrorReturn(err)
+	}
+	if collection == nil {
+		return nil, nil, nil, localerror.InvalidData("Collection not found")
+	}
+
+	content, err := os.ReadFile(collection.Path)
+	if err != nil {
+		return nil, nil, nil, u.errHandler.ErrorReturn(err)
+	}
+	content = []byte(strings.TrimPrefix(string(content), "\uFEFF"))
+
+	var docs collectionService.DocsContent
+	if err := json.Unmarshal(content, &docs); err != nil {
+		return nil, nil, nil, localerror.InvalidData("Invalid collection.json file")
+	}
+	return collection, &docs, content, nil
+}
+
+func (u *Usecase) saveCollection(collection *domain.Collection, docs *collectionService.DocsContent) ([]byte, error) {
+	content, err := json.MarshalIndent(docs, "", "  ")
+	if err != nil {
+		return nil, u.errHandler.ErrorReturn(err)
+	}
+	if err := atomicWrite(collection.Path, content); err != nil {
+		return nil, u.errHandler.ErrorReturn(err)
+	}
+
+	collection.UpdatedAt = time.Now()
+	if err := u.collectionRepo.Update(context.Background(), collection.ID, collection); err != nil {
+		return nil, u.errHandler.ErrorReturn(err)
+	}
+
+	return content, nil
+}
+
+func findRequest(items []collectionService.CollectionItem, id string) *collectionService.CollectionItem {
+	for i := range items {
+		if items[i].ID == id {
+			return &items[i]
+		}
+		if item := findRequest(items[i].Item, id); item != nil {
+			return item
+		}
+	}
+	return nil
+}
+
+func removeRequest(items []collectionService.CollectionItem, id string) ([]collectionService.CollectionItem, *collectionService.CollectionItem) {
+	for i := range items {
+		if items[i].ID == id && items[i].Request != nil {
+			deleted := items[i]
+			return append(items[:i], items[i+1:]...), &deleted
+		}
+		if deletedItems, deleted := removeRequest(items[i].Item, id); deleted != nil {
+			items[i].Item = deletedItems
+			return items, deleted
+		}
+	}
+	return items, nil
+}
+
+func requestResponse(_ *domain.Collection, content []byte, item *collectionService.CollectionItem) RequestResponse {
+	script := ""
+	for _, event := range item.Event {
+		if strings.EqualFold(event.Listen, "test") || strings.EqualFold(event.Listen, "post-request") {
+			script = strings.Join(event.Script.Exec, "\n")
+			break
+		}
+	}
+	return RequestResponse{
+		ID:      item.ID,
+		Name:    item.Name,
+		Method:  item.Request.Method,
+		URL:     item.Request.URL,
+		Headers: item.Request.Header,
+		Query:   item.Request.URL.Query,
+		Body:    item.Request.Body,
+		Script:  script,
+		Version: version(content),
+	}
+}
+
+func version(content []byte) string {
+	hash := sha256.Sum256(content)
+	return hex.EncodeToString(hash[:])
+}
+
+func mutationLine(content []byte, requestID, field string) int {
+	lines := strings.Split(string(content), "\n")
+	quotedID, _ := json.Marshal(requestID)
+	requestLine := 1
+	for i, line := range lines {
+		if strings.Contains(line, `"id": `+string(quotedID)) {
+			requestLine = i + 1
+			for j := i; j < len(lines); j++ {
+				if strings.Contains(lines[j], `"`+field[strings.LastIndex(field, ".")+1:]+`":`) {
+					return j + 1
+				}
+			}
+			return requestLine
+		}
+	}
+	return requestLine
+}
