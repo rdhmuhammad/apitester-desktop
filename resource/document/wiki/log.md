@@ -15,3 +15,8 @@
 - 2026-09-08: Extended the backend `restrequest` API with optimistic, history-backed mutations for method, query parameters, JSON and multipart form-data bodies, and post-request scripts; updated the file-backed editing decision.
 - 2026-09-08: Added version-checked request deletion with nested collection removal and history recording.
 - 2026-09-08: Extended the REST request response with query, body, and post-request script data for the local frontend editor.
+- 2026-09-09: Ingested `resource/document/raw/patterns/frontend/Pattern of wiring.md`; added [[patterns/frontend/api-service-and-query-hook-wiring]] and updated the frontend indexes.
+- 2026-09-09: Applied [[patterns/frontend/api-service-and-query-hook-wiring]] to request configuration; added feature-local Axios services and TanStack Query hooks, configured the application QueryClientProvider, and preserved debounced optimistic editor updates.
+- 2026-09-09: Added the collection pre-request script retrieval endpoint, reading the collection-level `prerequest` event and joining its script lines.
+- 2026-09-09: Added optimistic collection pre-request script updates with create-if-missing behavior, plus frontend service, hook, and collection-manager save wiring.
+- 2026-09-09: Extracted collection pre-request script editing and execution into the standalone `ScriptManage` component.

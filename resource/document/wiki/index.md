@@ -29,6 +29,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 ### Frontend
 
 - [[patterns/frontend/index]] - Frontend pattern pages.
+- [[patterns/frontend/api-service-and-query-hook-wiring]] - Typed Axios services and TanStack Query hooks for feature API wiring.
 - [[patterns/frontend/create-new-tabs-kind]] - Workflow for adding a new editor tab kind and its Redux slice.
 
 ## Decisions

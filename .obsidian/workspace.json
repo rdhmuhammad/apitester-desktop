@@ -202,6 +202,7 @@
   },
   "active": "b5625b85611e1fa8",
   "lastOpenFiles": [
+    "frontend/src/layout/components/collectionManager/ScriptManage.tsx",
     "internal/service/collection/dto.go~",
     "frontend/src/layout/components/collectionManager/index.tsx",
     "frontend/src/layout/components/collectionManager/CollectionManage.tsx",
@@ -216,7 +217,6 @@
     "resource/document/wiki/patterns/frontend/api-service-and-query-hook-wiring.md",
     "resource/document/wiki/patterns/frontend/create-new-tabs-kind.md",
     "frontend/src/layout/hooks/useCollectionVariables.ts",
-    "frontend/src/layout/components/collectionManager/VariableManage.tsx",
     "resource/document/raw/patterns/frontend/Pattern of wiring.md",
     "resource/document/wiki/decisions/index.md",
     "resource/document/wiki/concepts/index.md",
