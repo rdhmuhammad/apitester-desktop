@@ -22,41 +22,14 @@ import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
 
 // Store Imports
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import type {EditorTab} from "@/app/slices/index.ts";
+import type {ColtReqMethod, EditorTab} from "@/app/slices/index.ts";
 import {
-    type ColtReqMethod,
-    createNewRequest,
-    removeActiveRequest,
-    renameRequest,
-    selectActiveTabId,
-    selectCollectionInfo,
-    selectDirtyRequestIds,
-    selectOpenRequestTabs,
-    selectRequestById,
-    setActiveEditorTab,
-    setActiveTabId,
-    setActiveTree,
-} from "@/app/slices/collectionSlices.ts";
-import {
-    closeTestScenarioTab,
-    createTestFile,
-    selectActiveTestIds,
-    selectScenarios,
-} from "@/app/slices/testScenarioSlice.ts";
-import {
-    closeAutomationInventoryTab,
-    closeAutomationTab,
-    createAutomationFile,
-    selectAutomationFiles,
-    selectAutomationInventories
-} from "@/app/slices/automationSlice.ts";
-import {
-    fromAutomationInventoryTabId,
-    fromAutomationTabId,
-    fromTestTabId,
-    toAutomationInventoryTabId,
-    toAutomationTabId
-} from "@/lib/tabUtils.ts";
+    removeEditorTab,
+    selectEditorActiveTabId,
+    selectEditorTabs,
+    setEditorActiveTab,
+} from "@/app/slices/editorTabsSlice.ts";
+import {type Collection, CollectionServices} from "@/layout/services/collection.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
@@ -71,85 +44,12 @@ const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
 
 const Editor: React.FC = () => {
     const dispatch = useAppDispatch()
-    const collectionInfo = useAppSelector(selectCollectionInfo)
-    const dirtyRequestIds = useAppSelector(selectDirtyRequestIds)
-    const activeTabId = useAppSelector(selectActiveTabId)
-    const scenarios = useAppSelector(selectScenarios)
-    const automationFiles = useAppSelector(selectAutomationFiles)
-    const automationInventories = useAppSelector(selectAutomationInventories)
-    const {allTabs, effectiveActiveTabId} = useAppSelector((state) => {
-        const openRequestTabs = selectOpenRequestTabs(state)
-        const activeTestIds = selectActiveTestIds(state)
-        const activeAutomationIds = state.automation.activeIds
-        const activeInventoryIds = state.automation.activeInventoryIds
+    const allTabs = useAppSelector(selectEditorTabs)
+    const effectiveActiveTabId = useAppSelector(selectEditorActiveTabId)
 
-        const requestTabs: EditorTab[] = openRequestTabs.map((item) => {
-            const requestItem = selectRequestById(state, item.id)
-            return {
-                id: item.id,
-                type: 'request',
-                label: requestItem?.name ?? "Untitled Request",
-                method: ((item.request?.method ?? requestItem?.request?.method ?? "GET").toUpperCase() as ColtReqMethod),
-            }
-        })
-
-        const testTabs: EditorTab[] = activeTestIds.map((tabId) => {
-            const scenarioId = fromTestTabId(tabId)
-            const scenario = scenarios.find(s => s.id === scenarioId)
-            return {
-                id: tabId,
-                type: 'test',
-                label: scenario?.name ?? scenarioId,
-                method: 'TEST',
-            }
-        })
-
-        const automationTabs: EditorTab[] = activeAutomationIds.map((fileId) => {
-            const file = automationFiles.find(item => item.id === fileId)
-            return {
-                id: `automation-${fileId}`,
-                type: 'automation',
-                label: file?.filename ?? fileId,
-                method: 'AUTO',
-            }
-        })
-
-        const inventoryTabs: EditorTab[] = activeInventoryIds.map((fileId) => {
-            const file = automationInventories.find(item => item.id === fileId)
-            return {
-                id: toAutomationInventoryTabId(fileId),
-                type: 'inventory',
-                label: file?.filename ?? fileId,
-                method: 'INV',
-            }
-        })
-
-        const tabs = [...requestTabs, ...testTabs, ...automationTabs, ...inventoryTabs]
-        const effectiveId = (activeTabId && tabs.some(t => t.id === activeTabId) ? activeTabId : tabs[tabs.length - 1]?.id) || ""
-
-        return {
-            allTabs: tabs,
-            effectiveActiveTabId: effectiveId,
-        }
-    })
 
     const activeTab = allTabs.find(t => t.id === effectiveActiveTabId)
-    const activeEditorTabId = activeTab?.id
-    const activeEditorTabLabel = activeTab?.label
-    const activeEditorTabMethod = activeTab?.method
-    const activeEditorTabType = activeTab?.type
-
-    useEffect(() => {
-        dispatch(activeEditorTabId
-            ? setActiveEditorTab({
-                id: activeEditorTabId,
-                label: activeEditorTabLabel ?? '',
-                method: activeEditorTabMethod ?? 'TEST',
-                type: activeEditorTabType ?? 'request',
-            })
-            : setActiveEditorTab(null))
-    }, [activeEditorTabId, activeEditorTabLabel, activeEditorTabMethod, activeEditorTabType, dispatch])
-
+   
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
     const [editValue, setEditValue] = useState('')
     const editInputRef = useRef<HTMLInputElement | null>(null)
@@ -163,7 +63,6 @@ const Editor: React.FC = () => {
 
     const commitEdit = useCallback(() => {
         if (editingTabId && editValue.trim()) {
-            dispatch(renameRequest({id: editingTabId, name: editValue.trim()}))
         }
         setEditingTabId(null)
         setEditValue('')
@@ -180,27 +79,20 @@ const Editor: React.FC = () => {
 
     const handleTabChange = (id: string) => {
         if (!id) return
-        dispatch(setActiveTabId({id}))
+        dispatch(setEditorActiveTab(id))
     }
 
     const handleRemoveTab = (tab: EditorTab) => {
-        if (tab.type === 'test') {
-            dispatch(closeTestScenarioTab(tab.id))
-            const remaining = allTabs.filter(t => t.id !== tab.id)
-            dispatch(setActiveTabId({id: remaining[remaining.length - 1]?.id ?? ''}))
-        } else if (tab.type === 'automation') {
-            dispatch(closeAutomationTab(fromAutomationTabId(tab.id)))
-            const remaining = allTabs.filter(t => t.id !== tab.id)
-            dispatch(setActiveTabId({id: remaining[remaining.length - 1]?.id ?? ''}))
-        } else if (tab.type === 'inventory') {
-            dispatch(closeAutomationInventoryTab(fromAutomationInventoryTabId(tab.id)))
-            const remaining = allTabs.filter(t => t.id !== tab.id)
-            dispatch(setActiveTabId({id: remaining[remaining.length - 1]?.id ?? ''}))
-        } else {
-            dispatch(removeActiveRequest({id: tab.id}))
-            dispatch(setActiveTree({id: tab.id, status: false}))
-        }
+        dispatch(removeEditorTab(tab.id))
     }
+
+    const [collectionInfo, setCollectionInfo] = useState<Collection | null>(null)
+    useEffect(() => {
+        CollectionServices.getActiveCollection()
+            .then((res)=>{
+                setCollectionInfo(res)
+            })
+    }, []);
 
     return (
         <div className="h-full overflow-auto bg-[linear-gradient(180deg,#eef4ff_0%,#f8fafc_22%,#f8fafc_100%)]">
@@ -250,10 +142,6 @@ const Editor: React.FC = () => {
                                                 {tab.label}
                                             </span>
                                         )}
-                                        {tab.type === 'request' && dirtyRequestIds.includes(tab.id) && (
-                                            <span
-                                                className="ml-1 h-2 w-2 rounded-full bg-orange-400 inline-block shrink-0"/>
-                                        )}
                                         <span
                                             className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 group-data-[state=active]:text-slate-500">
                                             <Button variant='ghost'
@@ -285,19 +173,17 @@ const Editor: React.FC = () => {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
-                                    <DropdownMenuItem onClick={() => dispatch(createNewRequest())}>
+                                    <DropdownMenuItem >
                                         <FileCode2 className="mr-2 h-4 w-4 text-emerald-600"/>
                                         New Request
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => dispatch(createTestFile())}>
+                                    <DropdownMenuItem >
                                         <FileText className="mr-2 h-4 w-4 text-indigo-600"/>
                                         Create Test Suite
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         onClick={() => {
-                                            dispatch(createAutomationFile()).unwrap().then(({id}) => {
-                                                dispatch(setActiveTabId({id: toAutomationTabId(id)}))
-                                            })
+
                                         }}
                                     >
                                         <Wrench className="mr-2 h-4 w-4 text-violet-600"/>

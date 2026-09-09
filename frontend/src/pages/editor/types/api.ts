@@ -1,4 +1,4 @@
-import type {ColtBodyType} from "@/app/slices";
+export type ColtBodyType = "raw" | "formdata";
 
 export interface GetCollectionResponse {
   changed: boolean;

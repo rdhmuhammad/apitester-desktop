@@ -6,11 +6,21 @@ export interface Collection {
     id: string
     name: string
     is_selected: boolean
+    description: string,
     path: string
     testsuite_id: string
     automation_id: string
     updated_at: string
     created_at: string
+}
+
+export interface RequestTree {
+    id: string
+    name: string
+    item?: RequestTree[]
+    isActive: boolean
+    method?: string
+    category: "REQ" | "FOLD"
 }
 
 export const CollectionServices = {
@@ -57,6 +67,11 @@ export const CollectionServices = {
 
     getActiveCollection: async (): Promise<Collection> => {
         const response = await axios.get<Response<Collection>>('/collection/get-active')
+        return response.data.data
+    },
+
+    getRequestTree: async (collectionId: string): Promise<RequestTree[]> => {
+        const response = await axios.get<Response<RequestTree[]>>(`/restrequest/tree/${collectionId}`)
         return response.data.data
     },
 

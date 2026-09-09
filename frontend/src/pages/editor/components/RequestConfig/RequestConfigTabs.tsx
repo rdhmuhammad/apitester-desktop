@@ -1,149 +1,42 @@
-import React, {useMemo, useState} from 'react'
-
-// Component Import
-import {Badge} from "@/components/ui/badge.tsx";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
-import {Input} from "@/components/ui/input.tsx";
-import {Button} from "@/components/ui/button.tsx";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
-import {cn, getIPAddress} from "@/lib/utils.ts";
-import {AuthDropdownOps, AuthLabel, type AuthType} from "@/pages/editor/components/RequestConfig/AuthContent.tsx";
-
-// Third Party Import
-import {Eye, EyeOff, FileJson2, FileText, Plus, ToggleLeft, ToggleRight, Trash2} from "lucide-react";
-import {selectAuth, selectAuthType, selectRequest} from "@/app/slices/collectionSlices.ts";
-import {setAuthType} from "@/app/slices/collectionSlices.ts";
-import {
-    addHeader,
-    addQueryParam,
-    removeHeader,
-    removeQueryParam,
-    selectHeader,
-    selectReqParam,
-    selectRequestBody,
-    updateHeader,
-    updateQueryParam
-} from "@/app/slices/requestSlices.ts";
-import type {ItemUrl} from "@/pages/editor/types/api.ts";
-import {BodyEditor, type ContentType} from "@/pages/editor/components/RequestConfig/BodyEditor.tsx";
-import ScriptEditor from "@/pages/editor/components/RequestConfig/ScriptEditor.tsx";
-
-// Data Store import
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+import React, {useEffect, useState} from "react"
+import {Badge} from "@/components/ui/badge.tsx"
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx"
+import {Input} from "@/components/ui/input.tsx"
+import {Button} from "@/components/ui/button.tsx"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx"
+import {cn} from "@/lib/utils.ts"
+import {Eye, EyeOff, FileJson2, FileText, Plus, ToggleLeft, ToggleRight, Trash2} from "lucide-react"
+import {AuthDropdownOps, AuthLabel, type AuthType} from "@/pages/editor/components/RequestConfig/AuthContent.tsx"
+import {BodyEditor, type ContentType} from "@/pages/editor/components/RequestConfig/BodyEditor.tsx"
+import ScriptEditor from "@/pages/editor/components/RequestConfig/ScriptEditor.tsx"
+import {useRequestEditor} from "@/layout/context/requestEditorContext.tsx"
+import type {ItemUrl} from "@/pages/editor/types/api.ts"
 
 const IndicatorConfigTabs: React.FC = () => {
-    const currRequest = useAppSelector(selectRequest)
-    const dispatch = useAppDispatch()
-
-
-    const enabledParams = useAppSelector((state) => {
-        return selectReqParam(state).reduce((acc, dt) => {
-            acc[dt.key] = dt?.disabled ? !dt.disabled : true;
-            return acc;
-        }, {} as Record<string, boolean>) ?? {}
-
-    })
-
-
-    const rootAuth = useAppSelector(selectAuth)
-
-    // ===============> Headers
-    const headers = useAppSelector(selectHeader)
-
-    // ===============> Body toggle
-    const hasContentType = headers.some(h => h.key === 'Content-Type')
-    const toggleBody = () => {
-        if (hasContentType) {
-            const ct = headers.find(h => h.key === 'Content-Type')
-            if (ct?.id) dispatch(removeHeader({id: ct.id}))
-        } else {
-            const existing = headers.find(h => h.key === 'Content-Type')
-            dispatch(updateHeader({
-                header: {key: 'Content-Type', value: contentType, id: existing?.id ?? crypto.randomUUID()}
-            }))
-        }
-    }
-
-    // ===============> Authorization
-    const authType = useAppSelector(selectAuthType)
-    const authorizationHeader = headers.find(h => h.key.toLowerCase() === 'authorization')
-
-    const setAuthorizationHeader = (value: string) => {
-        const header = {
-            id: authorizationHeader?.id ?? crypto.randomUUID(),
-            key: authorizationHeader?.key ?? 'Authorization',
-            value,
-        }
-
-        if (authorizationHeader) {
-            dispatch(updateHeader({header}))
-        } else {
-            dispatch(addHeader({header}))
-        }
-    }
-
-    const handleAuthTypeChange = (value: string) => {
-        const nextAuthType = value as AuthType
-
-        switch (nextAuthType) {
-            case 'inherit':
-                setAuthorizationHeader(rootAuth.bearer?.[0]?.value ?? '')
-                break
-            case 'bearer':
-                setAuthorizationHeader('')
-                break
-            case 'none':
-                if (authorizationHeader?.id) {
-                    dispatch(removeHeader({id: authorizationHeader.id}))
-                }
-                break
-        }
-
-        dispatch(setAuthType({authType: nextAuthType}))
-    }
-
-    const bearerToken = headers.find(h => h.key === 'Authorization')?.value ?? ''
-
-    const handleBearerChange = (value: string) => {
-        const existing = headers.find(h => h.key === 'Authorization')
-        dispatch(updateHeader({
-            header: {
-                id: existing?.id ?? crypto.randomUUID(),
-                key: 'Authorization',
-                value,
-            }
-        }))
-    }
-
-    const [showSysHeader, setShowSysHeader] = useState(false)
-    const sysHeader: ItemUrl[] = [
-        {key: "Cache-Control", value: "no-cache"},
-        {key: "User-Agent", value: "ApiTesterAgent/0.0.1"},
-        {key: "Host", value: getIPAddress()},
-        {key: "Accept", value: "*/**"},
-        {key: "Accept-Encoding", value: "gzip, deflate, br"}
-    ]
-
-    const headerShow = useMemo(() => {
-        if (!showSysHeader) return headers
-        return [...headers, ...sysHeader]
-    }, [headers, showSysHeader])
-
-    // ===============> Add Param State
+    const {request, updateHeaders, updateQuery, updateJsonBody, updateFormDataBody, updateScript} = useRequestEditor()
     const [newParamKey, setNewParamKey] = useState("")
     const [newParamValue, setNewParamValue] = useState("")
     const [newParamDesc, setNewParamDesc] = useState("")
-
-    // ===============> Add Header State
     const [newHeaderKey, setNewHeaderKey] = useState("")
     const [newHeaderValue, setNewHeaderValue] = useState("")
+    const [showSysHeader, setShowSysHeader] = useState(false)
+    const [contentType, setContentType] = useState<ContentType>(request?.body?.mode === "formdata" ? "multipart/form-data" : "application/json")
+    const [authType, setAuthType] = useState<AuthType>("none")
+    const [bearerToken, setBearerToken] = useState("")
 
-    // ===============> Request Body
-    const requestBody = useAppSelector(selectRequestBody)
-    const [contentType, setContentType] = useState<ContentType>(
-        requestBody?.mode === "formdata" ? "multipart/form-data" : "application/json"
-    )
-    
+    useEffect(() => {
+        setContentType(request?.body?.mode === "formdata" ? "multipart/form-data" : "application/json")
+    }, [request?.body?.mode])
+
+    const query = request?.query ?? []
+    const headers = request?.headers ?? []
+    const headerShow = showSysHeader ? headers : headers.filter((item) =>
+        !["content-type", "user-agent", "accept"].includes(item.key.toLowerCase()))
+    const hasBody = !!request?.body
+
+    const updateQueryItem = (next: ItemUrl) => updateQuery(query.map((item) => item.id === next.id ? next : item))
+    const updateHeaderItem = (next: ItemUrl) => updateHeaders(headers.map((item) => item.id === next.id ? next : item))
+
     return (
         <section className="rounded-b-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -163,337 +56,71 @@ const IndicatorConfigTabs: React.FC = () => {
                     </TabsList>
                 </div>
 
-                {/* Params */}
                 <TabsContent value="params" className="p-4">
                     <div className="overflow-hidden rounded-lg border border-slate-200">
-                        <div
-                            className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600">
-                            <span className="col-span-3">Key</span>
-                            <span className="col-span-3">Value</span>
-                            <span className="col-span-4">Description</span>
-                            <span className="col-span-2"/>
+                        <div className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                            <span className="col-span-3">Key</span><span className="col-span-3">Value</span>
+                            <span className="col-span-4">Description</span><span className="col-span-2" />
                         </div>
-                        {currRequest?.request?.url?.query?.map((item) => (
-                            <div key={item.id ?? item.key}
-                                 className={cn(
-                                     "grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center",
-                                     item.disabled && "opacity-50"
-                                 )}>
-                                <div className="col-span-3">
-                                    <Input
-                                        value={item.key}
-                                        readOnly
-                                        className="h-8 bg-white"
-                                        disabled={item.disabled}
-                                    />
-                                </div>
-                                <div className="col-span-3 pl-3">
-                                    <Input
-                                        value={item.value}
-                                        onChange={(event) => dispatch(updateQueryParam({
-                                            query: {...item, value: event.target.value}
-                                        }))}
-                                        className="h-8 bg-white"
-                                        disabled={item.disabled}
-                                    />
-                                </div>
-                                <div className="col-span-4 pl-3 flex items-center justify-start">
-                                    <Input
-                                        value={item.description ?? ""}
-                                        onChange={(event) => dispatch(updateQueryParam({
-                                            query: {...item, description: event.target.value}
-                                        }))}
-                                        className="h-8 bg-white text-xs text-gray-500"
-                                        disabled={item.disabled}
-                                        placeholder="description"
-                                    />
-                                </div>
-                                <div className="col-span-2 pl-3 flex items-center justify-end gap-1">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => dispatch(updateQueryParam({
-                                            query: {
-                                                ...item,
-                                                disabled: !item.disabled
-                                            }
-                                        }))}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        {enabledParams[item.key] ? (
-                                            <ToggleRight className="h-4 w-4 text-emerald-600"/>
-                                        ) : (
-                                            <ToggleLeft className="h-4 w-4 text-slate-400"/>
-                                        )}
+                        {query.map((item) => (
+                            <div key={item.id ?? item.key} className={cn("grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center", item.disabled && "opacity-50")}>
+                                <Input value={item.key} readOnly className="col-span-3 h-8 bg-white" disabled={item.disabled} />
+                                <Input value={item.value} onChange={(event) => updateQueryItem({...item, value: event.target.value})} className="col-span-3 ml-3 h-8 bg-white" disabled={item.disabled} />
+                                <Input value={item.description ?? ""} onChange={(event) => updateQueryItem({...item, description: event.target.value})} className="col-span-4 ml-3 h-8 bg-white text-xs" disabled={item.disabled} placeholder="description" />
+                                <div className="col-span-2 ml-3 flex justify-end gap-1">
+                                    <Button type="button" variant="outline" size="sm" onClick={() => updateQueryItem({...item, disabled: !item.disabled})} className="h-8 w-8 p-0">
+                                        {item.disabled ? <ToggleLeft className="h-4 w-4 text-slate-400" /> : <ToggleRight className="h-4 w-4 text-emerald-600" />}
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => dispatch(removeQueryParam({id: item.id!}))}
-                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                        <Trash2 className="h-4 w-4"/>
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => updateQuery(query.filter((entry) => entry.id !== item.id))} className="h-8 w-8 p-0 text-red-500">
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
                         ))}
-                        {/* Add Param Row */}
                         <div className="grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center">
-                            <div className="col-span-3">
-                                <Input
-                                    value={newParamKey}
-                                    onChange={(e) => setNewParamKey(e.target.value)}
-                                    className="h-8"
-                                    placeholder="key"
-                                />
-                            </div>
-                            <div className="col-span-3 pl-3">
-                                <Input
-                                    value={newParamValue}
-                                    onChange={(e) => setNewParamValue(e.target.value)}
-                                    className="h-8"
-                                    placeholder="value"
-                                />
-                            </div>
-                            <div className="col-span-4 pl-3">
-                                <Input
-                                    value={newParamDesc}
-                                    onChange={(e) => setNewParamDesc(e.target.value)}
-                                    className="h-8 text-xs"
-                                    placeholder="description"
-                                />
-                            </div>
+                            <Input value={newParamKey} onChange={(event) => setNewParamKey(event.target.value)} className="col-span-3 h-8" placeholder="key" />
+                            <Input value={newParamValue} onChange={(event) => setNewParamValue(event.target.value)} className="col-span-3 ml-3 h-8" placeholder="value" />
+                            <Input value={newParamDesc} onChange={(event) => setNewParamDesc(event.target.value)} className="col-span-4 ml-3 h-8 text-xs" placeholder="description" />
                             <div className="col-span-2 flex justify-end">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        if (!newParamKey.trim()) return
-                                        dispatch(addQueryParam({
-                                            query: {
-                                                id: crypto.randomUUID(),
-                                                key: newParamKey.trim(),
-                                                value: newParamValue,
-                                                description: newParamDesc,
-                                            }
-                                        }))
-                                        setNewParamKey("")
-                                        setNewParamValue("")
-                                        setNewParamDesc("")
-                                    }}
-                                    className="h-8 w-8 p-0"
-                                >
-                                    <Plus className="h-4 w-4"/>
-                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => {
+                                    if (!newParamKey.trim()) return
+                                    updateQuery([...query, {id: crypto.randomUUID(), key: newParamKey.trim(), value: newParamValue, description: newParamDesc}])
+                                    setNewParamKey(""); setNewParamValue(""); setNewParamDesc("")
+                                }} className="h-8 w-8 p-0"><Plus className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     </div>
                 </TabsContent>
 
-                {/* Authorization */}
                 <TabsContent value="auth" className="p-4">
                     <div className="grid gap-4 rounded-lg border border-slate-200 p-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium text-slate-700">Auth Type</p>
-                            <Select
-                                value={authType}
-                                onValueChange={handleAuthTypeChange}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">No Auth</SelectItem>
-                                    <SelectItem value="inherit">Inherit From Parent</SelectItem>
-                                    <SelectItem value="bearer">Bearer Token</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="space-y-2"><p className="text-sm font-medium text-slate-700">Auth Type</p>
+                            <Select value={authType} onValueChange={(value) => setAuthType(value as AuthType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+                                <SelectItem value="none">No Auth</SelectItem><SelectItem value="inherit">Inherit From Parent</SelectItem><SelectItem value="bearer">Bearer Token</SelectItem>
+                            </SelectContent></Select>
                         </div>
-                        <div className="space-y-2">
-                            <AuthDropdownOps authType={authType} bearerValue={bearerToken} onBearerChange={handleBearerChange}/>
-                        </div>
-                        <div
-                            className="md:col-span-2 rounded-md border text-sm">
-                            <AuthLabel authType={authType}/>
-                        </div>
+                        <AuthDropdownOps authType={authType} bearerValue={bearerToken} onBearerChange={setBearerToken} />
+                        <div className="md:col-span-2 rounded-md border text-sm"><AuthLabel authType={authType} /></div>
                     </div>
                 </TabsContent>
 
-                {/* Headers */}
                 <TabsContent value="headers" className="p-4">
-                    <Button variant="ghost" size="xs"
-                            className="bg-gray-100 hover:bg-gray-200 rounded-full items-center mb-4"
-                            onClick={() => setShowSysHeader((current) => !current)}>
-                        {showSysHeader ?
-                            <>
-                                <Eye className="text-slate-600" size={10}/>
-                                <p className="text-[10px] font-medium text-slate-600">9 auto-generated header hidden</p>
-                            </> :
-                            <>
-                                <EyeOff className="text-slate-600" size={10}/>
-                                <p className="text-[10px] font-medium text-slate-600">Hide 9 auto-generated header</p>
-                            </>
-                        }
+                    <Button variant="ghost" size="xs" className="mb-4 rounded-full bg-gray-100" onClick={() => setShowSysHeader((value) => !value)}>
+                        {showSysHeader ? <><Eye className="text-slate-600" size={10} /><span className="text-[10px]">Show system headers</span></> : <><EyeOff className="text-slate-600" size={10} /><span className="text-[10px]">Show system headers</span></>}
                     </Button>
                     <div className="overflow-hidden rounded-lg border border-slate-200">
-                        <div
-                            className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600">
-                            <span className="col-span-5">Header</span>
-                            <span className="col-span-5">Value</span>
-                            <span className="col-span-2"/>
-                        </div>
-                        {headerShow.map((item) => (
-                            <div key={item.id ?? item.key}
-                                 className={cn(
-                                     "grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center",
-                                     item.disabled && "opacity-50"
-                                 )}>
-                                <div className="col-span-5">
-                                    <Input value={item.key} readOnly className="h-8 bg-white"
-                                           disabled={item.disabled}/>
-                                </div>
-                                <div className="col-span-5 pl-3">
-                                    <Input
-                                        value={item.value}
-                                        onChange={(event) => dispatch(updateHeader({
-                                            header: {...item, value: event.target.value}
-                                        }))}
-                                        className="h-8 bg-white"
-                                        disabled={item.disabled}
-                                    />
-                                </div>
-                                <div className="col-span-2 pl-3 flex items-center justify-end gap-1">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => dispatch(updateHeader({
-                                            header: {...item, disabled: !item.disabled}
-                                        }))}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        {item.disabled ? (
-                                            <ToggleLeft className="h-4 w-4 text-slate-400"/>
-                                        ) : (
-                                            <ToggleRight className="h-4 w-4 text-emerald-600"/>
-                                        )}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => dispatch(removeHeader({id: item.id!}))}
-                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                        <Trash2 className="h-4 w-4"/>
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                        {/* Add Header Row */}
-                        <div className="grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center">
-                            <div className="col-span-5">
-                                <Input
-                                    value={newHeaderKey}
-                                    onChange={(e) => setNewHeaderKey(e.target.value)}
-                                    className="h-8"
-                                    placeholder="header key"
-                                />
-                            </div>
-                            <div className="col-span-5 pl-3">
-                                <Input
-                                    value={newHeaderValue}
-                                    onChange={(e) => setNewHeaderValue(e.target.value)}
-                                    className="h-8"
-                                    placeholder="header value"
-                                />
-                            </div>
-                            <div className="col-span-2 flex justify-end">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        if (!newHeaderKey.trim()) return
-                                        dispatch(addHeader({
-                                            header: {
-                                                id: crypto.randomUUID(),
-                                                key: newHeaderKey.trim(),
-                                                value: newHeaderValue,
-                                            }
-                                        }))
-                                        setNewHeaderKey("")
-                                        setNewHeaderValue("")
-                                    }}
-                                    className="h-8 w-8 p-0"
-                                >
-                                    <Plus className="h-4 w-4"/>
-                                </Button>
-                            </div>
-                        </div>
+                        <div className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600"><span className="col-span-5">Header</span><span className="col-span-5">Value</span><span className="col-span-2" /></div>
+                        {headerShow.map((item) => <div key={item.id ?? item.key} className={cn("grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center", item.disabled && "opacity-50")}>
+                            <Input value={item.key} readOnly className="col-span-5 h-8 bg-white" disabled={item.disabled} />
+                            <Input value={item.value} onChange={(event) => updateHeaderItem({...item, value: event.target.value})} className="col-span-5 ml-3 h-8 bg-white" disabled={item.disabled} />
+                            <div className="col-span-2 ml-3 flex justify-end gap-1"><Button type="button" variant="outline" size="sm" onClick={() => updateHeaderItem({...item, disabled: !item.disabled})} className="h-8 w-8 p-0">{item.disabled ? <ToggleLeft className="h-4 w-4 text-slate-400" /> : <ToggleRight className="h-4 w-4 text-emerald-600" />}</Button><Button type="button" variant="ghost" size="sm" onClick={() => updateHeaders(headers.filter((entry) => entry.id !== item.id))} className="h-8 w-8 p-0 text-red-500"><Trash2 className="h-4 w-4" /></Button></div>
+                        </div>)}
+                        <div className="grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center"><Input value={newHeaderKey} onChange={(event) => setNewHeaderKey(event.target.value)} className="col-span-5 h-8" placeholder="header key" /><Input value={newHeaderValue} onChange={(event) => setNewHeaderValue(event.target.value)} className="col-span-5 ml-3 h-8" placeholder="header value" /><div className="col-span-2 flex justify-end"><Button type="button" variant="outline" size="sm" onClick={() => { if (!newHeaderKey.trim()) return; updateHeaders([...headers, {id: crypto.randomUUID(), key: newHeaderKey.trim(), value: newHeaderValue}]); setNewHeaderKey(""); setNewHeaderValue("") }} className="h-8 w-8 p-0"><Plus className="h-4 w-4" /></Button></div></div>
                     </div>
                 </TabsContent>
 
-                {/* Request Body */}
-                <TabsContent value="body" className="p-4">
-                    <div className="space-y-3">
-                        {/*Dropdown*/}
-                        <div className="flex items-center justify-between">
-                            <Select value={contentType}
-                                    onValueChange={val => {
-                                        setContentType(val as ContentType)
-                                    }}>
-                                <SelectTrigger>
-                                    <SelectValue/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="application/json">
-                                        <FileJson2 className="h-4 w-4 text-indigo-500"/>
-                                        JSON Payload
-                                    </SelectItem>
-                                    <SelectItem value="multipart/form-data">
-                                        <FileText className="h-4 w-4 text-indigo-500"/>
-                                        Multipart Form
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-slate-600">{contentType}</Badge>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={toggleBody}
-                                    className="h-8 w-8 p-0"
-                                >
-                                    {hasContentType ? (
-                                        <ToggleRight className="h-4 w-4 text-emerald-600"/>
-                                    ) : (
-                                        <ToggleLeft className="h-4 w-4 text-slate-400"/>
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
-                        {hasContentType ? (
-                            <BodyEditor
-                                contentType={contentType}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center py-12 text-sm text-slate-400">
-                                Body disabled — toggle to enable
-                            </div>
-                        )}
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="scripts" className="p-4">
-                    <div className="space-y-3">
-                        <ScriptEditor/>
-                    </div>
-                </TabsContent>
+                <TabsContent value="body" className="p-4"><div className="space-y-3"><div className="flex items-center justify-between"><Select value={contentType} onValueChange={(value) => setContentType(value as ContentType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="application/json"><FileJson2 className="h-4 w-4 text-indigo-500" />JSON Payload</SelectItem><SelectItem value="multipart/form-data"><FileText className="h-4 w-4 text-indigo-500" />Multipart Form</SelectItem></SelectContent></Select><div className="flex items-center gap-2"><Badge variant="outline" className="text-slate-600">{contentType}</Badge><Button type="button" variant="ghost" size="sm" onClick={() => contentType === "application/json" ? updateJsonBody("") : updateFormDataBody([])} className="h-8 w-8 p-0">{hasBody ? <ToggleRight className="h-4 w-4 text-emerald-600" /> : <ToggleLeft className="h-4 w-4 text-slate-400" />}</Button></div></div>{hasBody ? <BodyEditor contentType={contentType} body={request?.body} onJsonChange={updateJsonBody} onFormDataChange={updateFormDataBody} /> : <div className="flex items-center justify-center py-12 text-sm text-slate-400">Body disabled</div>}</div></TabsContent>
+                <TabsContent value="scripts" className="p-4"><ScriptEditor value={request?.script ?? ""} onChange={updateScript} /></TabsContent>
             </Tabs>
         </section>
     )

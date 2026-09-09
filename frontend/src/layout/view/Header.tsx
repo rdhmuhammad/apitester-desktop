@@ -2,7 +2,8 @@ import {useEffect, useRef, useState} from "react";
 import {Images} from "@/config/constant/Images.tsx";
 
 import {useAppSelector} from "@/app/store/hooks.ts";
-import {selectActiveEditorTab, selectCollectionData} from "@/app/slices/collectionSlices.ts";
+import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts";
+import {useRequestEditor} from "@/layout/context/requestEditorContext.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Settings} from "lucide-react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
@@ -16,8 +17,8 @@ import InventoryEditorHeader from "@/layout/components/InventoryEditorHeader.tsx
 
 const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     const [managerOpen, setManagerOpen] = useState(false);
-    const collectionData = useAppSelector(selectCollectionData)
-    const activeEditorTab = useAppSelector(selectActiveEditorTab)
+    const collectionData = useRequestEditor().collection
+    const activeEditorTab = useAppSelector(selectEditorActiveTab)
     const requestHeaderRef = useRef<RequestHeaderHandle>(null)
     const {pull, push, isPulling, isPushing} = useCollectionPushPull()
 

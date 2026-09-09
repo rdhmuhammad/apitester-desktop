@@ -1,22 +1,10 @@
 import {Sidebar, SidebarContent} from "@/components/ui/sidebar.tsx";
 import {type ReactNode, useCallback, useEffect, useRef, useState} from "react";
-import {ChevronDown, ChevronRight, FileCode2, Folder, FolderGit2, FolderOpen, GripVertical, Search, Trash2} from "lucide-react";
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {
-    type ColtReqMethod,
-    type DirTree,
-    moveItem,
-    selectDirTree,
-    setActiveRequest,
-    setActiveTree,
-    deleteRequest,
-    deleteFolder,
-    selectDirtyRequestIds
-} from "@/app/slices/collectionSlices.ts";
+import {ChevronDown, ChevronRight, FileCode2, Folder, FolderGit2, FolderOpen, GripVertical, Search} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
 import TestScenarioSidebar from "@/layout/components/TestScenarioSidebar.tsx";
 import AutomationSidebar from "@/layout/components/AutomationSidebar.tsx";
-import WarningDialog from "@/components/common/WarningDialog.tsx";
+import {CollectionServices, type RequestTree} from "@/layout/services/collection.ts";
 import {
     DndContext,
     DragOverlay,
@@ -29,23 +17,13 @@ import {
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
-
-
-const methodColorClass: Record<ColtReqMethod, string> = {
+const methodColorClass: Record<string, string> = {
     GET: "text-emerald-600",
     POST: "text-amber-600",
     PUT: "text-blue-600",
     PATCH: "text-violet-600",
     DELETE: "text-red-600"
 };
-
-const isFolderDirty = (node: DirTree, dirtyIds: string[]): boolean => {
-    if (node.category === "REQ") return dirtyIds.includes(node.id)
-    if (node?.item) {
-        return Array.from(node.item.values()).some((child) => isFolderDirty(child, dirtyIds))
-    }
-    return false
-}
 
 type DropPosition = 'before' | 'after' | 'inside' | null
 
@@ -54,18 +32,16 @@ const dropIndicatorBelow = "absolute left-0 right-0 bottom-0 h-0.5 bg-indigo-500
 const dropIndicatorInside = "ring-2 ring-indigo-400 rounded-md bg-indigo-50/50"
 
 const DragNode: React.FC<{
-    node: DirTree
+    node: RequestTree
     depth: number
     onClick: () => void
     onToggle: () => void
     isOpen: boolean
     isActive: boolean
-    isDirty: boolean
-    onDelete: (e: React.MouseEvent) => void
     dropPosition: DropPosition
     isDragOver: boolean
     children?: ReactNode
-}> = ({ node, depth, onClick, onToggle, isOpen, isActive, isDirty, onDelete, dropPosition, isDragOver, children }) => {
+}> = ({ node, depth, onClick, onToggle, isOpen, isActive, dropPosition, isDragOver, children }) => {
     const indentStyle = { paddingLeft: `${depth * 14}px` }
 
     const { setNodeRef: setDroppableRef, isOver } = useDroppable({ id: node.id, data: { node } })
@@ -108,16 +84,6 @@ const DragNode: React.FC<{
                         {isOpen ? <FolderOpen className="h-4 w-4 text-indigo-500"/> :
                             <Folder className="h-4 w-4 text-indigo-500"/>}
                         <span className="truncate">{node.name}</span>
-                        {isDirty && (
-                            <span className="ml-auto h-2 w-2 rounded-full bg-orange-400 shrink-0" />
-                        )}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onDelete}
-                        className="hidden group-hover:flex shrink-0 p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
-                    >
-                        <Trash2 className="h-3.5 w-3.5" />
                     </button>
                 </div>
                 {isOpen && children}
@@ -151,28 +117,16 @@ const DragNode: React.FC<{
                 <FileCode2 className="h-4 w-4 text-slate-400"/>
                 <span className={`w-12 text-xs font-semibold ${methodColorClass[node?.method ?? "GET"]}`}>{node?.method ?? "GET"}</span>
                 <span className="truncate text-slate-700">{node.name}</span>
-                {isDirty && (
-                    <span className="ml-auto h-2 w-2 rounded-full bg-orange-400 shrink-0" />
-                )}
-            </button>
-            <button
-                type="button"
-                onClick={onDelete}
-                className="hidden group-hover:flex shrink-0 p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"
-            >
-                <Trash2 className="h-3.5 w-3.5" />
             </button>
         </div>
     );
 };
 
 const SidebarLayout: React.FC = () => {
-    const tree = useAppSelector(selectDirTree)
-    const dispatch = useAppDispatch()
-    const dirtyRequestIds = useAppSelector(selectDirtyRequestIds)
+    const [tree, setTree] = useState<RequestTree[]>([])
+    const [activeRequestId, setActiveRequestId] = useState<string | null>(null)
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
     const [searchQuery, setSearchQuery] = useState('')
-    const [deleteTarget, setDeleteTarget] = useState<DirTree | null>(null)
     const expandedBeforeSearch = useRef<Record<string, boolean>>({})
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
     const [dropTargetId, setDropTargetId] = useState<string | null>(null)
@@ -183,21 +137,21 @@ const SidebarLayout: React.FC = () => {
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
     )
 
-    const countFolders = (t: Map<string, DirTree>): number => {
+    const countFolders = (nodes: RequestTree[]): number => {
         let count = 0
-        for (const [, node] of t) {
+        for (const node of nodes) {
             if (node.category === "FOLD") count++
             if (node.item) count += countFolders(node.item)
         }
         return count
     }
 
-    const matchesSearch = (node: DirTree, query: string): boolean => {
+    const matchesSearch = (node: RequestTree, query: string): boolean => {
         if (!query) return true
         const q = query.toLowerCase()
         if (node.name.toLowerCase().includes(q)) return true
         if (node.category === "FOLD" && node.item) {
-            return Array.from(node.item.values()).some(child => matchesSearch(child, q))
+            return node.item.some(child => matchesSearch(child, q))
         }
         return false
     }
@@ -206,8 +160,8 @@ const SidebarLayout: React.FC = () => {
         if (searchQuery) {
             expandedBeforeSearch.current = {...expandedFolders}
             const autoExpand: Record<string, boolean> = {}
-            const walkAndExpand = (t: Map<string, DirTree>) => {
-                for (const [, node] of t) {
+            const walkAndExpand = (nodes: RequestTree[]) => {
+                for (const node of nodes) {
                     if (node.category === "FOLD" && matchesSearch(node, searchQuery)) {
                         autoExpand[node.id] = true
                         if (node.item) walkAndExpand(node.item)
@@ -220,27 +174,18 @@ const SidebarLayout: React.FC = () => {
             setExpandedFolders(expandedBeforeSearch.current)
             expandedBeforeSearch.current = {}
         }
-    }, [searchQuery])
+    }, [searchQuery, tree])
 
-    const toggleRequest = (reqId: string)=>{
-        dispatch(setActiveRequest({id: reqId}))
-        dispatch(setActiveTree({id: reqId, status: true}))
-    }
-
-    const handleDeleteClick = (e: React.MouseEvent, node: DirTree) => {
-        e.stopPropagation()
-        setDeleteTarget(node)
-    }
-
-    const handleDeleteConfirm = async () => {
-        if (!deleteTarget) return
-        if (deleteTarget.category === 'REQ') {
-            dispatch(deleteRequest({id: deleteTarget.id}))
-        } else {
-            dispatch(deleteFolder({id: deleteTarget.id}))
+    useEffect(() => {
+        let cancelled = false
+        const loadTree = async () => {
+            const collection = await CollectionServices.getActiveCollection()
+            const requestTree = await CollectionServices.getRequestTree(collection.id)
+            if (!cancelled) setTree(requestTree)
         }
-        setDeleteTarget(null)
-    }
+        void loadTree()
+        return () => { cancelled = true }
+    }, [])
 
     const toggleFolder = (folderId: string) => {
         setExpandedFolders((prevState=>({
@@ -251,17 +196,17 @@ const SidebarLayout: React.FC = () => {
 
     useEffect(() => {
         const record: Record<string, boolean> = {}
-        loadExpandFolder(tree, record)
-    }, [tree]);
-
-    const loadExpandFolder = (tree: Map<string, DirTree>, record: Record<string, boolean>) =>{
-        for (const [key, val] of tree){
-            if (val?.category === "FOLD"){
-                record[key] = false
-                if (val?.item) loadExpandFolder(val.item, record)
+        const loadExpandFolder = (nodes: RequestTree[]) => {
+            for (const node of nodes) {
+                if (node.category === "FOLD") {
+                    record[node.id] = false
+                    if (node.item) loadExpandFolder(node.item)
+                }
             }
         }
-    }
+        loadExpandFolder(tree)
+        setExpandedFolders(record)
+    }, [tree]);
 
     const computeDropPosition = useCallback((event: DragOverEvent): DropPosition => {
         const targetRect = event.over?.rect
@@ -271,7 +216,7 @@ const SidebarLayout: React.FC = () => {
         const relativeY = pointerY - targetRect.top
         const ratio = relativeY / targetRect.height
 
-        const overNode = event.over?.data.current?.node as DirTree | undefined
+        const overNode = event.over?.data.current?.node as RequestTree | undefined
 
         if (overNode?.category === 'FOLD' && ratio > 0.25 && ratio < 0.75) {
             return 'inside'
@@ -315,7 +260,7 @@ const SidebarLayout: React.FC = () => {
             expandTimerRef.current = null
         }
 
-        const overNode = event.over?.data.current?.node as DirTree | undefined
+        const overNode = event.over?.data.current?.node as RequestTree | undefined
         if (overNode?.category === 'FOLD' && position === 'inside' && !expandedFolders[targetId]) {
             expandTimerRef.current = setTimeout(() => {
                 toggleFolder(targetId)
@@ -336,52 +281,29 @@ const SidebarLayout: React.FC = () => {
         const { active, over } = event
         if (!over || !active || active.id === over.id) return
 
-        const activeId = String(active.id)
-        const targetId = String(over.id)
+    }, [])
 
-        const targetRect = over.rect
-        const pointerY = event.delta.y + (active.rect.current.initial?.top ?? 0)
-        const ratio = targetRect.height > 0 ? (pointerY - targetRect.top) / targetRect.height : 0
-
-        const overNode = over.data.current?.node as DirTree | undefined
-        let position: 'before' | 'after' | 'inside' = 'after'
-
-        if (overNode?.category === 'FOLD' && ratio > 0.25 && ratio < 0.75) {
-            position = 'inside'
-        } else if (ratio < 0.5) {
-            position = 'before'
-        } else {
-            position = 'after'
-        }
-
-        dispatch(moveItem({ movedId: activeId, targetId, position }))
-    }, [dispatch])
-
-    const renderNode = (node: DirTree, depth = 0): ReactNode => {
+    const renderNode = (node: RequestTree, depth = 0): ReactNode => {
         if (searchQuery && !matchesSearch(node, searchQuery)) return null
 
         const isOpen = Boolean(expandedFolders[node.id]);
-        const isActive = node.isActive || node.id === activeDragId
+        const isActive = node.isActive || node.id === activeRequestId || node.id === activeDragId
 
         return (
             <DragNode
                 key={node.id}
                 node={node}
                 depth={depth}
-                onClick={() => toggleRequest(node.id)}
+                onClick={() => setActiveRequestId(node.id)}
                 onToggle={() => toggleFolder(node.id)}
                 isOpen={isOpen}
                 isActive={isActive}
-                isDirty={node.category === 'REQ'
-                    ? dirtyRequestIds.includes(node.id)
-                    : isFolderDirty(node, dirtyRequestIds)}
-                onDelete={(e) => handleDeleteClick(e, node)}
                 dropPosition={dropTargetId === node.id ? dropPosition : null}
                 isDragOver={dropTargetId === node.id}
             >
                 {isOpen && node?.item && (
                     <div className="space-y-1">
-                        {Array.from(node?.item?.entries()).map(([_, child]) => {
+                        {node.item.map((child) => {
                             return renderNode(child, depth + 1)
                         })}
                     </div>
@@ -390,8 +312,8 @@ const SidebarLayout: React.FC = () => {
         );
     };
 
-    const findNodeById = (t: Map<string, DirTree>, id: string): DirTree | null => {
-        for (const [, node] of t) {
+    const findNodeById = (nodes: RequestTree[], id: string): RequestTree | null => {
+        for (const node of nodes) {
             if (node.id === id) return node
             if (node.item) {
                 const found = findNodeById(node.item, id)
@@ -405,7 +327,7 @@ const SidebarLayout: React.FC = () => {
 
     const treeContent = (
         <div className="">
-            {Array.from(tree.entries()).map(([_, collection])=>{
+            {tree.map((collection) => {
                return renderNode(collection)
             })}
         </div>
@@ -462,14 +384,6 @@ const SidebarLayout: React.FC = () => {
                 <TestScenarioSidebar searchQuery={searchQuery}/>
                 <AutomationSidebar searchQuery={searchQuery}/>
             </SidebarContent>
-            <WarningDialog
-                open={deleteTarget !== null}
-                onClose={() => setDeleteTarget(null)}
-                title={`Are you sure you want to delete "${deleteTarget?.name ?? ''}"?`}
-                icon={<Trash2 className="h-10 w-10 text-red-500" />}
-                onSubmit={handleDeleteConfirm}
-                labelYes="Delete"
-            />
         </Sidebar>
     );
 };

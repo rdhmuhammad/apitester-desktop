@@ -10,23 +10,27 @@ import {cn} from "@/lib/utils.ts";
 import React, {useEffect, useRef, useState} from "react";
 import type {IAceEditor} from "react-ace/lib/types";
 import type {ItemUrl} from "@/pages/editor/types/api.ts";
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {selectRequestBody, setBody} from "@/app/slices/requestSlices.ts";
 import {setFile, removeFile} from "@/lib/fileStore.ts";
+import type {RequestBody} from "@/pages/editor/types/api.ts";
 
 export type ContentType = "application/json" | "multipart/form-data";
 
 interface IBodyEditor {
     contentType: ContentType
+    body?: RequestBody
+    onJsonChange: (value: string) => void
+    onFormDataChange: (value: ItemUrl[]) => void
 }
 
 export const BodyEditor: React.FC<IBodyEditor> = (
     {
         contentType,
+        body,
+        onJsonChange,
+        onFormDataChange,
     }) => {
 
-    const selectBody = useAppSelector(selectRequestBody);
-    const dispatch = useAppDispatch()
+    const selectBody = body
 
     type MenuState = {
         open: boolean;
@@ -119,20 +123,20 @@ export const BodyEditor: React.FC<IBodyEditor> = (
             }
             return updated as ItemUrl;
         })
-        dispatch(setBody({body: body}))
+        onFormDataChange(body)
     }
 
     const updateFormdataField = (pId: string, field: keyof ItemUrl, value: string | boolean) => {
         const body = (selectBody?.formdata ?? []).map((item) =>
             item.id === pId ? {...item, [field]: value} : item
         )
-        dispatch(setBody({body: body}))
+        onFormDataChange(body)
     }
 
     const removeFormdataField = (pId: string) => {
         removeFile(pId)
         const body = (selectBody?.formdata ?? []).filter((item) => item.id !== pId)
-        dispatch(setBody({body: body}))
+        onFormDataChange(body)
     }
 
     const addFormdataField = (key: string, value: string, description: string, type: string) => {
@@ -143,7 +147,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
             newFileRef.current = null
         }
         const body = [...(selectBody?.formdata ?? []), newVar]
-        dispatch(setBody({body: body}))
+        onFormDataChange(body)
     }
 
     const [newFdKey, setNewFdKey] = useState("")
@@ -172,7 +176,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                             lineHeight={19}
                             onLoad={onEditorLoad}
                             onChange={e => {
-                                dispatch(setBody({body: e}))
+                                onJsonChange(e)
                             }}
                             showPrintMargin={true}
                             showGutter={true}

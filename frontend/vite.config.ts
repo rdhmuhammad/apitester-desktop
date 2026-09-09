@@ -44,7 +44,6 @@ export default defineConfig({
             "@radix-ui/react-toggle-group",
             "@radix-ui/react-tooltip",
           ],
-          "vendor-redux": ["@reduxjs/toolkit", "react-redux"],
           "vendor-query": ["@tanstack/react-query"],
           "vendor-forms": ["react-hook-form", "zod", "@hookform/resolvers"],
           "vendor-editor": ["react-ace", "ace-builds"],

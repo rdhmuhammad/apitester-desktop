@@ -5,44 +5,30 @@ import {isTestTab} from "@/lib/tabUtils.ts";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
-import {LoaderCircle, Plus, Send} from "lucide-react";
+import {LoaderCircle, Plus, Send, Trash2} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {
-    addBaseUrl,
-    addVariable,
-    removeVariable,
-    selectActiveTabId,
-    selectBaseUrlValues,
-    selectCollectionData,
-    selectRequest,
-    selectActiveRequestScript,
-    selectVariable,
-    setCurrentResponse,
-    setScriptLogs,
-    setScriptMutations,
-    setScriptResult,
-    updateVariable,
-} from "@/app/slices/collectionSlices.ts";
+import {removeEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
-import {buildRawRequest, parseBlobResponse, useSendRequest as sendRequest} from "@/layout/hooks/useSendRequest.ts";
+import {parseBlobResponse, useSendRequest as sendRequest} from "@/layout/hooks/useSendRequest.ts";
 import {runScript} from "@/layout/hooks/useScriptRunner.ts";
 import CustomToast from "@/components/common/toast";
 import type {ColtReqMethod} from "@/app/slices";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
-import {addQueryParam, updateQueryParam, setUrlRaw} from "@/app/slices/requestSlices.ts";
-import {selectActiveEnvironmentVariables} from "@/app/slices/environmentSlice.ts";
 import type { RequestHeaderHandle } from "../types/HeaderSync";
+import {useRequestEditor} from "@/layout/context/requestEditorContext.tsx";
 
 
 const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(({onSend}, ref) => {
+    const {request, collection, variables, baseUrls, updateMethod, updateUrl, updateQuery, deleteRequest} = useRequestEditor()
     const dispatch = useAppDispatch()
-    const currRequest = useAppSelector(selectRequest)
-    const baseUrlOptions = useAppSelector(selectBaseUrlValues)
-    const variables = useAppSelector(selectVariable)
-    const scriptValue = useAppSelector(selectActiveRequestScript)
-    const collectionData = useAppSelector(selectCollectionData)
-    const envVars = useAppSelector(selectActiveEnvironmentVariables)
-    const activeTabId = useAppSelector(selectActiveTabId)
+    const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const currRequest = request ? {id: request.id, name: request.name, request: {method: request.method, header: request.headers, url: request.url, body: request.body}} : null
+    const baseUrlOptions = baseUrls
+    const scriptValue = request?.script ?? ""
+    const collectionData = collection
+    const envVars: Record<string, string> = {}
+    const [runtimeVariables, setRuntimeVariables] = useState<CollectionVar[]>(variables)
+    useEffect(() => setRuntimeVariables(variables), [variables])
 
     useEffect(() => {
         const raw = currRequest?.request?.url?.raw ?? ''
@@ -86,7 +72,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
     const resolveVariableValue = (value: string): string => {
         return value.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
             const k = key.trim()
-            const matchedVar = variables.find((item) => item.key === k)
+            const matchedVar = runtimeVariables.find((item) => item.key === k)
             return envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
         })
     }
@@ -146,12 +132,12 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             formData: currRequest?.request?.body?.formdata
         }).then(async (response) => {
             if (!response) return
-            dispatch(setCurrentResponse({id: currRequest.id, response}))
+            void response
             if (!scriptValue?.trim()) return
 
             try {
                 const varsObj: Record<string, string> = {}
-                variables.forEach(v => { varsObj[v.key] = v.value })
+                runtimeVariables.forEach(v => { varsObj[v.key] = v.value })
 
                 const {result, mutations, logs} = await runScript({
                     script: scriptValue,
@@ -160,24 +146,17 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                 })
 
                 for (const [key, value] of Object.entries(mutations)) {
-                    const existing = variables.find(v => v.key === key)
+                    const existing = runtimeVariables.find(v => v.key === key)
                     if (value === null) {
-                        if (existing) dispatch(removeVariable({id: existing.id}))
+                        if (existing) setRuntimeVariables((current) => current.filter((item) => item.id !== existing.id))
                     } else if (existing) {
-                        dispatch(updateVariable({...existing, value}))
+                        setRuntimeVariables((current) => current.map((item) => item.id === existing.id ? {...item, value} : item))
                     } else {
-                        dispatch(addVariable({
-                            id: crypto.randomUUID(),
-                            key,
-                            value,
-                            type: "string",
-                            category: "",
-                        }))
+                        setRuntimeVariables((current) => [...current, {id: crypto.randomUUID(), key, value, type: "string", category: ""}])
                     }
                 }
-                dispatch(setScriptResult({id: currRequest.id, result}))
-                dispatch(setScriptMutations({id: currRequest.id, mutations}))
-                dispatch(setScriptLogs({id: currRequest.id, logs}))
+                void result
+                void logs
             } catch (err: unknown) {
                 CustomToast.error(`Script error: ${err instanceof Error ? err.message : String(err)}`)
             }
@@ -188,35 +167,9 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             const {data, size, isBinary} = blob
                 ? await parseBlobResponse(blob, contentType)
                 : {data: null, size: "0", isBinary: false}
-            dispatch(setCurrentResponse({
-                id: currRequest.id,
-                response: {
-                    rawRequest: buildRawRequest({
-                        baseUrl: selectedBaseUrl,
-                        endpoint: formatEndpoint(endpoint),
-                        method: requestMethod,
-                        headers: (currRequest?.request?.header ?? [])
-                            .filter(h => !h.disabled)
-                            .map((header) => ({
-                                ...header,
-                                value: resolveVariableValue(header.value ?? "")
-                            })),
-                        requestParams: (currRequest?.request?.url.query ?? [])
-                            .filter(q => !q.disabled),
-                        contentType: getContentType(currRequest),
-                        raw: currRequest?.request?.body?.raw,
-                        formData: currRequest?.request?.body?.formdata
-                    }),
-                    protocol: 'HTTP/1.1',
-                    responseSize: size,
-                    responseTime: response?.duration,
-                    statusCode: response?.response?.status,
-                    data,
-                    statusText: response?.response?.statusText,
-                    contentType,
-                    isBinary,
-                }
-            }))
+            void data
+            void size
+            void isBinary
             CustomToast.error(response.message as string);
         }).finally(() => setIsSending(false))
     };
@@ -236,8 +189,20 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             category: 'BASE_URL',
             type: 'string'
         }
-        dispatch(addBaseUrl(newVar))
+        void newVar
+        setSelectedBaseUrl(trimmed)
         setNewBaseUrl('')
+    }
+
+    const handleDeleteRequest = async () => {
+        if (!request || !activeTabId) return
+        if (!window.confirm(`Delete ${request.name}?`)) return
+        try {
+            await deleteRequest()
+            dispatch(removeEditorTab(activeTabId))
+        } catch (error) {
+            CustomToast.error(error instanceof Error ? error.message : String(error))
+        }
     }
 
     return (
@@ -245,7 +210,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             <Select
                 value={requestMethod}
                 disabled={!collectionData}
-                onValueChange={(value) => setRequestMethod(value as ColtReqMethod[number])}
+                        onValueChange={(value) => { const method = value as ColtReqMethod[number]; setRequestMethod(method); updateMethod(method) }}
             >
                 <SelectTrigger
                     className={cn("min-w-[110px] font-semibold text-white", methodColorClass[requestMethod])}>
@@ -288,7 +253,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                             placeholder="https://api.example.com"
                             aria-label="Add base URL"
                         />
-                        <Button
+             <Button
                             variant="ghost"
                             size="sm"
                             disabled={!collectionData || !newBaseUrl.trim()}
@@ -306,18 +271,11 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                         const value = event.target.value
                         const {cleanUrl, params} = parseQueryParamsFromUrl(value)
                         setEndpoint(cleanUrl)
-                        dispatch(setUrlRaw({raw: cleanUrl}))
+                        const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
+                        updateUrl(nextUrl)
                         const currentParams = currRequest?.request?.url?.query ?? []
-                        params.forEach((param) => {
-                            const existing = currentParams.find(p => p.key === param.key)
-                            if (existing) {
-                                dispatch(updateQueryParam({
-                                    query: {...existing, value: param.value}
-                                }))
-                            } else {
-                                dispatch(addQueryParam({query: param}))
-                            }
-                        })
+                        const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {...currentParams.find((item) => item.key === param.key)!, value: param.value} : param)
+                        updateQuery(nextParams)
                     }}
                     className="border-0 rounded-none shadow-none focus-visible:ring-0"
                     placeholder="/v1/users"
@@ -335,7 +293,17 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                     <Send className="h-4 w-4 mr-2"/>
                 )}
                 Send Request
-            </Button>
+             </Button>
+             <Button
+                 type="button"
+                 variant="outline"
+                 disabled={!collectionData || isSending || !request}
+                 onClick={handleDeleteRequest}
+                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                 aria-label="Delete request"
+             >
+                 <Trash2 className="h-4 w-4" />
+             </Button>
         </div>
     )
 })
