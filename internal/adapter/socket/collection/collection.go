@@ -1,4 +1,4 @@
-package socket
+package collection
 
 import (
 	"encoding/json"
