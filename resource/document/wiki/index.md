@@ -37,6 +37,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[decisions/index]] - Technical decisions recorded for the codebase.
 - [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with atomic writes, optimistic version checks, and the REST-backed frontend editor.
 - [[decisions/collection-history-for-restrequest-mutations]] - Proposed `collection_history` audit records for successful REST request mutations.
+- [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.
 
 ## Concepts
 

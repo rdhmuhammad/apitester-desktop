@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "resource/document/wiki/decisions/file-backed-restrequest-editing.md",
+                "file": "resource/document/wiki/decisions/debounced-request-config-mutations.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "file-backed-restrequest-editing"
+              "title": "debounced-request-config-mutations"
             }
           }
         ]
@@ -202,21 +202,24 @@
   },
   "active": "b5625b85611e1fa8",
   "lastOpenFiles": [
-    "frontend/src/layout/components/collectionManager/ScriptManage.tsx",
-    "internal/service/collection/dto.go~",
-    "frontend/src/layout/components/collectionManager/index.tsx",
-    "frontend/src/layout/components/collectionManager/CollectionManage.tsx",
-    "frontend/src/layout/hooks/useCreateCollectionVariable.ts",
-    "test_create_variable_main.go",
-    "internal/service/restrequest/usecase.go.new",
-    "internal/service/collection/usecase.go.new",
-    "shared/base/port.go",
-    "shared/base",
-    "resource/document/wiki/decisions/collection-history-for-restrequest-mutations.md",
+    "internal/adapter/socket/restrequest/dto.go~",
+    "internal/adapter/socket/restrequest/requestevent_string.go",
+    "internal/adapter/socket/restrequest/restrequest.go~",
+    "internal/adapter/socket/collection/collection.go",
+    "internal/adapter/socket/collection",
+    "internal/adapter/socket/restrequest/restrequest.go",
+    "internal/adapter/socket/restrequest/dto.go",
+    "internal/adapter/socket/restrequest",
+    "internal/adapter/socket/dto.go~",
+    "internal/adapter/socket/dto.go",
+    "internal/adapter/socket/restrequest.go",
     "resource/document/wiki/decisions/file-backed-restrequest-editing.md",
+    "resource/document/wiki/decisions/debounced-request-config-mutations.md",
+    "resource/document/wiki/decisions/collection-history-for-restrequest-mutations.md",
+    "resource/document/wiki/patterns/frontend/index.md",
+    "graphify-out/memory/query_20260910_080732_query_explain__frontend_src_pages_editor_component.md",
     "resource/document/wiki/patterns/frontend/api-service-and-query-hook-wiring.md",
     "resource/document/wiki/patterns/frontend/create-new-tabs-kind.md",
-    "frontend/src/layout/hooks/useCollectionVariables.ts",
     "resource/document/raw/patterns/frontend/Pattern of wiring.md",
     "resource/document/wiki/decisions/index.md",
     "resource/document/wiki/concepts/index.md",
@@ -233,11 +236,8 @@
     "resource/document/wiki/patterns/controller/example-of-module-controller.md",
     "resource/document/raw/concepts/frontend/Redux Tool Kit.md",
     "frontend/dist/assets/api-tester-banner-BypRQSqu.png",
-    "resource/document/wiki/patterns/frontend/index.md",
     "graphify-out/memory/query_20260907_114758_query_explain_todo_list_of_adding_new_tabs_kind_to.md",
     "resource/document/wiki/patterns/controller/controller-routing-and-middleware.md",
-    "resource/document/wiki/patterns/controller/controller-request-handling.md",
-    "resource/document/wiki/patterns/controller/controller-base-structure.md",
-    "resource/document/wiki/patterns/controller/index.md"
+    "resource/document/wiki/patterns/controller/controller-request-handling.md"
   ]
 }

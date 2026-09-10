@@ -1,8 +1,8 @@
 # API Service and Query Hook Wiring
 
 **Summary**: Frontend feature API calls are organized as typed Axios service methods and exposed through a feature-local TanStack Query hook. Components use the hook for server data, loading state, refetching, and mutations.
-**Sources**: `resource/document/raw/patterns/frontend/Pattern of wiring.md`, `frontend/src/pages/editor/components/RequestConfig/services/requestConfig.ts`, `frontend/src/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts`, `frontend/src/layout/context/requestEditorContext.tsx`, `frontend/src/App.tsx`
-**Last updated**: 2026-09-09
+**Sources**: `resource/document/raw/patterns/frontend/Pattern of wiring.md`, `frontend/src/pages/editor/components/RequestConfig/services/requestConfig.ts`, `frontend/src/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts`, `frontend/src/layout/components/RequestHeader.tsx`, `frontend/src/pages/editor/components/RequestConfig/index.tsx`, `frontend/src/App.tsx`
+**Last updated**: 2026-09-10
 
 ---
 
@@ -29,7 +29,7 @@ export const SessionManagementServices = {
 
 ## Query Hook
 
-Create a feature-local hook in a `hooks` folder. Use `useQuery` for reads and `useMutation` for writes. Query keys should include the feature name and any parameter that changes the result. Dependent queries should be disabled until their required input exists.
+Create a feature-local hook in a `hooks` folder. Use `useQuery` for reads and `useMutation` or an equivalent hook-owned mutation coordinator for writes. Query keys should include the feature name and any parameter that changes the result. Dependent queries should be disabled until their required input exists.
 
 Recommended options from the source pattern include:
 
@@ -57,7 +57,7 @@ Mutation errors should be typed where possible and mapped to user-visible toast 
 
 ## Component Usage
 
-Components should validate and normalize input before calling `mutateAsync`. After a successful mutation, close or reset the relevant UI, refetch affected queries, and update the selected resource when the response identifies one.
+Components should validate and normalize input before calling the hook's domain operation. After a successful mutation, close or reset the relevant UI, refetch affected queries, and update the selected resource when the response identifies one. When multiple sibling components edit the same resource, the hook should use one stable query key and coordinate versioned writes so components share cache state without an intermediate context proxy.
 
 ```ts
 const handleCreateSession = async (payload: ICreateSessionRequest) => {

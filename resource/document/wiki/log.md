@@ -20,3 +20,6 @@
 - 2026-09-09: Added the collection pre-request script retrieval endpoint, reading the collection-level `prerequest` event and joining its script lines.
 - 2026-09-09: Added optimistic collection pre-request script updates with create-if-missing behavior, plus frontend service, hook, and collection-manager save wiring.
 - 2026-09-09: Extracted collection pre-request script editing and execution into the standalone `ScriptManage` component.
+- 2026-09-10: Refactored request configuration to wire feature-local Axios services through a hook directly into request header/config components; removed the request endpoint proxy context and preserved shared optimistic, debounced, versioned cache updates.
+- 2026-09-10: Added [[decisions/debounced-request-config-mutations]] documenting per-field debouncing, serialized request mutation coordination, optimistic cache updates, version handling, and deletion ordering.
+- 2026-09-10: Expanded [[decisions/debounced-request-config-mutations]] with an annotated TypeScript example explaining the coordinator, debounce timer, optimistic cache update, queued API call, and version token.
