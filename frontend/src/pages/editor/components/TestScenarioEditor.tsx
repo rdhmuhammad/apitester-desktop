@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react"
+import {useState} from "react"
 import {
   Play, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle2, XCircle,
   Clock, MoveUp, MoveDown,
@@ -7,19 +7,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx
 import {Input} from "@/components/ui/input.tsx"
 import {Button} from "@/components/ui/button.tsx"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx"
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
-import {
-  selectActiveScenario,
-  selectTestResults,
-  selectIsRunning,
-  updateScenarioSteps,
-  updateScenarioRawContent,
-  fetchTestContent,
-  selectViewMode,
-} from "@/app/slices/testScenarioSlice.ts"
-import {selectAllRequests, type FlatRequest} from "@/app/slices/collectionSlices.ts"
-import {useTestRunner} from "@/layout/hooks/useTestRunner.ts"
-import type {AssertionRule, CaptureRule, HttpMethod, StepResult, TestHeader, TestStep} from "@/pages/editor/types/testScenario.ts"
+import type {AssertionRule, CaptureRule, HttpMethod, StepResult, TestHeader, TestStep, TestScenario} from "@/pages/editor/types/testScenario.ts"
 import {cn} from "@/lib/utils.ts"
 
 const methodColors: Record<HttpMethod, string> = {
@@ -33,6 +21,14 @@ const methodColors: Record<HttpMethod, string> = {
 }
 
 const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+
+interface FlatRequest {
+  name: string
+  method: string
+  url: string
+  body?: string
+  headers: Record<string, string>
+}
 
 const statusIcon = (status?: StepResult['status']) => {
   switch (status) {
@@ -59,22 +55,15 @@ const InsertStepZone: React.FC<{ onInsert: () => void }> = ({ onInsert }) => (
 )
 
 const TestScenarioEditor: React.FC = () => {
-  const dispatch = useAppDispatch()
-  const scenario = useAppSelector(selectActiveScenario)
-  const results = useAppSelector(selectTestResults)
-  const isRunning = useAppSelector(selectIsRunning)
-
-  const viewMode = useAppSelector(selectViewMode)
+  const getEmptyScenario = (): TestScenario | null => null
+  const scenario = getEmptyScenario()
+  const results: StepResult[] = []
+  const isRunning = false
+  const viewMode = ('visual' as 'visual' | 'raw')
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({})
-  const allRequests = useAppSelector(selectAllRequests)
+  const allRequests: FlatRequest[] = []
   const [stepSearch, setStepSearch] = useState<Record<string, {open: boolean; query: string}>>({})
-  const {runStep} = useTestRunner()
-
-  useEffect(() => {
-    if (scenario && !scenario.content && scenario.id) {
-      dispatch(fetchTestContent(scenario.id))
-    }
-  }, [scenario, dispatch])
+  const runStep = (index: number) => { void index }
 
   if (!scenario) {
     return (
@@ -95,7 +84,7 @@ const TestScenarioEditor: React.FC = () => {
   }
 
   const handleUpdateSteps = (newSteps: TestStep[]) => {
-    dispatch(updateScenarioSteps({id: scenario.id, steps: newSteps}))
+    void newSteps
   }
 
   const handleUpdateStep = (index: number, updated: Partial<TestStep>) => {
@@ -220,7 +209,7 @@ const TestScenarioEditor: React.FC = () => {
           <textarea
             value={scenario.content}
             onChange={(e) => {
-              dispatch(updateScenarioRawContent({id: scenario.id, content: e.target.value}))
+              void e.target.value
             }}
             className="w-full h-[600px] p-4 font-mono text-xs text-slate-800 bg-transparent resize-none focus:outline-none"
             spellCheck={false}

@@ -5,16 +5,6 @@ import {Button} from "@/components/ui/button.tsx"
 import {Input} from "@/components/ui/input.tsx"
 import PromptDialog from "@/components/common/PromptDialog.tsx"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx"
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
-import {
-  fetchEnvironments,
-  saveEnvironments,
-  setActiveEnvironment,
-  selectEnvironments,
-  selectActiveEnvironment,
-  selectEnvironmentStatus,
-} from "@/app/slices/environmentSlice.ts"
-import {selectCollectionId} from "@/app/slices/testScenarioSlice.ts"
 import type {EnvironmentEntry} from "@/layout/services/environment.ts"
 
 interface Props {
@@ -22,12 +12,13 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
+const emptyEnvironments: EnvironmentEntry[] = []
+
 const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
-  const dispatch = useAppDispatch()
-  const environments = useAppSelector(selectEnvironments)
-  const activeEnv = useAppSelector(selectActiveEnvironment)
-  const status = useAppSelector(selectEnvironmentStatus)
-  const collectionId = useAppSelector(selectCollectionId)
+  const environments = emptyEnvironments
+  const activeEnv: string | null = null
+  const status = 'idle'
+  const collectionId: string | null = null
 
   const [selectedName, setSelectedName] = useState<string>("")
   const [editing, setEditing] = useState<Record<string, string>>({})
@@ -37,9 +28,9 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
 
   useEffect(() => {
     if (open && collectionId) {
-      dispatch(fetchEnvironments(collectionId))
+      // Environment state will be connected by the replacement mechanism.
     }
-  }, [open, collectionId, dispatch])
+  }, [open, collectionId])
 
   useEffect(() => {
     if (activeEnv) {
@@ -85,10 +76,8 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
       return e
     })
 
-    dispatch(saveEnvironments({collectionId, environments: updated})).then(() => {
-      dispatch(setActiveEnvironment(selectedName))
-      onOpenChange(false)
-    })
+    void updated
+    onOpenChange(false)
   }
 
   const handleCreateEnv = (name: string) => {
@@ -97,9 +86,7 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
 
     const updated = [...environments, {name: trimmed, variables: {}}]
     if (!collectionId) return
-    dispatch(saveEnvironments({collectionId, environments: updated})).then(() => {
-      dispatch(setActiveEnvironment(trimmed))
-    })
+    void updated
   }
 
   const handleDeleteEnv = () => {
@@ -107,15 +94,11 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
     if (!confirm(`Delete environment "${selectedName}"?`)) return
 
     const updated = environments.filter(e => e.name !== selectedName)
-    dispatch(saveEnvironments({collectionId, environments: updated})).then(() => {
-      if (updated.length > 0) {
-        dispatch(setActiveEnvironment(updated[0].name))
-      }
-    })
+    void updated
   }
 
   const entries = Object.entries(editing)
-  const loading = status === 'pending'
+  const loading = status === ('pending' as string)
 
   return (
     <>

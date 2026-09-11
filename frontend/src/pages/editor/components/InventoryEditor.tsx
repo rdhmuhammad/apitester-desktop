@@ -1,21 +1,15 @@
 import {AlertTriangle, Loader2} from "lucide-react"
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx"
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
-import {
-  selectActiveAutomationInventory,
-  updateAutomationInventoryContent,
-} from "@/app/slices/automationSlice.ts"
-
 const InventoryEditor: React.FC = () => {
-  const dispatch = useAppDispatch()
-  const file = useAppSelector(selectActiveAutomationInventory)
+  const getEmptyFile = (): {id: string; filename: string; content?: string} | null => null
+  const file = getEmptyFile()
 
   if (!file) {
     return <div className="flex items-center justify-center py-20 text-sm text-slate-400">Select an inventory from the sidebar</div>
   }
 
   const updateSource = (value: string) => {
-    dispatch(updateAutomationInventoryContent({id: file.id, content: value}))
+    void value
   }
 
   return (

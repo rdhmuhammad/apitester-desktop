@@ -12,15 +12,6 @@ import {
 } from "@/components/ui/dialog.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Download, Link2, Eye, EyeOff, ChevronDown} from "lucide-react";
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {
-    saveExampleResponse,
-    selectResponse,
-    selectScriptLogs,
-    selectScriptMutations,
-    selectScriptResult,
-    selectActiveRequestTab,
-} from "@/app/slices/collectionSlices.ts";
 import {useMemo, useState, useCallback, useEffect} from "react";
 import AceEditor from "react-ace";
 
@@ -68,13 +59,32 @@ const LogEntry: React.FC<{ log: { type: string; message: string; timestamp: numb
     )
 }
 
+type ResponseData = {
+    statusCode?: number
+    statusText?: string
+    data?: unknown
+    contentType?: string
+    responseTime?: number
+    responseSize?: number
+    protocol?: string
+    rawRequest?: string
+}
+
+type ActiveRequest = {
+    id: string
+    exampleResponse?: Array<{code?: number; status?: string; body?: string; name: string}>
+}
+
 const ResponseView: React.FC = () => {
-    const dispatch = useAppDispatch()
-    const currResponse = useAppSelector(selectResponse)
-    const selectedRequest = useAppSelector(selectActiveRequestTab)
-    const scriptResult = useAppSelector(selectScriptResult)
-    const scriptLogs = useAppSelector(selectScriptLogs)
-    const scriptMutations = useAppSelector(selectScriptMutations)
+    const getEmptyResponse = (): ResponseData | null => null
+    const getEmptyRequest = (): ActiveRequest | null => null
+    const currResponse = getEmptyResponse()
+    const selectedRequest = getEmptyRequest()
+    const scriptResult: unknown = null
+    const scriptLogs: Array<{type: string; message: string; timestamp: number}> = []
+    const scriptMutations: Record<string, string | null> = {}
+    const dispatch = (_action: unknown) => { void _action }
+    const saveExampleResponse = (payload: {id: string; name: string}) => { void payload; return {type: 'noop'} }
     const examples = selectedRequest?.exampleResponse ?? []
 
     const [sourceTab, setSourceTab] = useState("actual")
@@ -133,7 +143,7 @@ const ResponseView: React.FC = () => {
 
     const [visualizeExcel, setVisualizeExcel] = useState(false)
     const [excelHeaders, setExcelHeaders] = useState<string[]>([])
-    const [excelData, setExcelData] = useState<any[][]>([])
+    const [excelData, setExcelData] = useState<unknown[][]>([])
 
     const responseContentType = currResponse?.contentType ?? ""
     const isImage = responseContentType.startsWith("image/")
@@ -176,7 +186,7 @@ const ResponseView: React.FC = () => {
             const workbook = XLSX.read(dataUrlToArrayBuffer(currResponse.data as string), { type: 'array' })
             const sheetName = workbook.SheetNames[0]
             const sheet = workbook.Sheets[sheetName]
-            const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]
             if (data.length > 0) {
                 setExcelHeaders(data[0].map(String))
                 setExcelData(data.slice(1))

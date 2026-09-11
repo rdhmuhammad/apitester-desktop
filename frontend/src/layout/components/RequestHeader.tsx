@@ -12,7 +12,7 @@ import type {HeaderAction} from "@/layout/types/headerContext.ts";
 import {parseBlobResponse, useSendRequest as sendRequest} from "@/layout/hooks/useSendRequest.ts";
 import {runScript} from "@/layout/hooks/useScriptRunner.ts";
 import CustomToast from "@/components/common/toast";
-import type {ColtReqMethod} from "@/app/slices";
+import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
 import type { RequestHeaderHandle } from "../types/HeaderSync";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
@@ -44,7 +44,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
     }, [currRequest?.request?.url?.raw]);
 
     useEffect(() => {
-        setRequestMethod(currRequest?.request?.method ?? 'GET')
+        setRequestMethod((currRequest?.request?.method ?? 'GET') as ColtReqMethod)
     }, [currRequest?.request?.method]);
 
     useEffect(() => {
@@ -63,14 +63,14 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
     }, [baseUrlOptions]);
 
     const requestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-    const methodColorClass: Record<ColtReqMethod[number], string> = {
+    const methodColorClass: Record<ColtReqMethod, string> = {
         GET: "bg-emerald-600",
         POST: "bg-amber-600",
         PUT: "bg-blue-600",
         PATCH: "bg-violet-600",
         DELETE: "bg-red-600"
     };
-    const [requestMethod, setRequestMethod] = useState<ColtReqMethod[number]>("GET");
+    const [requestMethod, setRequestMethod] = useState<ColtReqMethod>("GET");
     const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
     const [endpoint, setEndpoint] = useState(currRequest?.request?.url.raw ?? "");
     const [newBaseUrl, setNewBaseUrl] = useState("");
@@ -217,7 +217,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             <Select
                 value={requestMethod}
                 disabled={!collectionData}
-                        onValueChange={(value) => { const method = value as ColtReqMethod[number]; setRequestMethod(method); updateMethod(method) }}
+                         onValueChange={(value) => { const method = value as ColtReqMethod; setRequestMethod(method); updateMethod(method) }}
             >
                 <SelectTrigger
                     className={cn("min-w-[110px] font-semibold text-white", methodColorClass[requestMethod])}>

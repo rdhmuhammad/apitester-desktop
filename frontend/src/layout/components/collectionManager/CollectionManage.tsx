@@ -61,7 +61,7 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
     }, [refetchCollections])
 
     const updateCollectionList = (updater: (collections: Collection[]) => Collection[]) => {
-        queryClient.setQueryData<Collection[]>(["collection", "list"], updater)
+        queryClient.setQueryData<Collection[]>(["collection", "list"], (collections = []) => updater(collections))
     }
 
     const handleBrowseFile = async () => {

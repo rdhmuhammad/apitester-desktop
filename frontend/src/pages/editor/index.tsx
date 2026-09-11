@@ -22,7 +22,7 @@ import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
 
 // Store Imports
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import type {ColtReqMethod, EditorTab} from "@/app/slices/index.ts";
+import type {ColtReqMethod, EditorTab} from "@/pages/editor/types/editor.ts";
 import {
     removeEditorTab,
     selectEditorActiveTabId,
@@ -63,10 +63,11 @@ const Editor: React.FC = () => {
 
     const commitEdit = useCallback(() => {
         if (editingTabId && editValue.trim()) {
+            void editValue
         }
         setEditingTabId(null)
         setEditValue('')
-    }, [editingTabId, editValue, dispatch])
+    }, [editingTabId, editValue])
 
     const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {

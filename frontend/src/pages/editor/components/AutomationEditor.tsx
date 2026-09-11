@@ -11,31 +11,20 @@ import {
   ShieldCheck,
   Trash2
 } from "lucide-react"
-import {toast} from "sonner"
 import {Button} from "@/components/ui/button.tsx"
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx"
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
-import {
-  createAutomationInventory,
-  openAutomationInventoryTab,
-  saveAutomationConfig,
-  selectActiveAutomation,
-  selectAutomationConfig,
-  selectAutomationInventories,
-  updateAutomationConfig,
-  updateAutomationContent,
-} from "@/app/slices/automationSlice.ts"
 import {cn} from "@/lib/utils.ts"
 import PromptDialog from "@/components/common/PromptDialog.tsx"
-import {toAutomationInventoryTabId} from "@/lib/tabUtils.ts"
-import {setActiveTabId} from "@/app/slices/collectionSlices.ts"
 import {ansibleCompletionSource, YAML_SYNTAX_DOCS} from "@/lib/ansibleCompletions.ts"
 
 const AutomationEditor: React.FC = () => {
-    const dispatch = useAppDispatch()
-    const file = useAppSelector(selectActiveAutomation)
-    const config = useAppSelector(state => file ? selectAutomationConfig(state, file.id) : null)
-    const inventories = useAppSelector(selectAutomationInventories)
+    type AutomationFile = {id: string; filename: string; content?: string; lastRunStatus?: string}
+    type AutomationConfig = {inventoryFiles: string[]; inventoryFile: string; limit: string; tags: string; extraVars: string; checkMode: boolean; diffMode: boolean}
+    const getEmptyFile = (): AutomationFile | null => null
+    const getEmptyConfig = (): AutomationConfig | null => null
+    const file = getEmptyFile()
+    const config = getEmptyConfig()
+    const inventories: Array<{id: string; filename: string}> = []
     const [inventoryPromptOpen, setInventoryPromptOpen] = useState(false)
     if (!file || !config) {
         return <div className="flex items-center justify-center py-20 text-sm text-slate-400">Select a playbook from the
@@ -43,35 +32,19 @@ const AutomationEditor: React.FC = () => {
     }
 
     const updateConfig = (value: Partial<typeof config>) => {
-        if (!config) return
-        dispatch(updateAutomationConfig({id: file.id, config: value}))
+        void value
     }
 
     const updateSource = (value: string) => {
-        dispatch(updateAutomationContent({id: file.id, content: value}))
+        void value
     }
 
     const persistConfig = async (nextConfig: typeof config) => {
-        if (!nextConfig) return
-        try {
-            await dispatch(saveAutomationConfig({id: file.id, config: nextConfig})).unwrap()
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Configuration save failed')
-        }
+        void nextConfig
     }
 
     const handleCreateInventory = async (filename: string) => {
-        if (!filename?.trim()) return
-        try {
-            const created = await dispatch(createAutomationInventory({
-                automationId: file.id,
-                filename: filename.trim()
-            })).unwrap()
-            dispatch(openAutomationInventoryTab(created.inventory.id))
-            dispatch(setActiveTabId({id: toAutomationInventoryTabId(created.inventory.id)}))
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Inventory creation failed')
-        }
+        void filename
     }
 
     const attachInventory = (filename: string) => {

@@ -5,6 +5,9 @@ import {cn} from "@/lib/utils.ts";
 import TestScenarioSidebar from "@/layout/components/TestScenarioSidebar.tsx";
 import AutomationSidebar from "@/layout/components/AutomationSidebar.tsx";
 import {CollectionServices, type RequestTree} from "@/layout/services/collection.ts";
+import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+import {openEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import {
     DndContext,
     DragOverlay,
@@ -123,8 +126,8 @@ const DragNode: React.FC<{
 };
 
 const SidebarLayout: React.FC = () => {
+    const dispatch = useAppDispatch()
     const [tree, setTree] = useState<RequestTree[]>([])
-    const [activeRequestId, setActiveRequestId] = useState<string | null>(null)
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
     const [searchQuery, setSearchQuery] = useState('')
     const expandedBeforeSearch = useRef<Record<string, boolean>>({})
@@ -132,6 +135,7 @@ const SidebarLayout: React.FC = () => {
     const [dropTargetId, setDropTargetId] = useState<string | null>(null)
     const [dropPosition, setDropPosition] = useState<DropPosition>(null)
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const activeTabsId = useAppSelector(selectEditorActiveTabId)
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -287,14 +291,14 @@ const SidebarLayout: React.FC = () => {
         if (searchQuery && !matchesSearch(node, searchQuery)) return null
 
         const isOpen = Boolean(expandedFolders[node.id]);
-        const isActive = node.isActive || node.id === activeRequestId || node.id === activeDragId
+        const isActive = node.isActive || activeTabsId.includes(node.id) || node.id === activeDragId
 
         return (
             <DragNode
                 key={node.id}
                 node={node}
                 depth={depth}
-                onClick={() => setActiveRequestId(node.id)}
+                onClick={() => handleRequestClick(node)}
                 onToggle={() => toggleFolder(node.id)}
                 isOpen={isOpen}
                 isActive={isActive}
@@ -324,6 +328,17 @@ const SidebarLayout: React.FC = () => {
     }
 
     const draggedNode = activeDragId ? findNodeById(tree, activeDragId) : null
+
+    const handleRequestClick = (node: RequestTree) => {
+        if (node.category !== "REQ") return
+
+        dispatch(openEditorTab({
+            id: node.id,
+            label: node.name,
+            method: (node.method ?? 'GET') as ColtReqMethod,
+            type: 'request',
+        }))
+    }
 
     const treeContent = (
         <div className="">
