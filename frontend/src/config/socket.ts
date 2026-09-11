@@ -1,7 +1,7 @@
 import {io, type Socket} from "socket.io-client";
 
 export const SOCKET_NAMESPACES = {
-    collection: "/collection",
+    collection: "/restrequest",
 } as const;
 
 export const SOCKET_EVENTS = {
@@ -16,7 +16,7 @@ function getSocketUrl() {
     if (configuredUrl) {
         return configuredUrl.replace(/\/+$/, "");
     }
-
+    console.log(configuredUrl)
     const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
     return new URL(apiUrl, window.location.origin).origin;
 }

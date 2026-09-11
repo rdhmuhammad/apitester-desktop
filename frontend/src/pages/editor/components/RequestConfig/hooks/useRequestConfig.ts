@@ -29,14 +29,17 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         extra?: (request: RestRequestResponse) => Partial<RestRequestResponse>,
     ) => {
         const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+        console.log(current)
         if (!current || !enabled) return
         queryClient.setQueryData(queryKey, {...current, [field]: value, ...extra?.(current)})
         void mutation({baseVersion: current.version, [field]: value} as Versioned)
             .then(next => {
+                console.log(next)
                 queryClient.setQueryData(queryKey, next)
                 setMutationError(null)
             })
             .catch((reason: unknown) => {
+                console.log(reason)
                 setMutationError(reason instanceof Error ? reason.message : String(reason))
             })
     }, [enabled, queryClient, queryKey])

@@ -22,7 +22,6 @@ func (receiver RequestEvent) Name() string {
 		}
 	}
 	parts = append(parts, string(name[start:]))
-	parts[0] = "restrequest"
 	return strings.ToLower(strings.Join(parts, ":"))
 }
 
