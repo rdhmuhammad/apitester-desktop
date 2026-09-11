@@ -4,6 +4,11 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 
 ## Patterns
 
+### Backend
+
+- [[patterns/backend/index]] - Backend composition and registration pattern pages.
+- [[patterns/backend/example-of-api-and-socket-registration]] - Shared dependency initialization and HTTP/socket module registration.
+
 ### Controller
 
 - [[patterns/controller/index]] - Controller pattern pages.
@@ -30,6 +35,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 
 - [[patterns/frontend/index]] - Frontend pattern pages.
 - [[patterns/frontend/api-service-and-query-hook-wiring]] - Typed Axios services and TanStack Query hooks for feature API wiring.
+- [[patterns/frontend/socket-io-service-and-hook-wiring]] - Socket.IO connection, event, response, cleanup, and cache wiring.
 - [[patterns/frontend/create-new-tabs-kind]] - Workflow for adding a new editor tab kind and its Redux slice.
 
 ## Decisions

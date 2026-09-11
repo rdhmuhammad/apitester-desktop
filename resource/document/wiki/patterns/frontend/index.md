@@ -9,6 +9,7 @@
 ## Pages
 
 - [[patterns/frontend/api-service-and-query-hook-wiring]]
+- [[patterns/frontend/socket-io-service-and-hook-wiring]]
 - [[patterns/frontend/create-new-tabs-kind]]
 
 ## Related pages

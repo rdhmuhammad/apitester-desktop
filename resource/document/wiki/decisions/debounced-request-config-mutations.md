@@ -1,10 +1,12 @@
 # Debounced Request Configuration Mutations
 
-**Summary**: Request configuration edits use optimistic cache updates, per-field debouncing, and a shared serialized mutation queue so rapid editor changes are persisted in order without sending one request per keystroke.
+**Summary**: Historical decision for the removed frontend debounce and mutation coordinator. Request configuration writes now use Socket.IO, with ordering and version conflict handling owned by the backend.
 **Sources**: `frontend/src/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts`
-**Last updated**: 2026-09-10
+**Last updated**: 2026-09-11
 
 ---
+
+> **Superseded**: The coordinator was removed on 2026-09-11. See [[patterns/frontend/socket-io-service-and-hook-wiring]] for the current wiring pattern.
 
 ## Decision
 
