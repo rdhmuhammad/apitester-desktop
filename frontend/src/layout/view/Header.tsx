@@ -7,7 +7,7 @@ import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {LoaderCircle, Settings, TriangleAlert, Wifi, WifiOff} from "lucide-react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
-import Index from "@/layout/components/collectionManager";
+import CollectionManager from "@/layout/components/collectionManager";
 import RequestHeader from "@/layout/components/RequestHeader.tsx";
 import type {RequestHeaderHandle} from "@/layout/types/HeaderSync.ts";
 import {useCollectionPushPull} from "@/layout/hooks/useCollectionPushPull.ts";
@@ -84,7 +84,7 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
                     >
                         <SocketIcon className={`h-4 w-4 ${socketIndicator.className}`} />
                     </Button>
-                    <Index open={managerOpen} onOpenChange={setManagerOpen}/>
+                    <CollectionManager open={managerOpen} onOpenChange={setManagerOpen}/>
                 </div>
             </div>
             {activeEditorTab?.type === 'test' ? (

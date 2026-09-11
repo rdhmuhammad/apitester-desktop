@@ -111,6 +111,32 @@ func (u *Usecase) Read(id string) (ReadResponse, error) {
 }
 
 func (u *Usecase) CreateCollection(req CreateCollectionRequest) (domain.Collection, error) {
+	if strings.TrimSpace(req.Path) != "" {
+		fileBytes, err := os.ReadFile(req.Path)
+		if err != nil {
+			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+		}
+
+		var docsContent DocsContent
+		content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
+		if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
+			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+		}
+
+		docsContent.Item = setId(docsContent.Item)
+		for i := range docsContent.Variable {
+			docsContent.Variable[i].ID = uuid.NewString()
+		}
+
+		updatedContent, err := json.MarshalIndent(docsContent, "", "  ")
+		if err != nil {
+			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+		}
+		if err := os.WriteFile(req.Path, updatedContent, 0644); err != nil {
+			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+		}
+	}
+
 	now := time.Now()
 	collection := domain.Collection{
 		ID:         uuid.NewString(),

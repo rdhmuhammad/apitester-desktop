@@ -23,7 +23,7 @@ func _() {
 
 const _RequestEvent_name = "RequestUpdateUrlRequestUpdateHeadersRequestUpdateAuthorizationRequestUpdateMethodRequestUpdateQueryRequestUpdateBodyJsonRequestUpdateBodyFormdataRequestUpdateScriptRequestDeleteRequestErrorRequestSuccess"
 
-var _RequestEvent_index = [...]uint8{0, 16, 36, 62, 81, 99, 120, 145, 164, 177, 189}
+var _RequestEvent_index = [...]uint8{0, 16, 36, 62, 81, 99, 120, 145, 164, 177, 189, 203}
 
 func (i RequestEvent) String() string {
 	idx := int(i) - 0

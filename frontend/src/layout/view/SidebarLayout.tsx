@@ -7,14 +7,14 @@ import DragNode, {type DropPosition} from "@/layout/components/sidebar/DragNode.
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
 import {CollectionServices, type RequestTree} from "@/layout/services/collection.ts";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {openEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {openEditorTab, selectCollectionId, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import {
     DndContext,
-    DragOverlay,
-    type DragStartEvent,
     type DragEndEvent,
     type DragOverEvent,
+    DragOverlay,
+    type DragStartEvent,
     PointerSensor,
     useSensor,
     useSensors,
@@ -32,9 +32,10 @@ const SidebarLayout: React.FC = () => {
     const [dropPosition, setDropPosition] = useState<DropPosition>(null)
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
+    const collectionId = useAppSelector(selectCollectionId)
 
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+        useSensor(PointerSensor, {activationConstraint: {distance: 5}})
     )
 
     const countFolders = (nodes: RequestTree[]): number => {
@@ -79,16 +80,17 @@ const SidebarLayout: React.FC = () => {
     useEffect(() => {
         let cancelled = false
         const loadTree = async () => {
-            const collection = await CollectionServices.getActiveCollection()
-            const requestTree = await CollectionServices.getRequestTree(collection.id)
+            const requestTree = await CollectionServices.getRequestTree(activeCollectionId)
             if (!cancelled) setTree(requestTree)
         }
         void loadTree()
-        return () => { cancelled = true }
-    }, [])
+        return () => {
+            cancelled = true
+        }
+    }, [collectionId, dispatch])
 
     const toggleFolder = (folderId: string) => {
-        setExpandedFolders((prevState=>({
+        setExpandedFolders((prevState => ({
             ...prevState,
             [folderId]: !prevState[folderId]
         })));
@@ -178,7 +180,7 @@ const SidebarLayout: React.FC = () => {
             expandTimerRef.current = null
         }
 
-        const { active, over } = event
+        const {active, over} = event
         if (!over || !active || active.id === over.id) return
 
     }, [])
@@ -239,7 +241,7 @@ const SidebarLayout: React.FC = () => {
     const treeContent = (
         <div className="">
             {tree.map((collection) => {
-               return renderNode(collection)
+                return renderNode(collection)
             })}
         </div>
     )
@@ -252,7 +254,7 @@ const SidebarLayout: React.FC = () => {
             <SidebarContent className="flex flex-col overflow-y-auto px-3 py-2 bg-white">
                 <div className="px-3 pb-2">
                     <div className="relative">
-                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"/>
                         <input
                             type="text"
                             placeholder="Search collections & test suites..."
@@ -263,8 +265,9 @@ const SidebarLayout: React.FC = () => {
                     </div>
                 </div>
                 <div className="mb-2 px-2 flex items-center space-x-1.5">
-                    <FolderGit2 className="w-4 h-4 text-indigo-600" />
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collections ({countFolders(tree)})</p>
+                    <FolderGit2 className="w-4 h-4 text-indigo-600"/>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collections
+                        ({countFolders(tree)})</p>
                 </div>
                 {searchQuery ? (
                     treeContent
@@ -278,13 +281,15 @@ const SidebarLayout: React.FC = () => {
                         {treeContent}
                         <DragOverlay dropAnimation={null}>
                             {draggedNode ? (
-                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white shadow-lg border border-slate-200 opacity-90">
+                                <div
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white shadow-lg border border-slate-200 opacity-90">
                                     {draggedNode.category === 'FOLD'
-                                        ? <Folder className="h-4 w-4 text-indigo-500 shrink-0" />
-                                        : <FileCode2 className="h-4 w-4 text-slate-400 shrink-0" />
+                                        ? <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>
+                                        : <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>
                                     }
                                     {draggedNode.category === 'REQ' && (
-                                        <span className={`text-xs font-semibold shrink-0 ${methodColorClass[draggedNode?.method ?? "GET"]}`}>{draggedNode?.method ?? "GET"}</span>
+                                        <span
+                                            className={`text-xs font-semibold shrink-0 ${methodColorClass[draggedNode?.method ?? "GET"]}`}>{draggedNode?.method ?? "GET"}</span>
                                     )}
                                     <span className="truncate text-sm text-slate-700">{draggedNode.name}</span>
                                 </div>

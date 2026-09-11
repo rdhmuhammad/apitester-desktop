@@ -25,11 +25,13 @@ import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import type {ColtReqMethod, EditorTab} from "@/pages/editor/types/editor.ts";
 import {
     removeEditorTab,
+    selectCollectionId,
     selectEditorActiveTabId,
     selectEditorTabs,
     setEditorActiveTab,
 } from "@/app/slices/editorTabsSlice.ts";
-import {type Collection, CollectionServices} from "@/layout/services/collection.ts";
+import {CollectionServices} from "@/layout/services/collection.ts";
+import type {GetCollectionResponse} from "@/pages/editor/types/api.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
@@ -46,6 +48,7 @@ const Editor: React.FC = () => {
     const dispatch = useAppDispatch()
     const allTabs = useAppSelector(selectEditorTabs)
     const effectiveActiveTabId = useAppSelector(selectEditorActiveTabId)
+    const collectionId = useAppSelector(selectCollectionId)
 
 
     const activeTab = allTabs.find(t => t.id === effectiveActiveTabId)
@@ -87,13 +90,18 @@ const Editor: React.FC = () => {
         dispatch(removeEditorTab(tab.id))
     }
 
-    const [collectionInfo, setCollectionInfo] = useState<Collection | null>(null)
+    const [collectionInfo, setCollectionInfo] = useState<GetCollectionResponse | null>(null)
     useEffect(() => {
-        CollectionServices.getActiveCollection()
-            .then((res)=>{
-                setCollectionInfo(res)
+        let cancelled = false
+        setCollectionInfo(null)
+        if (!collectionId) return () => { cancelled = true }
+
+        void CollectionServices.getCollection(collectionId)
+            .then((res) => {
+                if (!cancelled) setCollectionInfo(res)
             })
-    }, []);
+        return () => { cancelled = true }
+    }, [collectionId]);
 
     return (
         <div className="h-full overflow-auto bg-[linear-gradient(180deg,#eef4ff_0%,#f8fafc_22%,#f8fafc_100%)]">
@@ -101,13 +109,15 @@ const Editor: React.FC = () => {
                 'fixed top-[60px] right-0 left-0 z-40 border-b border-slate-200/80',
                 ' bg-white/80 backdrop-blur md:left-64')
             }>
-                <div className="mx-auto flex w-full max-w-[1500px] flex-col px-4 pt-4">
-                    <div className="pb-4">
+                <div className="mx-auto flex w-full max-w-[1500px] flex-col px-4 pt-4 gap-4">
+                    <div className="group h-24 max-h-24 overflow-hidden pb-4 hover:h-auto hover:max-h-none hover:overflow-visible">
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                             Workspace
                         </p>
-                        <h3 className="mt-1 text-3xl font-semibold text-slate-900">{collectionInfo ? collectionInfo?.name : 'Collection'}</h3>
-                        <h3 className="mt-1 text-sm font-normal text-slate-500">{collectionInfo ? collectionInfo?.description : ''}</h3>
+                        <h3 className="mt-1 text-3xl font-semibold text-slate-900">{collectionInfo ? collectionInfo.content.info.name : 'Collection'}</h3>
+                        <p className="mt-1 line-clamp-2 text-sm font-normal text-slate-500 group-hover:line-clamp-none">
+                            {collectionInfo?.content.info.description ?? ''}
+                        </p>
                     </div>
 
                     <Tabs value={effectiveActiveTabId} onValueChange={handleTabChange} className="gap-0">
@@ -197,7 +207,7 @@ const Editor: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mx-auto flex h-full w-full max-w-[1500px] flex-col px-4 pb-4 pt-[140px]">
+            <div className="mx-auto flex h-full w-full max-w-[1500px] flex-col px-4 pb-4 pt-[160px]">
                 {!activeTab ? (
                     <div
                         className={cn('rounded-2xl border border-t-0 border-slate-200',

@@ -50,6 +50,7 @@ const emitRequestEvent = <T extends Versioned>(
     }, 30_000)
 
     const handleSuccess = (payload: SocketResult) => {
+        console.log(payload)
         if (payload?.operation !== operation) return
         cleanup()
         resolve(payload.request)

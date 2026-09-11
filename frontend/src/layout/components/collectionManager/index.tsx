@@ -20,7 +20,7 @@ interface CollectionManagerDialogProps {
     onOpenChange: (open: boolean) => void
 }
 
-const Index: React.FC<CollectionManagerDialogProps> = ({open, onOpenChange}) => {
+const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpenChange}) => {
     const [isScriptExpanded, setIsScriptExpanded] = useState(false)
 
     return (
@@ -74,4 +74,4 @@ const Index: React.FC<CollectionManagerDialogProps> = ({open, onOpenChange}) => 
     )
 }
 
-export default Index
+export default CollectionManager
