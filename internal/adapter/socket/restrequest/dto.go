@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	service "github.com/rdhmuhammad/apitester/internal/service/RestRequest"
+	service "github.com/rdhmuhammad/apitester/internal/service/restrequest"
 )
 
 type RequestEvent int
@@ -29,6 +29,7 @@ func (receiver RequestEvent) Name() string {
 const (
 	RequestUpdateUrl RequestEvent = iota
 	RequestUpdateHeaders
+	RequestUpdateAuthorization
 	RequestUpdateMethod
 	RequestUpdateQuery
 	RequestUpdateBodyJson
@@ -36,6 +37,7 @@ const (
 	RequestUpdateScript
 	RequestDelete
 	RequestError
+	RequestSuccess
 )
 
 type RequestIdentity struct {
@@ -55,6 +57,11 @@ type RequestUpdateURLPayload struct {
 type RequestUpdateHeadersPayload struct {
 	RequestIdentity
 	service.UpdateHeadersRequest
+}
+
+type RequestUpdateAuthorizationPayload struct {
+	RequestIdentity
+	service.UpdateAuthorizationRequest
 }
 
 type RequestUpdateMethodPayload struct {
@@ -107,6 +114,10 @@ func (p *RequestUpdateURLPayload) From(msg ...any) {
 }
 
 func (p *RequestUpdateHeadersPayload) From(msg ...any) {
+	decodeRequestPayload(msg, p)
+}
+
+func (p *RequestUpdateAuthorizationPayload) From(msg ...any) {
 	decodeRequestPayload(msg, p)
 }
 

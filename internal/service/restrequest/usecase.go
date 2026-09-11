@@ -95,6 +95,41 @@ func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeader
 	return requestResponse(collection, updated, item), nil
 }
 
+func (u *Usecase) UpdateAuthorization(collectionID, requestID string, req UpdateAuthorizationRequest) (RequestResponse, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if u.Version(content) != req.BaseVersion {
+		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
+	}
+
+	item := findRequest(docs.Item, requestID)
+	if item == nil || item.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+
+	oldValue := append([]collectionService.Header(nil), item.Request.Header...)
+	token := strings.TrimSpace(req.Token)
+	if strings.EqualFold(strings.TrimSpace(req.Type), "inherit") {
+		token = bearerToken(docs.Auth)
+	}
+
+	item.Request.Header = setAuthorizationHeader(item.Request.Header, token, strings.EqualFold(strings.TrimSpace(req.Type), "none"))
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if err := u.RecordHistory(collection, requestID, "update_authorization", "request.headers", oldValue, item.Request.Header, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+
+	return requestResponse(collection, updated, item), nil
+}
+
 func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodRequest) (RequestResponse, error) {
 	return u.update(collectionID, requestID, req.BaseVersion, "update_method", "request.method", req.Method,
 		func(item *collectionService.CollectionItem) any {
@@ -102,6 +137,41 @@ func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodR
 			item.Request.Method = req.Method
 			return old
 		})
+}
+
+func bearerToken(auth *collectionService.CollectionAuth) string {
+	if auth == nil || !strings.EqualFold(strings.TrimSpace(auth.Type), "bearer") {
+		return ""
+	}
+	for _, property := range auth.Bearer {
+		if strings.EqualFold(strings.TrimSpace(property.Key), "token") {
+			return strings.TrimSpace(property.Value)
+		}
+	}
+	return ""
+}
+
+func setAuthorizationHeader(headers []collectionService.Header, token string, remove bool) []collectionService.Header {
+	updated := make([]collectionService.Header, 0, len(headers)+1)
+	for _, header := range headers {
+		if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
+			if !remove && token != "" {
+				header.Value = "Bearer " + token
+				updated = append(updated, header)
+			}
+			continue
+		}
+		updated = append(updated, header)
+	}
+	if !remove && token != "" {
+		for _, header := range headers {
+			if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
+				return updated
+			}
+		}
+		updated = append(updated, collectionService.Header{Key: "Authorization", Value: "Bearer " + token})
+	}
+	return updated
 }
 
 func (u *Usecase) UpdateQuery(collectionID, requestID string, req UpdateQueryRequest) (RequestResponse, error) {

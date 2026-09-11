@@ -10,6 +10,13 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/collection"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/environment"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/restrequest"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/testsuits"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/tree"
+	requestSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/restrequest"
 	"github.com/rdhmuhammad/apitester/shared/api"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/windows/svc"
@@ -46,6 +53,21 @@ func (w *WinService) Execute(args []string, r <-chan svc.ChangeRequest, status c
 	status <- svc.Status{State: svc.StartPending}
 
 	w.api = api.Default()
+	w.api.Register(func(conn api.Conns) []api.Router {
+		return []api.Router{
+			collection.NewController(conn.Logger, conn.DB),
+			tree.NewController(conn.Logger, conn.DB),
+			restrequest.NewController(conn.Logger, conn.DB),
+			environment.NewController(conn.Logger, conn.DB),
+			testsuits.NewController(conn.Logger, conn.DB),
+			automation.NewController(conn.Logger, conn.DB),
+		}
+	})
+	w.api.RegisterSocket(func(conn api.Conns) []api.Namespace {
+		return []api.Namespace{
+			requestSocket.NewRestRequestSocket(conn.Logger, conn.DB),
+		}
+	})
 	g, gctx := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		return w.api.Start()

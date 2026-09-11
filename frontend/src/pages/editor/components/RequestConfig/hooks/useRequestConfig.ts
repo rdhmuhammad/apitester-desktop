@@ -1,51 +1,120 @@
-import {useMutation, useQuery} from "@tanstack/react-query"
-import {RequestConfigServices, type RestRequestResponse, type Versioned} from "../services/requestConfig.ts"
-import type {ItemUrl, RequestURL} from "@/pages/editor/types/api.ts"
+import {useQuery, useQueryClient} from "@tanstack/react-query"
+import {useCallback, useState} from "react"
+import {
+    requestConfigQueryKey,
+    RequestConfigServices,
+    type RestRequestResponse,
+    type Versioned,
+} from "../services/requestConfig.ts"
+import type {ItemUrl, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
 
 export const useRequestConfig = (collectionId: string, requestId: string) => {
+    const queryClient = useQueryClient()
     const enabled = Boolean(collectionId && requestId)
+    const queryKey = requestConfigQueryKey(collectionId, requestId)
+    const [mutationError, setMutationError] = useState<string | null>(null)
+
     const requestQuery = useQuery<RestRequestResponse>({
-        queryKey: ["request-config", collectionId, requestId],
+        queryKey,
         queryFn: () => RequestConfigServices.get(collectionId, requestId),
         enabled,
         gcTime: 0,
         refetchOnWindowFocus: false,
     })
 
-    const updateMethodMutation = useMutation({
-        mutationFn: (data: Versioned & {method: string}) => RequestConfigServices.updateMethod(collectionId, requestId, data),
-    })
-    const updateUrlMutation = useMutation({
-        mutationFn: (data: Versioned & {url: RequestURL}) => RequestConfigServices.updateUrl(collectionId, requestId, data),
-    })
-    const updateHeadersMutation = useMutation({
-        mutationFn: (data: Versioned & {headers: ItemUrl[]}) => RequestConfigServices.updateHeaders(collectionId, requestId, data),
-    })
-    const updateQueryMutation = useMutation({
-        mutationFn: (data: Versioned & {query: ItemUrl[]}) => RequestConfigServices.updateQuery(collectionId, requestId, data),
-    })
-    const updateJsonBodyMutation = useMutation({
-        mutationFn: (data: Versioned & {raw: string}) => RequestConfigServices.updateJsonBody(collectionId, requestId, data),
-    })
-    const updateFormDataBodyMutation = useMutation({
-        mutationFn: (data: Versioned & {formdata: ItemUrl[]}) => RequestConfigServices.updateFormDataBody(collectionId, requestId, data),
-    })
-    const updateScriptMutation = useMutation({
-        mutationFn: (data: Versioned & {exec: string[]; type?: string}) => RequestConfigServices.updatePostRequestScript(collectionId, requestId, data),
-    })
-    const deleteMutation = useMutation({
-        mutationFn: (data: Versioned) => RequestConfigServices.delete(collectionId, requestId, data),
-    })
+    const update = useCallback(<T extends keyof RestRequestResponse>(
+        field: string,
+        value: RestRequestResponse[T],
+        mutation: (data: Versioned) => Promise<RestRequestResponse>,
+        extra?: (request: RestRequestResponse) => Partial<RestRequestResponse>,
+    ) => {
+        const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+        if (!current || !enabled) return
+        queryClient.setQueryData(queryKey, {...current, [field]: value, ...extra?.(current)})
+        void mutation({baseVersion: current.version, [field]: value} as Versioned)
+            .then(next => {
+                queryClient.setQueryData(queryKey, next)
+                setMutationError(null)
+            })
+            .catch((reason: unknown) => {
+                setMutationError(reason instanceof Error ? reason.message : String(reason))
+            })
+    }, [enabled, queryClient, queryKey])
+
+    // Place wiring endpoint for request mutation here
+    const updateMethod = useCallback((method: string) =>
+            update("method", method, (data) =>
+                RequestConfigServices.updateMethod(collectionId, requestId, {
+                    ...data,
+                    method
+                })),
+        [collectionId, requestId, update])
+    const updateUrl = useCallback((url: RequestURL) =>
+            update("url", url, (data) =>
+                RequestConfigServices.updateUrl(collectionId, requestId, {
+                    ...data,
+                    url
+                })),
+        [collectionId, requestId, update])
+    const updateHeaders = useCallback((headers: ItemUrl[]) =>
+            update("headers", headers, (data) =>
+                RequestConfigServices.updateHeaders(collectionId, requestId, {
+                    ...data,
+                    headers
+                })),
+        [collectionId, requestId, update])
+    const updateQuery = useCallback((query: ItemUrl[]) =>
+            update("query", query, (data) =>
+                RequestConfigServices.updateQuery(collectionId, requestId, {
+                    ...data,
+                    query
+                }), (current) => ({url: {...current.url, query}})),
+        [collectionId, requestId, update])
+    const updateJsonBody = useCallback((raw: string) => {
+            const body: RequestBody = {mode: "raw", raw}
+            update("body", body, (data) =>
+                RequestConfigServices.updateJsonBody(collectionId, requestId, {...data, raw}))
+        },
+        [collectionId, requestId, update])
+    const updateFormDataBody = useCallback((formdata: ItemUrl[]) => {
+            const body: RequestBody = {mode: "formdata", formdata}
+            update("body", body, (data) =>
+                RequestConfigServices.updateFormDataBody(collectionId, requestId, {
+                    ...data,
+                    formdata
+                }))
+        },
+        [collectionId, requestId, update])
+    const updateScript = useCallback((script: string) =>
+            update("script", script, (data) =>
+                RequestConfigServices.updatePostRequestScript(collectionId, requestId, {
+                    ...data,
+                    exec: script.split("\n"),
+                    type: "text/javascript"
+                })),
+        [collectionId, requestId, update])
+    const deleteRequest = useCallback(async () => {
+            const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+            if (!current || !enabled) return
+
+            await RequestConfigServices.delete(collectionId, requestId, {baseVersion: current.version})
+
+            queryClient.removeQueries({queryKey})
+        },
+        [collectionId, enabled, queryClient, queryKey, requestId])
 
     return {
+        request: requestQuery.data ?? null,
+        loading: requestQuery.isLoading || requestQuery.isFetching,
+        error: requestQuery.error ? (requestQuery.error.message) : mutationError,
         requestQuery,
-        updateMethodMutation,
-        updateUrlMutation,
-        updateHeadersMutation,
-        updateQueryMutation,
-        updateJsonBodyMutation,
-        updateFormDataBodyMutation,
-        updateScriptMutation,
-        deleteMutation,
+        updateMethod,
+        updateUrl,
+        updateHeaders,
+        updateQuery,
+        updateJsonBody,
+        updateFormDataBody,
+        updateScript,
+        deleteRequest,
     }
 }

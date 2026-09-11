@@ -1,5 +1,5 @@
 // Component imports
-import RequestConfigTabs from "@/pages/editor/components/RequestConfig/RequestConfigTabs.tsx";
+import RequestConfigTabs from "@/pages/editor/components/RequestConfig";
 import ResponseView from "@/pages/editor/components/RequestConfig/ResponseView.tsx";
 import WelcomeEditor from "@/pages/editor/components/WelcomeEditor.tsx";
 import TestScenarioEditor from "@/pages/editor/components/TestScenarioEditor.tsx";

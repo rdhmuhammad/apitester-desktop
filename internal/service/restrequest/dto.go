@@ -24,6 +24,12 @@ type UpdateHeadersRequest struct {
 	Headers     []collectionService.Header `json:"headers"`
 }
 
+type UpdateAuthorizationRequest struct {
+	BaseVersion string `json:"baseVersion" binding:"required"`
+	Type        string `json:"type"`
+	Token       string `json:"token,omitempty"`
+}
+
 type UpdateMethodRequest struct {
 	BaseVersion string `json:"baseVersion" binding:"required"`
 	Method      string `json:"method"`

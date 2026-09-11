@@ -15,17 +15,24 @@ import CustomToast from "@/components/common/toast";
 import type {ColtReqMethod} from "@/app/slices";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
 import type { RequestHeaderHandle } from "../types/HeaderSync";
-import {useRequestEditor} from "@/layout/context/requestEditorContext.tsx";
+import {useCollection} from "@/layout/hooks/useCollection.ts";
+import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
 
 
 const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(({onSend}, ref) => {
-    const {request, collection, variables, baseUrls, updateMethod, updateUrl, updateQuery, deleteRequest} = useRequestEditor()
     const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const {activeCollection, variables} = useCollection()
+    const baseUrls = variables
+        .filter((item) => item.category === "BASE_URL" || item.key.toLowerCase().includes("base_url"))
+        .map((item) => item.value)
+        .filter(Boolean)
+    const {request, updateMethod, updateUrl, updateQuery, deleteRequest} =
+        useRequestConfig(activeCollection?.id ?? "", activeTabId)
     const currRequest = request ? {id: request.id, name: request.name, request: {method: request.method, header: request.headers, url: request.url, body: request.body}} : null
     const baseUrlOptions = baseUrls
     const scriptValue = request?.script ?? ""
-    const collectionData = collection
+    const collectionData = activeCollection
     const envVars: Record<string, string> = {}
     const [runtimeVariables, setRuntimeVariables] = useState<CollectionVar[]>(variables)
     useEffect(() => setRuntimeVariables(variables), [variables])

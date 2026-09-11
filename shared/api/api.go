@@ -7,16 +7,46 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rdhmuhammad/apitester/pkg/cio"
+	"github.com/rdhmuhammad/apitester/pkg/logger"
+	"go.etcd.io/bbolt"
 )
 
 type Api struct {
-	server  *gin.Engine
-	routers []Router
-	srv     *http.Server
+	server     *gin.Engine
+	socket     *cio.IO
+	routers    []Router
+	namespaces []Namespace
+	srv        *http.Server
+	db         *bbolt.DB
+	logger     *logger.ReZero
+}
+
+type Conns struct {
+	DB     *bbolt.DB
+	Logger *logger.ReZero
 }
 
 type Router interface {
 	Route(handler *gin.RouterGroup)
+}
+
+type Namespace interface {
+	OnSpace(ns cio.NSInitiate)
+}
+
+func (a *Api) Register(r func(Conns) []Router) {
+	a.routers = append(a.routers, r(Conns{
+		DB:     a.db,
+		Logger: a.logger,
+	})...)
+}
+
+func (a *Api) RegisterSocket(r func(Conns) []Namespace) {
+	a.namespaces = append(a.namespaces, r(Conns{
+		DB:     a.db,
+		Logger: a.logger,
+	})...)
 }
 
 func (a *Api) Start() error {
@@ -25,6 +55,9 @@ func (a *Api) Start() error {
 	for _, router := range a.routers {
 		router.Route(root)
 	}
+	for _, namespace := range a.namespaces {
+		namespace.OnSpace(a.socket.NewSpace)
+	}
 
 	port := os.Getenv("APP_PORT")
 	a.srv = &http.Server{
@@ -32,12 +65,11 @@ func (a *Api) Start() error {
 		Handler: a.server,
 	}
 
-	if err := a.srv.ListenAndServe(); err != nil &&
-		!errors.Is(err, http.ErrServerClosed) {
-		return err
+	err := a.srv.ListenAndServe()
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
 	}
-
-	return nil
+	return err
 }
 
 func (a *Api) Shutdown(ctx context.Context) error {

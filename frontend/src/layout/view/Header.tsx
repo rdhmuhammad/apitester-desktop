@@ -3,7 +3,7 @@ import {Images} from "@/config/constant/Images.tsx";
 
 import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts";
-import {useRequestEditor} from "@/layout/context/requestEditorContext.tsx";
+import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {Settings} from "lucide-react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
@@ -17,10 +17,10 @@ import InventoryEditorHeader from "@/layout/components/InventoryEditorHeader.tsx
 
 const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     const [managerOpen, setManagerOpen] = useState(false);
-    const collectionData = useRequestEditor().collection
+    const {activeCollection: collectionData} = useCollection()
     const activeEditorTab = useAppSelector(selectEditorActiveTab)
     const requestHeaderRef = useRef<RequestHeaderHandle>(null)
-    const {pull, push, isPulling, isPushing} = useCollectionPushPull()
+    const {pull, isPulling, isPushing} = useCollectionPushPull()
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -32,10 +32,6 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
                     if (!requestHeader || requestHeader.isSending) return
                     event.preventDefault()
                     requestHeader.sendRequest()
-                    break
-                case "s":
-                    event.preventDefault()
-                    push()
                     break
                 case "p":
                     event.preventDefault()
