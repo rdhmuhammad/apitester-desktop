@@ -5,12 +5,14 @@ import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {Button} from "@/components/ui/button.tsx";
-import {Settings} from "lucide-react";
+import {LoaderCircle, Settings, TriangleAlert, Wifi, WifiOff} from "lucide-react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
 import Index from "@/layout/components/collectionManager";
 import RequestHeader from "@/layout/components/RequestHeader.tsx";
 import type {RequestHeaderHandle} from "@/layout/types/HeaderSync.ts";
 import {useCollectionPushPull} from "@/layout/hooks/useCollectionPushPull.ts";
+import {useSocket} from "@/hooks/useSocket.ts";
+import {SOCKET_NAMESPACES} from "@/config/socket.ts";
 import TestScenarioEditorHeader from "@/layout/components/TestScenarioEditorHeader.tsx";
 import AutomationEditorHeader from "@/layout/components/AutomationEditorHeader.tsx";
 import InventoryEditorHeader from "@/layout/components/InventoryEditorHeader.tsx";
@@ -21,6 +23,15 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     const activeEditorTab = useAppSelector(selectEditorActiveTab)
     const requestHeaderRef = useRef<RequestHeaderHandle>(null)
     const {pull, isPulling, isPushing} = useCollectionPushPull()
+    const {status: socketStatus} = useSocket(SOCKET_NAMESPACES.collection)
+
+    const socketIndicator = {
+        connecting: {label: "Connecting", icon: LoaderCircle, className: "text-amber-500 animate-spin"},
+        connected: {label: "Connected", icon: Wifi, className: "text-emerald-500"},
+        disconnected: {label: "Disconnected", icon: WifiOff, className: "text-slate-400"},
+        error: {label: "Connection error", icon: TriangleAlert, className: "text-rose-500"},
+    }[socketStatus]
+    const SocketIcon = socketIndicator.icon
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -63,6 +74,15 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
                         onClick={() => setManagerOpen(true)}
                     >
                         <Settings className="h-4 w-4"/>
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 p-0"
+                        title={`Socket: ${socketIndicator.label}`}
+                        aria-label={`Socket ${socketIndicator.label.toLowerCase()}`}
+                    >
+                        <SocketIcon className={`h-4 w-4 ${socketIndicator.className}`} />
                     </Button>
                     <Index open={managerOpen} onOpenChange={setManagerOpen}/>
                 </div>
