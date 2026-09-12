@@ -260,6 +260,7 @@ func (u *Usecase) update(collectionID, requestID, baseVersion, operation, field 
 	if err != nil {
 		return RequestResponse{}, err
 	}
+
 	if u.Version(content) != baseVersion {
 		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
 	}

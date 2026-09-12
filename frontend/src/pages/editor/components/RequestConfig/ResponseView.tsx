@@ -11,14 +11,13 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog.tsx";
 import {Input} from "@/components/ui/input.tsx";
+import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {Download, Link2, Eye, EyeOff, ChevronDown} from "lucide-react";
 import {useMemo, useState, useCallback, useEffect} from "react";
-import AceEditor from "react-ace";
-
-import 'ace-builds/src-noconflict/ace.js'
-import 'ace-builds/src-noconflict/mode-json.js'
-import 'ace-builds/src-noconflict/theme-monokai.js'
 import * as XLSX from 'xlsx';
+import {useAppSelector} from "@/app/store/hooks.ts";
+import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {selectResponseByRequestId} from "@/app/slices/restApiSlice.ts";
 
 const SectionHeader: React.FC<{
     label: string
@@ -59,26 +58,15 @@ const LogEntry: React.FC<{ log: { type: string; message: string; timestamp: numb
     )
 }
 
-type ResponseData = {
-    statusCode?: number
-    statusText?: string
-    data?: unknown
-    contentType?: string
-    responseTime?: number
-    responseSize?: number
-    protocol?: string
-    rawRequest?: string
-}
-
 type ActiveRequest = {
     id: string
     exampleResponse?: Array<{code?: number; status?: string; body?: string; name: string}>
 }
 
 const ResponseView: React.FC = () => {
-    const getEmptyResponse = (): ResponseData | null => null
+    const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const currResponse = useAppSelector((state) => selectResponseByRequestId(state, activeTabId))
     const getEmptyRequest = (): ActiveRequest | null => null
-    const currResponse = getEmptyResponse()
     const selectedRequest = getEmptyRequest()
     const scriptResult: unknown = null
     const scriptLogs: Array<{type: string; message: string; timestamp: number}> = []
@@ -300,27 +288,18 @@ const ResponseView: React.FC = () => {
                                 </table>
                             </div>
                         ) : (
-                            <AceEditor
-                                readOnly
-                                placeholder=""
-                                mode="json"
-                                theme="monokai"
-                                width="full"
-                                name="response"
-                                fontSize={14}
-                                lineHeight={19}
-                                showPrintMargin={false}
-                                showGutter={false}
-                                highlightActiveLine={true}
-                                value={prettyResponse}
-                                setOptions={{
-                                    enableBasicAutocompletion: false,
-                                    enableLiveAutocompletion: false,
-                                    enableSnippets: false,
-                                    enableMobileMenu: false,
-                                    showLineNumbers: false,
-                                    tabSize: 2,
-                                }}/>
+                            <div className="h-[300px] overflow-hidden rounded-md">
+                                <SandpackScriptEditor
+                                    readOnly
+                                    value={prettyResponse}
+                                    onChange={() => undefined}
+                                    fileName="response.json"
+                                    theme="dark"
+                                    showReadOnly={false}
+                                    showLineNumbers={false}
+                                    className="h-full"
+                                />
+                            </div>
                         )}
                     </div>
                 </TabsContent>

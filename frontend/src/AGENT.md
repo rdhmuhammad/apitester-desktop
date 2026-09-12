@@ -77,7 +77,7 @@ frontend/src/
 │       │   ├── WelcomeEditor.tsx          # Empty state when no collection loaded
 │       │   └── RequestConfig/
 │       │       ├── AuthContent.tsx        # Auth type switcher (none/inherit/bearer)
-│       │       ├── BodyEditor.tsx         # JSON (Ace) or multipart/form-data editors (448 lines)
+│       │       ├── BodyEditor.tsx         # JSON (Sandpack) or multipart/form-data editors (448 lines)
 │       │       └── ScriptEditor.tsx       # Sandpack-based script editor
 │       └── types/
 │           ├── api.ts                    # Postman-compatible collection types (114 lines)
@@ -96,7 +96,7 @@ frontend/src/
 
 ### Key Libraries
 - **Forms:** react-hook-form 7 + zod 4 + @hookform/resolvers
-- **Code editors:** react-ace 14 (JSON/body), @codesandbox/sandpack-react (scripts)
+- **Code editors:** @codesandbox/sandpack-react (JSON/body and scripts)
 - **Notifications:** sonner (toast), sweetalert2 (dialog)
 - **Dates:** date-fns 4, moment 2
 - **Charts:** recharts 2

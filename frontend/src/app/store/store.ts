@@ -1,17 +1,19 @@
 import {type Action, configureStore, type ThunkAction} from "@reduxjs/toolkit";
 import {enableMapSet} from "immer";
 import editorTabsReducer from "@/app/slices/editorTabsSlice.ts";
+import restApiReducer from "@/app/slices/restApiSlice.ts";
 
 enableMapSet();
 
 export const store = configureStore({
     reducer: {
         editorTabs: editorTabsReducer,
+        RestApi: restApiReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
             serializableCheck: {
-                ignoredPaths: ['collection.dirTree'],
+                ignoredPaths: ['collection.dirTree', 'RestApi.responses'],
             },
         }),
 })

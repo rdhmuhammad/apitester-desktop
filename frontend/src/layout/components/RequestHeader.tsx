@@ -8,8 +8,9 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {LoaderCircle, Plus, Send, Trash2} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {removeEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {setResponse} from "@/app/slices/restApiSlice.ts";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
-import {parseBlobResponse, useSendRequest as sendRequest} from "@/layout/hooks/useSendRequest.ts";
+import {buildRawRequest, parseBlobResponse, type ISendRequest, useSendRequest as sendRequest} from "@/layout/hooks/useSendRequest.ts";
 import {runScript} from "@/layout/hooks/useScriptRunner.ts";
 import CustomToast from "@/components/common/toast";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
@@ -122,7 +123,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
         if (!currRequest?.id || isSending) return
         if (onSend) onSend()
         setIsSending(true)
-        sendRequest({
+        const sendRequestConfig: ISendRequest = {
             baseUrl: selectedBaseUrl,
             endpoint: formatEndpoint(endpoint),
             method: requestMethod,
@@ -137,9 +138,10 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             contentType: getContentType(currRequest),
             raw: currRequest?.request?.body?.raw,
             formData: currRequest?.request?.body?.formdata
-        }).then(async (response) => {
+        }
+        sendRequest(sendRequestConfig).then(async (response) => {
             if (!response) return
-            void response
+            dispatch(setResponse({requestId: currRequest.id, response}))
             if (!scriptValue?.trim()) return
 
             try {
@@ -167,17 +169,36 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             } catch (err: unknown) {
                 CustomToast.error(`Script error: ${err instanceof Error ? err.message : String(err)}`)
             }
-        }).catch(async response => {
-            if (!response) return
-            const blob = response?.response?.data as Blob
-            const contentType = response?.response?.headers?.["content-type"] ?? ""
+        }).catch(async (error: {
+            message?: string
+            duration?: number
+            response?: {
+                data?: Blob
+                headers?: Record<string, string | undefined>
+                status?: number
+                statusText?: string
+            }
+        }) => {
+            const blob = error.response?.data
+            const contentType = error.response?.headers?.["content-type"] ?? ""
             const {data, size, isBinary} = blob
                 ? await parseBlobResponse(blob, contentType)
                 : {data: null, size: "0", isBinary: false}
-            void data
-            void size
-            void isBinary
-            CustomToast.error(response.message as string);
+            dispatch(setResponse({
+                requestId: currRequest.id,
+                response: {
+                    rawRequest: buildRawRequest(sendRequestConfig),
+                    protocol: "HTTP/1.1",
+                    responseTime: error.duration ?? 0,
+                    responseSize: size,
+                    statusCode: error.response?.status ?? 0,
+                    statusText: error.response?.statusText ?? error.message ?? "UNKNOWN",
+                    data,
+                    contentType,
+                    isBinary,
+                },
+            }))
+            CustomToast.error(error.message ?? "Request failed");
         }).finally(() => setIsSending(false))
     };
 

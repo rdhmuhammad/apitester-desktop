@@ -1,14 +1,12 @@
-import 'ace-builds/src-noconflict/ace.js'
-import 'ace-builds/src-noconflict/mode-json.js'
-import AceEditor from "react-ace";
 import {Card} from "@/components/ui/card.tsx";
 import {SearchIcon, ToggleLeft, ToggleRight, Trash2, Plus} from "lucide-react";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import CustomToast from "@/components/common/toast";
+import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {cn} from "@/lib/utils.ts";
-import React, {useEffect, useRef, useState} from "react";
-import type {IAceEditor} from "react-ace/lib/types";
+import {linter, type Diagnostic} from "@codemirror/lint";
+import React, {useMemo, useRef, useState} from "react";
 import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import {setFile, removeFile} from "@/lib/fileStore.ts";
 import type {RequestBody} from "@/pages/editor/types/api.ts";
@@ -22,6 +20,27 @@ interface IBodyEditor {
     onFormDataChange: (value: ItemUrl[]) => void
 }
 
+const getJsonDiagnostic = (value: string): Diagnostic | null => {
+    if (!value.trim()) return null
+
+    try {
+        JSON.parse(value)
+        return null
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid JSON"
+        const positionMatch = /position (\d+)/i.exec(message)
+        const position = positionMatch ? Number(positionMatch[1]) : value.length - 1
+        const from = Math.min(position, Math.max(value.length - 1, 0))
+
+        return {
+            from,
+            to: Math.min(from + 1, value.length),
+            severity: "error",
+            message,
+        }
+    }
+}
+
 export const BodyEditor: React.FC<IBodyEditor> = (
     {
         contentType,
@@ -31,6 +50,11 @@ export const BodyEditor: React.FC<IBodyEditor> = (
     }) => {
 
     const selectBody = body
+    const jsonDiagnostic = useMemo(() => getJsonDiagnostic(selectBody?.raw ?? ""), [selectBody?.raw])
+    const jsonLinter = useMemo(() => linter((view) => {
+        const diagnostic = getJsonDiagnostic(view.state.doc.toString())
+        return diagnostic ? [diagnostic] : []
+    }, {delay: 200}), [])
 
     type MenuState = {
         open: boolean;
@@ -39,9 +63,6 @@ export const BodyEditor: React.FC<IBodyEditor> = (
         selectedText: string;
     }
 
-    const editorRef = useRef<IAceEditor | null>(null)
-    const editorContainerRef = useRef<HTMLDivElement | null>(null)
-    const [editorHeight, setEditorHeight] = useState(280)
     const [menu, setMenu] = useState<MenuState>({
         open: false,
         x: 0,
@@ -49,45 +70,8 @@ export const BodyEditor: React.FC<IBodyEditor> = (
         selectedText: ""
     })
 
-    useEffect(() => {
-        const container = editorContainerRef.current
-        if (!container) return
-
-        setEditorHeight(container.clientHeight)
-
-        const resizeObserver = new ResizeObserver((entries) => {
-            const nextHeight = entries[0]?.contentRect.height
-            if (!nextHeight) return
-            setEditorHeight(nextHeight)
-            editorRef.current?.editor.resize()
-        })
-
-        resizeObserver.observe(container)
-
-        return () => {
-            resizeObserver.disconnect()
-        }
-    }, [])
-
     const onClosePopup = () => {
         setMenu((m) => (m.open ? {...m, open: false} : m))
-    }
-
-    const onEditorLoad = (editor: IAceEditor) => {
-        editorRef.current = editor
-
-        editor.container.addEventListener("contextmenu", (ev: MouseEvent) => {
-            const selectedText = editor.getSelectedText()
-            if (selectedText) {
-                ev.preventDefault()
-                setMenu({
-                    open: true,
-                    x: ev.clientX,
-                    y: ev.clientY,
-                    selectedText
-                })
-            }
-        })
     }
 
     interface IVariable {
@@ -161,37 +145,30 @@ export const BodyEditor: React.FC<IBodyEditor> = (
             return (
                 <div className="relative rounded-lg overflow-hidden">
                     <div
-                        ref={editorContainerRef}
-                        className="min-h-[280px] resize-y overflow-auto rounded-lg border border-slate-200"
+                        className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-slate-200"
                         onClick={menu.open ? onClosePopup : undefined}
                     >
-                        <AceEditor
-                            placeholder="Request body in json"
-                            mode="json"
-                            theme="github"
-                            name="blah2"
-                            fontSize={14}
-                            width="100%"
-                            height={`${editorHeight}px`}
-                            lineHeight={19}
-                            onLoad={onEditorLoad}
-                            onChange={e => {
-                                onJsonChange(e)
-                            }}
-                            showPrintMargin={true}
-                            showGutter={true}
+                        <SandpackScriptEditor
                             value={selectBody?.raw ?? ""}
-                            highlightActiveLine={true}
-                            setOptions={{
-                                enableBasicAutocompletion: false,
-                                enableLiveAutocompletion: true,
-                                enableSnippets: false,
-                                enableMobileMenu: true,
-                                useWorker: false,
-                                showLineNumbers: true,
-                                tabSize: 2,
-                            }}/>
+                            onChange={onJsonChange}
+                            fileName="request-body.json"
+                            className="h-full"
+                            extensions={[jsonLinter]}
+                            onSelectionContextMenu={(selectedText, position) => {
+                                setMenu({
+                                    open: true,
+                                    x: position.x,
+                                    y: position.y,
+                                    selectedText
+                                })
+                            }}
+                        />
                     </div>
+                    {jsonDiagnostic && (
+                        <p role="alert" className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                            Invalid JSON: {jsonDiagnostic.message}
+                        </p>
+                    )}
                     {
                         menu.open && (
                             <Card className="fixed p-2 min-h-[80px]"

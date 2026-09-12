@@ -3,22 +3,28 @@ import {
     SandpackLayout,
     SandpackCodeEditor,
     useSandpack,
+    type CodeEditorRef,
+    type SandpackThemeProp,
 } from "@codesandbox/sandpack-react"
 import { autocompletion, completionKeymap, type CompletionSource } from "@codemirror/autocomplete"
 import type { Extension } from "@codemirror/state"
 import { yaml } from "@codemirror/lang-yaml"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react"
 
 export interface SandpackScriptEditorProps {
     value: string
     onChange: (code: string) => void
     readOnly?: boolean
+    showReadOnly?: boolean
+    showLineNumbers?: boolean
     editorKey?: string
     autoComplete?: boolean | CompletionSource[]
     completionSources?: CompletionSource[]
     fileName?: string
     extensions?: Extension[]
     className?: string
+    theme?: SandpackThemeProp
+    onSelectionContextMenu?: (selectedText: string, position: { x: number; y: number }) => void
 }
 
 function SyncScript({ onChange, fileName }: { onChange: (code: string) => void; fileName: string }) {
@@ -40,17 +46,22 @@ function SyncScript({ onChange, fileName }: { onChange: (code: string) => void; 
 }
 
 export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
-                                                                              value,
-                                                                              onChange,
-                                                                               readOnly,
-                                                                               editorKey,
-                                                                               autoComplete = false,
-                                                                               completionSources = [],
-                                                                               fileName = "index.js",
-                                                                               extensions = [],
-                                                                               className,
-                                                                           }) => {
+                                                                               value,
+                                                                               onChange,
+                                                                                readOnly,
+                                                                                showReadOnly,
+                                                                                showLineNumbers = true,
+                                                                                editorKey,
+                                                                                autoComplete = false,
+                                                                                completionSources = [],
+                                                                                fileName = "index.js",
+                                                                                extensions = [],
+                                                                                className,
+                                                                                theme,
+                                                                                onSelectionContextMenu,
+                                                                            }) => {
     const entryFile = "/__apitester_entry__.js"
+    const editorRef = useRef<CodeEditorRef | null>(null)
     const files = useMemo(() => ({
         [`/${fileName}`]: { code: value, active: true },
         [entryFile]: { code: "export default {};", hidden: true },
@@ -93,10 +104,26 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
         }
     }, [autoComplete, languageExtensions])
 
+    const handleContextMenu = (event: ReactMouseEvent) => {
+        if (!onSelectionContextMenu) return
+
+        const editor = editorRef.current?.getCodemirror()
+        if (!editor) return
+
+        const {from, to} = editor.state.selection.main
+        const selectedText = editor.state.sliceDoc(from, to)
+        if (!selectedText) return
+
+        event.preventDefault()
+        onSelectionContextMenu(selectedText, {x: event.clientX, y: event.clientY})
+    }
+
     return (
         <SandpackProvider
             key={editorKey}
             files={files}
+            theme={theme}
+            style={className ? {height: "100%"} : undefined}
             customSetup={{
                 entry: entryFile,
             }}
@@ -107,15 +134,17 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
             }}
         >
             <SyncScript onChange={onChange} fileName={fileName} />
-            <SandpackLayout className={className}>
+            <SandpackLayout className={className} onContextMenu={handleContextMenu}>
                 <SandpackCodeEditor
+                    ref={editorRef}
                     className={className}
                     style={className ? {height: "100%"} : undefined}
                     showTabs={false}
-                    showLineNumbers
+                    showLineNumbers={showLineNumbers}
                     showRunButton={false}
                     wrapContent
                     readOnly={readOnly}
+                    showReadOnly={showReadOnly}
                     additionalLanguages={additionalLanguages}
                     {...editorExtensions}
                     extensions={editorExtensions?.extensions ?? languageExtensions}

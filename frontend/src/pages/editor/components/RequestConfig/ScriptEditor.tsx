@@ -11,11 +11,12 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({value, onChange}) => 
     const completionSources = useMemo(() => [pmCompletionSource, resCompletionSource], [])
 
     return (
-        <div className="min-h-[280px] resize-y overflow-auto rounded-lg border border-slate-200">
+        <div className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-slate-200">
             <SandpackScriptEditor
                 value={value}
                 onChange={onChange}
                 autoComplete={completionSources}
+                className="h-full"
             />
         </div>
     )

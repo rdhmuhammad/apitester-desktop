@@ -80,7 +80,10 @@ const SidebarLayout: React.FC = () => {
     useEffect(() => {
         let cancelled = false
         const loadTree = async () => {
-            const requestTree = await CollectionServices.getRequestTree(activeCollectionId)
+            if (!collectionId) return
+            
+            const requestTree = await CollectionServices.getRequestTree(collectionId)
+            console.log(requestTree)
             if (!cancelled) setTree(requestTree)
         }
         void loadTree()

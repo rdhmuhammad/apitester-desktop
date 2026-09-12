@@ -46,7 +46,7 @@ export default defineConfig({
           ],
           "vendor-query": ["@tanstack/react-query"],
           "vendor-forms": ["react-hook-form", "zod", "@hookform/resolvers"],
-          "vendor-editor": ["react-ace", "ace-builds"],
+          "vendor-editor": ["@codesandbox/sandpack-react"],
           "vendor-router": ["react-router-dom"],
           "vendor-i18n": ["i18next", "react-i18next"],
           "vendor-charts": ["recharts"],
