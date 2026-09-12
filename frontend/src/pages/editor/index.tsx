@@ -24,7 +24,9 @@ import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import type {ColtReqMethod, EditorTab} from "@/pages/editor/types/editor.ts";
 import {
+    openEditorTab,
     removeEditorTab,
+    renameEditorTab,
     selectCollectionId,
     selectEditorActiveTabId,
     selectEditorTabs,
@@ -32,6 +34,13 @@ import {
 } from "@/app/slices/editorTabsSlice.ts";
 import {CollectionServices} from "@/layout/services/collection.ts";
 import type {GetCollectionResponse} from "@/pages/editor/types/api.ts";
+import {
+    requestConfigQueryKey,
+    RequestConfigServices,
+} from "@/pages/editor/components/RequestConfig/services/requestConfig.ts";
+import {useQueryClient} from "@tanstack/react-query";
+import CustomToast from "@/components/common/toast";
+import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
@@ -46,6 +55,7 @@ const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
 
 const Editor: React.FC = () => {
     const dispatch = useAppDispatch()
+    const queryClient = useQueryClient()
     const allTabs = useAppSelector(selectEditorTabs)
     const effectiveActiveTabId = useAppSelector(selectEditorActiveTabId)
     const collectionId = useAppSelector(selectCollectionId)
@@ -55,7 +65,33 @@ const Editor: React.FC = () => {
    
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
     const [editValue, setEditValue] = useState('')
+    const [isCreatingRequest, setIsCreatingRequest] = useState(false)
     const editInputRef = useRef<HTMLInputElement | null>(null)
+    const editingTab = allTabs.find(tab => tab.id === editingTabId)
+    const editingRequestId = editingTab?.type === 'request' ? editingTab.id : ''
+    const {updateName} = useRequestConfig(collectionId ?? '', editingRequestId)
+
+    const handleCreateRequest = useCallback(async () => {
+        if (!collectionId || isCreatingRequest) return
+
+        setIsCreatingRequest(true)
+        try {
+            const request = await RequestConfigServices.create(collectionId)
+            queryClient.setQueryData(requestConfigQueryKey(collectionId, request.id), request)
+            dispatch(openEditorTab({
+                id: request.id,
+                label: request.name || 'New Request',
+                method: (request.method || 'GET') as ColtReqMethod,
+                type: 'request',
+            }))
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
+            CustomToast.success("Request created")
+        } catch (error) {
+            CustomToast.error(error instanceof Error ? error.message : "Failed to create request")
+        } finally {
+            setIsCreatingRequest(false)
+        }
+    }, [collectionId, dispatch, isCreatingRequest, queryClient])
 
     const startEditing = useCallback((tab: EditorTab) => {
         if (tab.type !== 'request') return
@@ -65,12 +101,20 @@ const Editor: React.FC = () => {
     }, [])
 
     const commitEdit = useCallback(() => {
-        if (editingTabId && editValue.trim()) {
-            void editValue
+        const name = editValue.trim()
+        const tab = allTabs.find(tab => tab.id === editingTabId)
+        if (tab?.type === 'request' && name && name !== tab.label) {
+            void updateName(name).then((request) => {
+                if (!request) return
+                dispatch(renameEditorTab({id: tab.id, label: request.name}))
+                if (collectionId) {
+                    void queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
+                }
+            })
         }
         setEditingTabId(null)
         setEditValue('')
-    }, [editingTabId, editValue])
+    }, [allTabs, collectionId, dispatch, editingTabId, editValue, queryClient, updateName])
 
     const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
@@ -184,9 +228,12 @@ const Editor: React.FC = () => {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
-                                    <DropdownMenuItem >
+                                    <DropdownMenuItem
+                                        disabled={!collectionId || isCreatingRequest}
+                                        onClick={() => void handleCreateRequest()}
+                                    >
                                         <FileCode2 className="mr-2 h-4 w-4 text-emerald-600"/>
-                                        New Request
+                                        {isCreatingRequest ? 'Creating Request...' : 'New Request'}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem >
                                         <FileText className="mr-2 h-4 w-4 text-indigo-600"/>
@@ -194,7 +241,6 @@ const Editor: React.FC = () => {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         onClick={() => {
-
                                         }}
                                     >
                                         <Wrench className="mr-2 h-4 w-4 text-violet-600"/>

@@ -22,6 +22,7 @@ export const requestConfigQueryKey = (collectionId: string, requestId: string) =
 
 const socketEvents = {
     updateMethod: "request:update:method",
+    updateName: "request:update:name",
     updateUrl: "request:update:url",
     updateHeaders: "request:update:headers",
     updateAuthorization: "request:update:authorization",
@@ -72,6 +73,13 @@ const emitRequestEvent = <T extends Versioned>(
 })
 
 export const RequestConfigServices = {
+    create: async (collectionId: string): Promise<RestRequestResponse> => {
+        const response = await axios.post<Response<RestRequestResponse>>(
+            `/restrequest/create-request/${collectionId}`
+        )
+        return response.data.data
+    },
+
     get: async (collectionId: string, requestId: string): Promise<RestRequestResponse> => {
         const response = await axios.get<Response<RestRequestResponse>>(
             `/restrequest/${collectionId}/${requestId}`
@@ -81,6 +89,9 @@ export const RequestConfigServices = {
 
     updateMethod: (collectionId: string, requestId: string, data: Versioned & {method: string}) =>
         emitRequestEvent(socketEvents.updateMethod, socketEvents.updateMethod, {collectionId, requestId}, data),
+
+    updateName: (collectionId: string, requestId: string, data: Versioned & {name: string}) =>
+        emitRequestEvent(socketEvents.updateName, socketEvents.updateName, {collectionId, requestId}, data),
 
     updateUrl: (collectionId: string, requestId: string, data: Versioned & {url: RequestURL}) =>
         emitRequestEvent(socketEvents.updateUrl, socketEvents.updateUrl, {collectionId, requestId}, data),
@@ -103,6 +114,11 @@ export const RequestConfigServices = {
     updatePostRequestScript: (collectionId: string, requestId: string, data: Versioned & {exec: string[]; type?: string}) =>
         emitRequestEvent(socketEvents.updatePostRequestScript, socketEvents.updatePostRequestScript, {collectionId, requestId}, data),
 
-    delete: (collectionId: string, requestId: string, data: Versioned) =>
-        emitRequestEvent(socketEvents.delete, socketEvents.delete, {collectionId, requestId}, data),
+    delete: async (collectionId: string, requestId: string, data: Versioned): Promise<RestRequestResponse> => {
+        const response = await axios.delete<Response<RestRequestResponse>>(
+            `/restrequest/${collectionId}/${requestId}`,
+            {data},
+        )
+        return response.data.data
+    },
 }

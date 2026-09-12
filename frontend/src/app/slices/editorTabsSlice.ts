@@ -47,6 +47,12 @@ const editorTabsSlice = createSlice({
                 state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
             }
         },
+        renameEditorTab(state, action: PayloadAction<{id: string; label: string}>) {
+            const tab = state.tabs.find(tab => tab.id === action.payload.id);
+            if (tab?.type === 'request') {
+                tab.label = action.payload.label;
+            }
+        },
     },
 });
 
@@ -57,6 +63,7 @@ export const {
     resetEditorTabs,
     openEditorTab,
     removeEditorTab,
+    renameEditorTab,
 } = editorTabsSlice.actions;
 export const setTabs = syncEditorTabs;
 export const setActiveTabId = setEditorActiveTab;

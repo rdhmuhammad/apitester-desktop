@@ -15,6 +15,7 @@ type Usecase interface {
 	UpdateHeaders(collectionID, requestID string, req service.UpdateHeadersRequest) (service.RequestResponse, error)
 	UpdateAuthorization(collectionID, requestID string, req service.UpdateAuthorizationRequest) (service.RequestResponse, error)
 	UpdateMethod(collectionID, requestID string, req service.UpdateMethodRequest) (service.RequestResponse, error)
+	UpdateName(collectionID, requestID string, req service.UpdateNameRequest) (service.RequestResponse, error)
 	UpdateQuery(collectionID, requestID string, req service.UpdateQueryRequest) (service.RequestResponse, error)
 	UpdateJSONBody(collectionID, requestID string, req service.UpdateJSONBodyRequest) (service.RequestResponse, error)
 	UpdateFormDataBody(collectionID, requestID string, req service.UpdateFormDataBodyRequest) (service.RequestResponse, error)
@@ -84,6 +85,20 @@ func (s *RequestSocket) UpdateMethod(_ *cio.NS, client *socket.Socket, message c
 	}
 	res, err := s.usecase.UpdateMethod(collectionID, requestID, payload.UpdateMethodRequest)
 	s.emitResult(client, RequestUpdateMethod.Name(), res, err)
+}
+
+func (s *RequestSocket) UpdateName(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	payload, ok := message.(*RequestUpdateNamePayload)
+	if !ok {
+		return
+	}
+	collectionID, requestID := requestIDs(client, payload.RequestIdentity)
+	if collectionID == "" || requestID == "" {
+		s.emitError(client, RequestUpdateName.Name(), "Collection id and request id are required")
+		return
+	}
+	res, err := s.usecase.UpdateName(collectionID, requestID, payload.UpdateNameRequest)
+	s.emitResult(client, RequestUpdateName.Name(), res, err)
 }
 
 func (s *RequestSocket) UpdateQuery(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
@@ -162,6 +177,7 @@ func (s *RequestSocket) OnSpace(ns cio.NSInitiate) {
 		Event(RequestUpdateHeaders.Name(), &RequestUpdateHeadersPayload{}, s.UpdateHeaders).
 		Event(RequestUpdateAuthorization.Name(), &RequestUpdateAuthorizationPayload{}, s.UpdateAuthorization).
 		Event(RequestUpdateMethod.Name(), &RequestUpdateMethodPayload{}, s.UpdateMethod).
+		Event(RequestUpdateName.Name(), &RequestUpdateNamePayload{}, s.UpdateName).
 		Event(RequestUpdateQuery.Name(), &RequestUpdateQueryPayload{}, s.UpdateQuery).
 		Event(RequestUpdateBodyJson.Name(), &RequestUpdateJSONBodyPayload{}, s.UpdateJSONBody).
 		Event(RequestUpdateBodyFormdata.Name(), &RequestUpdateFormDataBodyPayload{}, s.UpdateFormDataBody).

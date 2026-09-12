@@ -35,6 +35,11 @@ type UpdateMethodRequest struct {
 	Method      string `json:"method"`
 }
 
+type UpdateNameRequest struct {
+	BaseVersion string `json:"baseVersion" binding:"required"`
+	Name        string `json:"name"`
+}
+
 type UpdateQueryRequest struct {
 	BaseVersion string                       `json:"baseVersion" binding:"required"`
 	Query       []collectionService.Property `json:"query"`

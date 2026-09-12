@@ -27,20 +27,22 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         value: RestRequestResponse[T],
         mutation: (data: Versioned) => Promise<RestRequestResponse>,
         extra?: (request: RestRequestResponse) => Partial<RestRequestResponse>,
-    ) => {
+    ): Promise<RestRequestResponse | undefined> => {
         const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
         console.log(current)
-        if (!current || !enabled) return
+        if (!current || !enabled) return Promise.resolve(undefined)
         queryClient.setQueryData(queryKey, {...current, [field]: value, ...extra?.(current)})
-        void mutation({baseVersion: current.version, [field]: value} as Versioned)
+        return mutation({baseVersion: current.version, [field]: value} as Versioned)
             .then(next => {
                 console.log(next)
                 queryClient.setQueryData(queryKey, next)
                 setMutationError(null)
+                return next
             })
             .catch((reason: unknown) => {
                 console.log(reason)
                 setMutationError(reason instanceof Error ? reason.message : String(reason))
+                return undefined
             })
     }, [enabled, queryClient, queryKey])
 
@@ -50,6 +52,13 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
                 RequestConfigServices.updateMethod(collectionId, requestId, {
                     ...data,
                     method
+                })),
+        [collectionId, requestId, update])
+    const updateName = useCallback((name: string) =>
+            update("name", name, (data) =>
+                RequestConfigServices.updateName(collectionId, requestId, {
+                    ...data,
+                    name
                 })),
         [collectionId, requestId, update])
     const updateUrl = useCallback((url: RequestURL) =>
@@ -103,6 +112,7 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             await RequestConfigServices.delete(collectionId, requestId, {baseVersion: current.version})
 
             queryClient.removeQueries({queryKey})
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
         },
         [collectionId, enabled, queryClient, queryKey, requestId])
 
@@ -112,6 +122,7 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         error: requestQuery.error ? (requestQuery.error.message) : mutationError,
         requestQuery,
         updateMethod,
+        updateName,
         updateUrl,
         updateHeaders,
         updateQuery,

@@ -7,6 +7,7 @@ import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {cn} from "@/lib/utils.ts";
 import {linter, type Diagnostic} from "@codemirror/lint";
 import React, {useMemo, useRef, useState} from "react";
+import {useDebouncedCallback} from "use-debounce";
 import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import {setFile, removeFile} from "@/lib/fileStore.ts";
 import type {RequestBody} from "@/pages/editor/types/api.ts";
@@ -55,6 +56,8 @@ export const BodyEditor: React.FC<IBodyEditor> = (
         const diagnostic = getJsonDiagnostic(view.state.doc.toString())
         return diagnostic ? [diagnostic] : []
     }, {delay: 200}), [])
+    const jsonExtensions = useMemo(() => [jsonLinter], [jsonLinter])
+    const debouncedJsonChange = useDebouncedCallback(onJsonChange, 400)
 
     type MenuState = {
         open: boolean;
@@ -150,10 +153,10 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                     >
                         <SandpackScriptEditor
                             value={selectBody?.raw ?? ""}
-                            onChange={onJsonChange}
+                            onChange={debouncedJsonChange}
                             fileName="request-body.json"
                             className="h-full"
-                            extensions={[jsonLinter]}
+                            extensions={jsonExtensions}
                             onSelectionContextMenu={(selectedText, position) => {
                                 setMenu({
                                     open: true,

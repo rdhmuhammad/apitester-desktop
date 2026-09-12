@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
@@ -22,6 +23,42 @@ func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	return &Usecase{
 		Port: base.NewPort(lg, database),
 	}
+}
+
+func (u *Usecase) CreateRequest(collectionID string) (RequestResponse, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+
+	item := collectionService.CollectionItem{
+		ID: uuid.NewString(),
+		Request: &collectionService.Request{
+			Header: []collectionService.Header{},
+			Body: &collectionService.RequestBody{
+				FormData: []collectionService.Property{},
+			},
+			URL: collectionService.RequestURL{
+				Host:  []string{},
+				Path:  []string{},
+				Query: []collectionService.Property{},
+			},
+		},
+	}
+	docs.Item = append(docs.Item, item)
+
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+	if err := u.RecordHistory(collection, item.ID, "create_request", "request", nil, item, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+
+	return requestResponse(collection, updated, &item), nil
 }
 
 func (u *Usecase) Get(collectionID, requestID string) (RequestResponse, error) {
@@ -135,6 +172,15 @@ func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodR
 		func(item *collectionService.CollectionItem) any {
 			old := item.Request.Method
 			item.Request.Method = req.Method
+			return old
+		})
+}
+
+func (u *Usecase) UpdateName(collectionID, requestID string, req UpdateNameRequest) (RequestResponse, error) {
+	return u.update(collectionID, requestID, req.BaseVersion, "update_name", "name", req.Name,
+		func(item *collectionService.CollectionItem) any {
+			old := item.Name
+			item.Name = req.Name
 			return old
 		})
 }

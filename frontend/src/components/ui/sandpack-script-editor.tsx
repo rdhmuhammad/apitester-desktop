@@ -9,7 +9,7 @@ import {
 import { autocompletion, completionKeymap, type CompletionSource } from "@codemirror/autocomplete"
 import type { Extension } from "@codemirror/state"
 import { yaml } from "@codemirror/lang-yaml"
-import { useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 
 export interface SandpackScriptEditorProps {
     value: string
@@ -27,25 +27,42 @@ export interface SandpackScriptEditorProps {
     onSelectionContextMenu?: (selectedText: string, position: { x: number; y: number }) => void
 }
 
-function SyncScript({ onChange, fileName }: { onChange: (code: string) => void; fileName: string }) {
+function SyncScript({ value, onChange, fileName }: {
+    value: string
+    onChange: (code: string) => void
+    fileName: string
+}) {
     const { sandpack } = useSandpack()
     const filePath = `/${fileName}`
-    const lastCodeRef = useRef(sandpack.files[filePath]?.code ?? "")
+    const code = sandpack.files[filePath]?.code
+    const lastCodeRef = useRef(code ?? "")
+    const previousValueRef = useRef(value)
     const onChangeRef = useRef(onChange)
+    const updateFileRef = useRef(sandpack.updateFile)
     onChangeRef.current = onChange
+    updateFileRef.current = sandpack.updateFile
 
     useEffect(() => {
-        const code = sandpack.files[filePath]?.code
         if (code !== undefined && code !== lastCodeRef.current) {
             lastCodeRef.current = code
             onChangeRef.current(code)
         }
-    }, [filePath, sandpack.files])
+    }, [code])
+
+    useEffect(() => {
+        if (value === previousValueRef.current) return
+
+        previousValueRef.current = value
+        if (value === code) return
+
+        lastCodeRef.current = value
+        updateFileRef.current(filePath, value)
+    }, [code, filePath, value])
 
     return null
 }
 
-export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
+const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
                                                                                value,
                                                                                onChange,
                                                                                 readOnly,
@@ -62,10 +79,17 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
                                                                             }) => {
     const entryFile = "/__apitester_entry__.js"
     const editorRef = useRef<CodeEditorRef | null>(null)
-    const files = useMemo(() => ({
+    // Sandpack resets its file state when these prop identities change.
+    const [files] = useState(() => ({
         [`/${fileName}`]: { code: value, active: true },
         [entryFile]: { code: "export default {};", hidden: true },
-    }), [entryFile, fileName, value])
+    }))
+    const customSetup = useMemo(() => ({entry: entryFile}), [entryFile])
+    const providerOptions = useMemo(() => ({
+        autorun: false,
+        activeFile: `/${fileName}`,
+        visibleFiles: [`/${fileName}`],
+    }), [fileName])
 
     const yamlLanguage = useMemo(() => {
         if (!/\.(ya?ml)$/i.test(fileName)) return undefined
@@ -124,16 +148,10 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
             files={files}
             theme={theme}
             style={className ? {height: "100%"} : undefined}
-            customSetup={{
-                entry: entryFile,
-            }}
-            options={{
-                autorun: false,
-                activeFile: `/${fileName}`,
-                visibleFiles: [`/${fileName}`],
-            }}
+            customSetup={customSetup}
+            options={providerOptions}
         >
-            <SyncScript onChange={onChange} fileName={fileName} />
+            <SyncScript value={value} onChange={onChange} fileName={fileName} />
             <SandpackLayout className={className} onContextMenu={handleContextMenu}>
                 <SandpackCodeEditor
                     ref={editorRef}
@@ -153,3 +171,10 @@ export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({
         </SandpackProvider>
     )
 }
+
+export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = (props) => (
+    <SandpackScriptEditorInstance
+        key={`${props.editorKey ?? ""}:${props.fileName ?? "index.js"}`}
+        {...props}
+    />
+)

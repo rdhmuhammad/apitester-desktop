@@ -12,18 +12,19 @@ func _() {
 	_ = x[RequestUpdateHeaders-1]
 	_ = x[RequestUpdateAuthorization-2]
 	_ = x[RequestUpdateMethod-3]
-	_ = x[RequestUpdateQuery-4]
-	_ = x[RequestUpdateBodyJson-5]
-	_ = x[RequestUpdateBodyFormdata-6]
-	_ = x[RequestUpdateScript-7]
-	_ = x[RequestDelete-8]
-	_ = x[RequestError-9]
-	_ = x[RequestSuccess-10]
+	_ = x[RequestUpdateName-4]
+	_ = x[RequestUpdateQuery-5]
+	_ = x[RequestUpdateBodyJson-6]
+	_ = x[RequestUpdateBodyFormdata-7]
+	_ = x[RequestUpdateScript-8]
+	_ = x[RequestDelete-9]
+	_ = x[RequestError-10]
+	_ = x[RequestSuccess-11]
 }
 
-const _RequestEvent_name = "RequestUpdateUrlRequestUpdateHeadersRequestUpdateAuthorizationRequestUpdateMethodRequestUpdateQueryRequestUpdateBodyJsonRequestUpdateBodyFormdataRequestUpdateScriptRequestDeleteRequestErrorRequestSuccess"
+const _RequestEvent_name = "RequestUpdateUrlRequestUpdateHeadersRequestUpdateAuthorizationRequestUpdateMethodRequestUpdateNameRequestUpdateQueryRequestUpdateBodyJsonRequestUpdateBodyFormdataRequestUpdateScriptRequestDeleteRequestErrorRequestSuccess"
 
-var _RequestEvent_index = [...]uint8{0, 16, 36, 62, 81, 99, 120, 145, 164, 177, 189, 203}
+var _RequestEvent_index = [...]uint8{0, 16, 36, 62, 81, 98, 116, 137, 162, 181, 194, 206, 220}
 
 func (i RequestEvent) String() string {
 	idx := int(i) - 0

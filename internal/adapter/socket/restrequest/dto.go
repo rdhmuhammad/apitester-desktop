@@ -30,6 +30,7 @@ const (
 	RequestUpdateHeaders
 	RequestUpdateAuthorization
 	RequestUpdateMethod
+	RequestUpdateName
 	RequestUpdateQuery
 	RequestUpdateBodyJson
 	RequestUpdateBodyFormdata
@@ -66,6 +67,11 @@ type RequestUpdateAuthorizationPayload struct {
 type RequestUpdateMethodPayload struct {
 	RequestIdentity
 	service.UpdateMethodRequest
+}
+
+type RequestUpdateNamePayload struct {
+	RequestIdentity
+	service.UpdateNameRequest
 }
 
 type RequestUpdateQueryPayload struct {
@@ -121,6 +127,10 @@ func (p *RequestUpdateAuthorizationPayload) From(msg ...any) {
 }
 
 func (p *RequestUpdateMethodPayload) From(msg ...any) {
+	decodeRequestPayload(msg, p)
+}
+
+func (p *RequestUpdateNamePayload) From(msg ...any) {
 	decodeRequestPayload(msg, p)
 }
 

@@ -5,9 +5,15 @@ import TestScenarioSidebar from "@/layout/components/TestScenarioSidebar.tsx";
 import AutomationSidebar from "@/layout/components/AutomationSidebar.tsx";
 import DragNode, {type DropPosition} from "@/layout/components/sidebar/DragNode.tsx";
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
-import {CollectionServices, type RequestTree} from "@/layout/services/collection.ts";
+import type {RequestTree} from "@/layout/services/collection.ts";
+import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {openEditorTab, selectCollectionId, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {
+    openEditorTab,
+    selectCollectionId,
+    selectEditorActiveTabId,
+    setCollectionId
+} from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import {
     DndContext,
@@ -20,10 +26,8 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 
-
 const SidebarLayout: React.FC = () => {
     const dispatch = useAppDispatch()
-    const [tree, setTree] = useState<RequestTree[]>([])
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
     const [searchQuery, setSearchQuery] = useState('')
     const expandedBeforeSearch = useRef<Record<string, boolean>>({})
@@ -33,6 +37,7 @@ const SidebarLayout: React.FC = () => {
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
     const collectionId = useAppSelector(selectCollectionId)
+    const {activeCollection, requestTree: tree} = useCollection(collectionId)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {activationConstraint: {distance: 5}})
@@ -78,19 +83,8 @@ const SidebarLayout: React.FC = () => {
     }, [searchQuery, tree])
 
     useEffect(() => {
-        let cancelled = false
-        const loadTree = async () => {
-            if (!collectionId) return
-            
-            const requestTree = await CollectionServices.getRequestTree(collectionId)
-            console.log(requestTree)
-            if (!cancelled) setTree(requestTree)
-        }
-        void loadTree()
-        return () => {
-            cancelled = true
-        }
-    }, [collectionId, dispatch])
+        if (!collectionId && activeCollection) dispatch(setCollectionId(activeCollection.id))
+    }, [activeCollection, collectionId, dispatch])
 
     const toggleFolder = (folderId: string) => {
         setExpandedFolders((prevState => ({
