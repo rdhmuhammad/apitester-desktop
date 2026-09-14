@@ -25,3 +25,4 @@
 - 2026-09-10: Expanded [[decisions/debounced-request-config-mutations]] with an annotated TypeScript example explaining the coordinator, debounce timer, optimistic cache update, queued API call, and version token.
 - 2026-09-10: Ingested `resource/document/raw/patterns/backend/Example of API and Socket Registration.md`; added [[patterns/backend/example-of-api-and-socket-registration]] and [[patterns/backend/index]], and updated the wiki index.
 - 2026-09-11: Added [[patterns/frontend/socket-io-service-and-hook-wiring]] documenting frontend Socket.IO connection, event, response, cleanup, and cache wiring; marked the removed debounce coordinator decision as superseded and updated wiki indexes.
+- 2026-09-12: Temporarily removed backend `baseVersion` checks and atomic collection-file replacement in favor of serialized direct writes; retained response content hashes and `CollectionHistory.old_hash`/`new_hash`, and updated affected decisions and patterns.

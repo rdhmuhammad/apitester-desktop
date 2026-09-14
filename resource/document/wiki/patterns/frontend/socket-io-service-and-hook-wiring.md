@@ -1,8 +1,8 @@
-	 # Socket.IO Service and Hook Wiring
+# Socket.IO Service and Hook Wiring
 
 **Summary**: Frontend Socket.IO features separate connection creation from event services and React hooks. Request-response events are emitted with typed payloads, correlated through operation names, and reflected in the TanStack Query cache.
 **Sources**: `frontend/src/pages/editor/services/mainSocket.ts`, `frontend/src/pages/editor/components/RequestConfig/services/requestConfig.ts`, `frontend/src/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts`, `internal/adapter/socket/restrequest/restrequest.go`, `internal/adapter/socket/restrequest/dto.go`
-**Last updated**: 2026-09-11
+**Last updated**: 2026-09-12
 
 ---
 
@@ -39,13 +39,12 @@ The frontend event name must match the backend's `RequestEvent.Name()` result. T
 - `restrequest:error`
 - `restrequest:success`
 
-Mutation payloads include the request identity and the version token expected by the backend:
+Mutation payloads include the request identity and operation data. The frontend may still send the legacy `baseVersion` property, but the backend DTOs ignore it:
 
 ```ts
 {
   collectionId,
   requestId,
-  baseVersion,
   method,
 }
 ```
@@ -92,14 +91,13 @@ The feature hook should continue to own query reads, optimistic cache updates, a
 queryClient.setQueryData(queryKey, optimisticRequest)
 
 void RequestConfigServices.updateMethod(collectionId, requestId, {
-  baseVersion: current.version,
   method,
 }).then(next => {
   queryClient.setQueryData(queryKey, next)
 })
 ```
 
-The backend owns ordering and optimistic-version conflict handling. Do not add a frontend debounce or serialized coordinator when the backend is responsible for those concerns. On success, replace the optimistic value with the server response so the cache contains the authoritative version. On failure, expose the error through the hook and decide explicitly whether the feature should roll back or refetch.
+The backend mutex orders mutations handled by one usecase instance, but the backend currently performs no optimistic-version conflict handling. Do not assume a returned hash prevents stale writes. On success, replace the optimistic value with the server response so the cache contains the latest content hash. On failure, expose the error through the hook and decide explicitly whether the feature should roll back or refetch.
 
 Reads can remain HTTP-backed when the socket module only defines mutation events. This allows the existing `useQuery` loading and initial-data flow to remain unchanged while writes use Socket.IO.
 

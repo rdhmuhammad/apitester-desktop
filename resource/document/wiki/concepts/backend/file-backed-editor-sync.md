@@ -1,8 +1,8 @@
 # File-Backed Editor Synchronization
 
-**Summary**: The editor treats files on disk as canonical and uses the Go service to coordinate IDE edits with external filesystem changes. Version checks, hashes, atomic writes, and serialized file coordination prevent silent overwrites.
+**Summary**: This design target treats files on disk as canonical and uses version checks, hashes, atomic writes, and serialized coordination to prevent silent overwrites. The current backend temporarily implements only serialized coordination and content hashing.
 **Sources**: `resource/document/raw/concepts/backend/IDE Like File Editor Design.md`
-**Last updated**: 2026-09-08
+**Last updated**: 2026-09-12
 
 ---
 
@@ -22,7 +22,7 @@ When an edit's base version is stale, the service must not overwrite the current
 
 ## API Tester Application
 
-The first application of this model is [[decisions/file-backed-restrequest-editing]]. The `restrequest` service updates request URLs and headers in collection files using a SHA-256 content version and atomic writes. Per-file actors, watcher integration, and persistent journals are intentionally deferred.
+The first application of this model is [[decisions/file-backed-restrequest-editing]]. The `restrequest` and collection services still calculate SHA-256 content identities for responses and history, but as of 2026-09-12 they do not compare `baseVersion` and use direct file writes rather than atomic replacement. This is a temporary divergence from the safe-coordination model above. Per-file actors, watcher integration, and persistent journals remain deferred.
 
 ## Related Pages
 

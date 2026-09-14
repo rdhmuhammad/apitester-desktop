@@ -1,12 +1,12 @@
 # Debounced Request Configuration Mutations
 
-**Summary**: Historical decision for the removed frontend debounce and mutation coordinator. Request configuration writes now use Socket.IO, with ordering and version conflict handling owned by the backend.
+**Summary**: Historical decision for the removed frontend debounce and mutation coordinator. Request configuration writes now use Socket.IO; the backend serializes writes but currently performs no version conflict check.
 **Sources**: `frontend/src/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts`
-**Last updated**: 2026-09-11
+**Last updated**: 2026-09-12
 
 ---
 
-> **Superseded**: The coordinator was removed on 2026-09-11. See [[patterns/frontend/socket-io-service-and-hook-wiring]] for the current wiring pattern.
+> **Superseded**: The coordinator was removed on 2026-09-11. Its `baseVersion` conflict assumptions also stopped applying when backend checks were removed on 2026-09-12. See [[patterns/frontend/socket-io-service-and-hook-wiring]] for the current wiring pattern.
 
 ## Decision
 
@@ -20,7 +20,7 @@ Each field update follows this sequence:
 4. Append the mutation to the shared promise queue.
 5. Store the returned version and response in the cache after success.
 
-The queue serializes writes across fields, while field-specific timers prevent rapid edits to one field from producing unnecessary requests. Mutations send the coordinator's latest `baseVersion`, allowing the backend's optimistic version checks to reject stale writes.
+The queue serialized writes across fields, while field-specific timers prevented rapid edits to one field from producing unnecessary requests. Mutations sent the coordinator's latest `baseVersion`, which the backend used at the time to reject stale writes.
 
 The hook owns the wiring for method, URL, headers, query parameters, JSON body, multipart form-data body, and post-request script updates. It also cancels pending timers, waits for queued writes, deletes with the latest version, and removes the query cache when a request is deleted.
 
@@ -74,7 +74,7 @@ function updateUrl(url: RequestURL) {
 }
 ```
 
-In this example, `queryClient.setQueryData` is for immediate UI feedback, `enqueue` is for reducing and ordering writes, and `RequestConfigServices.updateUrl` is the actual API call. The `baseVersion` prevents the backend from accepting an update based on an older request file.
+In this historical example, `queryClient.setQueryData` provided immediate UI feedback, `enqueue` reduced and ordered writes, and `RequestConfigServices.updateUrl` performed the API call. The shown `baseVersion` no longer has backend conflict semantics.
 
 Deletion follows the opposite order: cancel timers, await `coordinator.queue`, delete with the latest `coordinator.version`, then remove the cached request.
 

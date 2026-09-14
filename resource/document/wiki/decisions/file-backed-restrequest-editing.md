@@ -1,8 +1,8 @@
 # File-Backed Rest Request Editing
 
-**Summary**: Request definitions remain canonical in the collection file on the filesystem. The `restrequest` service coordinates safe request edits with optimistic version checks, while bbolt stores only collection metadata.
-**Sources**: `resource/document/raw/concepts/backend/IDE Like File Editor Design.md`
-**Last updated**: 2026-09-08
+**Summary**: Request definitions remain canonical in the collection file on the filesystem. Backend mutations are currently serialized and written directly without optimistic version checks, while SHA-256 hashes remain available for responses and history.
+**Sources**: `resource/document/raw/concepts/backend/IDE Like File Editor Design.md`, `shared/base/port.go`, `internal/service/restrequest/usecase.go`, `internal/service/collection/usecase.go`
+**Last updated**: 2026-09-12
 
 ---
 
@@ -22,13 +22,13 @@ The initial endpoints are:
 - `PUT /restrequest/:collectionId/:requestId/script/post-request`
 - `DELETE /restrequest/:collectionId/:requestId`
 
-Update requests include `baseVersion`. The service derives the version from the SHA-256 hash of the current collection file and rejects stale updates instead of silently overwriting changes.
+The initial implementation required `baseVersion` and rejected stale updates. This check was temporarily removed on 2026-09-12: backend mutation DTOs no longer accept a version token, and stale clients are not rejected. SHA-256 versions remain in read and mutation responses and in [[decisions/collection-history-for-restrequest-mutations]].
 
 ## Storage And Writes
 
 - The filesystem remains the source of truth for collection and request content.
 - bbolt continues to store collection metadata, including `UpdatedAt`, but not request bodies.
-- Writes use a temporary file, `Sync`, close, and atomic rename.
+- Collection mutations write serialized JSON directly with `os.WriteFile`.
 - Service writes are serialized with a usecase mutex during this initial implementation.
 - New headers receive stable IDs when the client does not provide one.
 
@@ -38,7 +38,7 @@ The first implementation deliberately does not add per-file actors, persistent r
 
 ## Consequences
 
-Clients must read the current request and send its returned `version` when updating. A stale client receives a validation error and must reload before retrying. This prevents the initial API from losing external filesystem edits, while leaving room to replace the mutex and hash token with a per-file actor and monotonic metadata version later.
+Clients do not need to send a version when updating. The mutex still orders mutations handled by one usecase instance, but without a compare step the latest backend write can overwrite an external edit or a write based on older state. Direct writes also expose the destination file to partial-write risk if persistence is interrupted. Returned versions and history hashes are informational content identities, not concurrency guards.
 
 ## Related Pages
 

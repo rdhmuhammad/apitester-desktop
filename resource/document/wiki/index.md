@@ -41,12 +41,12 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 ## Decisions
 
 - [[decisions/index]] - Technical decisions recorded for the codebase.
-- [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with atomic writes, optimistic version checks, and the REST-backed frontend editor.
-- [[decisions/collection-history-for-restrequest-mutations]] - Proposed `collection_history` audit records for successful REST request mutations.
+- [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with serialized direct writes and no current version check.
+- [[decisions/collection-history-for-restrequest-mutations]] - `collection_history` audit records preserving old and new content hashes for successful mutations.
 - [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.
 
 ## Concepts
 
 - [[concepts/index]] - Reusable domain and codebase concepts.
-- [[concepts/backend/file-backed-editor-sync]] - Filesystem-backed editor coordination, versioning, hashing, and conflict handling.
+- [[concepts/backend/file-backed-editor-sync]] - Target design for filesystem-backed editor coordination, versioning, hashing, and conflict handling.
 - [[concepts/frontend/redux-toolkit]] - Modern Redux Toolkit structure, state boundaries, and data flow.
