@@ -17,7 +17,7 @@ func TestRequestUpdateNameContract(t *testing.T) {
 	if payload.CollectionID != "collection-id" || payload.RequestID != "request-id" {
 		t.Fatalf("decoded identity = %#v", payload.RequestIdentity)
 	}
-	if payload.BaseVersion != "version" || payload.Name != "New name" {
+	if payload.Name != "New name" {
 		t.Fatalf("decoded update = %#v", payload.UpdateNameRequest)
 	}
 }

@@ -26,7 +26,7 @@ type Usecase interface {
 	UpdatePreScript(req service.UpdatePreScriptRequest) (service.UpdatePreScriptResponse, error)
 	CreateVariable(req service.CreateVariableRequest) (service.CreateVariableResponse, error)
 	UpdateVariable(id string, req service.UpdateVariableRequest) (service.CreateVariableResponse, error)
-	DeleteVariable(id string, req service.DeleteVariableRequest) (service.CreateVariableResponse, error)
+	DeleteVariable(id string) (service.CreateVariableResponse, error)
 	UploadCollection(id string, fileBytes []byte) error
 }
 
@@ -133,12 +133,7 @@ func (ctrl Controller) UpdateVariable(c *gin.Context) {
 }
 
 func (ctrl Controller) DeleteVariable(c *gin.Context) {
-	var req service.DeleteVariableRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
-		return
-	}
-	res, err := ctrl.usecase.DeleteVariable(c.Param("id"), req)
+	res, err := ctrl.usecase.DeleteVariable(c.Param("id"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Variable deleted"), err)
 }
 

@@ -96,7 +96,6 @@ type RequestUpdateScriptPayload struct {
 
 type RequestDeletePayload struct {
 	RequestIdentity
-	service.DeleteRequest
 }
 
 func decodeRequestPayload(msg []any, target any) {

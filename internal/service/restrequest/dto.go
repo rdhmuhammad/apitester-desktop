@@ -15,52 +15,39 @@ type RequestResponse struct {
 }
 
 type UpdateURLRequest struct {
-	BaseVersion string                       `json:"baseVersion" binding:"required"`
-	URL         collectionService.RequestURL `json:"url"`
+	URL collectionService.RequestURL `json:"url"`
 }
 
 type UpdateHeadersRequest struct {
-	BaseVersion string                     `json:"baseVersion" binding:"required"`
-	Headers     []collectionService.Header `json:"headers"`
+	Headers []collectionService.Header `json:"headers"`
 }
 
 type UpdateAuthorizationRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
-	Type        string `json:"type"`
-	Token       string `json:"token,omitempty"`
+	Type  string `json:"type"`
+	Token string `json:"token,omitempty"`
 }
 
 type UpdateMethodRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
-	Method      string `json:"method"`
+	Method string `json:"method"`
 }
 
 type UpdateNameRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
-	Name        string `json:"name"`
+	Name string `json:"name"`
 }
 
 type UpdateQueryRequest struct {
-	BaseVersion string                       `json:"baseVersion" binding:"required"`
-	Query       []collectionService.Property `json:"query"`
+	Query []collectionService.Property `json:"query"`
 }
 
 type UpdateJSONBodyRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
-	Raw         string `json:"raw"`
+	Raw string `json:"raw"`
 }
 
 type UpdateFormDataBodyRequest struct {
-	BaseVersion string                       `json:"baseVersion" binding:"required"`
-	FormData    []collectionService.Property `json:"formdata"`
+	FormData []collectionService.Property `json:"formdata"`
 }
 
 type UpdatePostRequestScriptRequest struct {
-	BaseVersion string   `json:"baseVersion" binding:"required"`
-	Exec        []string `json:"exec"`
-	Type        string   `json:"type"`
-}
-
-type DeleteRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
+	Exec []string `json:"exec"`
+	Type string   `json:"type"`
 }

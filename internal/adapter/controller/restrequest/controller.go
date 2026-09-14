@@ -14,7 +14,7 @@ import (
 type Usecase interface {
 	CreateRequest(collectionID string) (service.RequestResponse, error)
 	Get(collectionID, requestID string) (service.RequestResponse, error)
-	Delete(collectionID, requestID string, req service.DeleteRequest) (service.RequestResponse, error)
+	Delete(collectionID, requestID string) (service.RequestResponse, error)
 }
 
 type Controller struct {
@@ -37,13 +37,7 @@ func (ctrl Controller) Get(c *gin.Context) {
 }
 
 func (ctrl Controller) Delete(c *gin.Context) {
-	var req service.DeleteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
-		return
-	}
-
-	res, err := ctrl.usecase.Delete(c.Param("collectionId"), c.Param("requestId"), req)
+	res, err := ctrl.usecase.Delete(c.Param("collectionId"), c.Param("requestId"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request deleted"), err)
 }
 

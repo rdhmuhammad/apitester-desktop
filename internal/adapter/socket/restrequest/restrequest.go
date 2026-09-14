@@ -20,7 +20,7 @@ type Usecase interface {
 	UpdateJSONBody(collectionID, requestID string, req service.UpdateJSONBodyRequest) (service.RequestResponse, error)
 	UpdateFormDataBody(collectionID, requestID string, req service.UpdateFormDataBodyRequest) (service.RequestResponse, error)
 	UpdatePostRequestScript(collectionID, requestID string, req service.UpdatePostRequestScriptRequest) (service.RequestResponse, error)
-	Delete(collectionID, requestID string, req service.DeleteRequest) (service.RequestResponse, error)
+	Delete(collectionID, requestID string) (service.RequestResponse, error)
 }
 
 type RequestSocket struct {
@@ -167,7 +167,7 @@ func (s *RequestSocket) Delete(_ *cio.NS, client *socket.Socket, message cio.Mes
 		s.emitError(client, RequestDelete.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.Delete(collectionID, requestID, payload.DeleteRequest)
+	res, err := s.usecase.Delete(collectionID, requestID)
 	s.emitResult(client, RequestDelete.Name(), res, err)
 }
 

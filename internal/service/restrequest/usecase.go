@@ -81,9 +81,6 @@ func (u *Usecase) UpdateURL(collectionID, requestID string, req UpdateURLRequest
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if u.Version(content) != req.BaseVersion {
-		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
-	}
 	item := findRequest(docs.Item, requestID)
 	if item == nil || item.Request == nil {
 		return RequestResponse{}, localerror.InvalidData("Request not found")
@@ -109,9 +106,6 @@ func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeader
 	collection, docs, content, err := u.loadCollection(collectionID)
 	if err != nil {
 		return RequestResponse{}, err
-	}
-	if u.Version(content) != req.BaseVersion {
-		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
 	}
 
 	item := findRequest(docs.Item, requestID)
@@ -140,9 +134,6 @@ func (u *Usecase) UpdateAuthorization(collectionID, requestID string, req Update
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	if u.Version(content) != req.BaseVersion {
-		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
-	}
 
 	item := findRequest(docs.Item, requestID)
 	if item == nil || item.Request == nil {
@@ -168,7 +159,7 @@ func (u *Usecase) UpdateAuthorization(collectionID, requestID string, req Update
 }
 
 func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodRequest) (RequestResponse, error) {
-	return u.update(collectionID, requestID, req.BaseVersion, "update_method", "request.method", req.Method,
+	return u.update(collectionID, requestID, "update_method", "request.method", req.Method,
 		func(item *collectionService.CollectionItem) any {
 			old := item.Request.Method
 			item.Request.Method = req.Method
@@ -177,7 +168,7 @@ func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodR
 }
 
 func (u *Usecase) UpdateName(collectionID, requestID string, req UpdateNameRequest) (RequestResponse, error) {
-	return u.update(collectionID, requestID, req.BaseVersion, "update_name", "name", req.Name,
+	return u.update(collectionID, requestID, "update_name", "name", req.Name,
 		func(item *collectionService.CollectionItem) any {
 			old := item.Name
 			item.Name = req.Name
@@ -221,7 +212,7 @@ func setAuthorizationHeader(headers []collectionService.Header, token string, re
 }
 
 func (u *Usecase) UpdateQuery(collectionID, requestID string, req UpdateQueryRequest) (RequestResponse, error) {
-	return u.update(collectionID, requestID, req.BaseVersion, "update_query", "request.url.query", req.Query,
+	return u.update(collectionID, requestID, "update_query", "request.url.query", req.Query,
 		func(item *collectionService.CollectionItem) any {
 			old := item.Request.URL.Query
 			item.Request.URL.Query = req.Query
@@ -231,7 +222,7 @@ func (u *Usecase) UpdateQuery(collectionID, requestID string, req UpdateQueryReq
 
 func (u *Usecase) UpdateJSONBody(collectionID, requestID string, req UpdateJSONBodyRequest) (RequestResponse, error) {
 	body := &collectionService.RequestBody{Mode: "raw", Raw: req.Raw}
-	return u.update(collectionID, requestID, req.BaseVersion, "update_body_json", "request.body", body,
+	return u.update(collectionID, requestID, "update_body_json", "request.body", body,
 		func(item *collectionService.CollectionItem) any {
 			old := item.Request.Body
 			item.Request.Body = body
@@ -241,7 +232,7 @@ func (u *Usecase) UpdateJSONBody(collectionID, requestID string, req UpdateJSONB
 
 func (u *Usecase) UpdateFormDataBody(collectionID, requestID string, req UpdateFormDataBodyRequest) (RequestResponse, error) {
 	body := &collectionService.RequestBody{Mode: "formdata", FormData: req.FormData}
-	return u.update(collectionID, requestID, req.BaseVersion, "update_body_formdata", "request.body", body,
+	return u.update(collectionID, requestID, "update_body_formdata", "request.body", body,
 		func(item *collectionService.CollectionItem) any {
 			old := item.Request.Body
 			item.Request.Body = body
@@ -254,7 +245,7 @@ func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req Up
 	if script.Type == "" {
 		script.Type = "text/javascript"
 	}
-	return u.update(collectionID, requestID, req.BaseVersion, "update_post_request_script", "event.script", script,
+	return u.update(collectionID, requestID, "update_post_request_script", "event.script", script,
 		func(item *collectionService.CollectionItem) any {
 			for i := range item.Event {
 				if strings.EqualFold(item.Event[i].Listen, "test") || strings.EqualFold(item.Event[i].Listen, "post-request") {
@@ -268,16 +259,13 @@ func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req Up
 		})
 }
 
-func (u *Usecase) Delete(collectionID, requestID string, req DeleteRequest) (RequestResponse, error) {
+func (u *Usecase) Delete(collectionID, requestID string) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
 	collection, docs, content, err := u.loadCollection(collectionID)
 	if err != nil {
 		return RequestResponse{}, err
-	}
-	if u.Version(content) != req.BaseVersion {
-		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before deleting")
 	}
 
 	var deleted *collectionService.CollectionItem
@@ -298,7 +286,7 @@ func (u *Usecase) Delete(collectionID, requestID string, req DeleteRequest) (Req
 	return deletedResponse, nil
 }
 
-func (u *Usecase) update(collectionID, requestID, baseVersion, operation, field string, newValue any, apply func(*collectionService.CollectionItem) any) (RequestResponse, error) {
+func (u *Usecase) update(collectionID, requestID, operation, field string, newValue any, apply func(*collectionService.CollectionItem) any) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
@@ -307,9 +295,6 @@ func (u *Usecase) update(collectionID, requestID, baseVersion, operation, field 
 		return RequestResponse{}, err
 	}
 
-	if u.Version(content) != baseVersion {
-		return RequestResponse{}, localerror.InvalidData("Request has changed; reload before updating")
-	}
 	item := findRequest(docs.Item, requestID)
 	if item == nil || item.Request == nil {
 		return RequestResponse{}, localerror.InvalidData("Request not found")

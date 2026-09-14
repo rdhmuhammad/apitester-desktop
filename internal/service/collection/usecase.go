@@ -312,9 +312,6 @@ func (u *Usecase) UpdatePreScript(req UpdatePreScriptRequest) (UpdatePreScriptRe
 	if err != nil {
 		return UpdatePreScriptResponse{}, err
 	}
-	if u.Version(oldContent) != req.BaseVersion {
-		return UpdatePreScriptResponse{}, localerror.InvalidData("Collection has changed; reload before updating")
-	}
 
 	var docs DocsContent
 	if err := json.Unmarshal(oldContent, &docs); err != nil {
@@ -358,8 +355,7 @@ func (u *Usecase) UpdatePreScript(req UpdatePreScriptRequest) (UpdatePreScriptRe
 	}, nil
 }
 
-// CreateVariable creates a new collection variable with optimistic concurrency.
-// Behaviour mirrors restrequest management: version check, mutex, atomic save and history.
+// CreateVariable creates a new collection variable and records its history.
 func (u *Usecase) CreateVariable(req CreateVariableRequest) (CreateVariableResponse, error) {
 	if strings.TrimSpace(req.Key) == "" {
 		return CreateVariableResponse{}, localerror.InvalidData("Variable key is required")
@@ -376,9 +372,6 @@ func (u *Usecase) CreateVariable(req CreateVariableRequest) (CreateVariableRespo
 	collection, oldContent, err := u.LoadCollection(selected.ID)
 	if err != nil {
 		return CreateVariableResponse{}, err
-	}
-	if u.Version(oldContent) != req.BaseVersion {
-		return CreateVariableResponse{}, localerror.InvalidData("Collection has changed; reload before updating")
 	}
 
 	var docs DocsContent
@@ -454,9 +447,6 @@ func (u *Usecase) UpdateVariable(variableID string, req UpdateVariableRequest) (
 	if err != nil {
 		return CreateVariableResponse{}, err
 	}
-	if u.Version(oldContent) != req.BaseVersion {
-		return CreateVariableResponse{}, localerror.InvalidData("Collection has changed; reload before updating")
-	}
 
 	var docs DocsContent
 	if err := json.Unmarshal(oldContent, &docs); err != nil {
@@ -507,7 +497,7 @@ func (u *Usecase) UpdateVariable(variableID string, req UpdateVariableRequest) (
 	return CreateVariableResponse{Variable: *updatedVar, Version: u.Version(saved)}, nil
 }
 
-func (u *Usecase) DeleteVariable(variableID string, req DeleteVariableRequest) (CreateVariableResponse, error) {
+func (u *Usecase) DeleteVariable(variableID string) (CreateVariableResponse, error) {
 	if strings.TrimSpace(variableID) == "" {
 		return CreateVariableResponse{}, localerror.InvalidData("Variable ID is required")
 	}
@@ -522,9 +512,6 @@ func (u *Usecase) DeleteVariable(variableID string, req DeleteVariableRequest) (
 	collection, oldContent, err := u.LoadCollection(selected.ID)
 	if err != nil {
 		return CreateVariableResponse{}, err
-	}
-	if u.Version(oldContent) != req.BaseVersion {
-		return CreateVariableResponse{}, localerror.InvalidData("Collection has changed; reload before deleting")
 	}
 
 	var docs DocsContent

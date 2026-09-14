@@ -50,8 +50,7 @@ func TestUpdateNamePersistsNestedRequestAndRecordsHistory(t *testing.T) {
 	}
 
 	updated, err := usecase.UpdateName(collection.ID, "request-id", UpdateNameRequest{
-		BaseVersion: usecase.Version(content),
-		Name:        "New name",
+		Name: "New name",
 	})
 	if err != nil {
 		t.Fatalf("UpdateName() error = %v", err)
@@ -89,5 +88,11 @@ func TestUpdateNamePersistsNestedRequestAndRecordsHistory(t *testing.T) {
 	}
 	if string(entry.OldValue) != `"Old name"` || string(entry.NewValue) != `"New name"` {
 		t.Fatalf("history values = %s -> %s", entry.OldValue, entry.NewValue)
+	}
+	if entry.OldHash != usecase.Version(content) {
+		t.Fatalf("history old hash = %q, want %q", entry.OldHash, usecase.Version(content))
+	}
+	if entry.NewHash != usecase.Version(savedContent) {
+		t.Fatalf("history new hash = %q, want %q", entry.NewHash, usecase.Version(savedContent))
 	}
 }

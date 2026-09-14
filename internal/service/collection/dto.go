@@ -110,9 +110,8 @@ type EventScript struct {
 }
 
 type UpdatePreScriptRequest struct {
-	BaseVersion string   `json:"baseVersion" binding:"required"`
-	Exec        []string `json:"exec"`
-	Type        string   `json:"type"`
+	Exec []string `json:"exec"`
+	Type string   `json:"type"`
 }
 
 type UpdatePreScriptResponse struct {
@@ -145,10 +144,9 @@ type CollectionVar struct {
 }
 
 type CreateVariableRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
-	Key         string `json:"key" binding:"required"`
-	Value       string `json:"value"`
-	Type        string `json:"type"`
+	Key   string `json:"key" binding:"required"`
+	Value string `json:"value"`
+	Type  string `json:"type"`
 }
 
 type CreateVariableResponse struct {
@@ -157,12 +155,7 @@ type CreateVariableResponse struct {
 }
 
 type UpdateVariableRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
-	Key         string `json:"key" binding:"required"`
-	Value       string `json:"value"`
-	Type        string `json:"type"`
-}
-
-type DeleteVariableRequest struct {
-	BaseVersion string `json:"baseVersion" binding:"required"`
+	Key   string `json:"key" binding:"required"`
+	Value string `json:"value"`
+	Type  string `json:"type"`
 }

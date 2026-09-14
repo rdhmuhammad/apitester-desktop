@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +19,7 @@ import (
 )
 
 // Port is a reusable base that provides collection file handling,
-// versioning (sha256), atomic persistence and history recording.
+// content hashing, persistence and history recording.
 // Embed this struct in usecases to reuse the same behaviour across
 // restrequest, collection variable and other collection-mutating flows.
 //
@@ -71,11 +70,11 @@ func (p *Port) LoadCollection(id string) (*domain.Collection, []byte, error) {
 	return collection, content, nil
 }
 
-// SaveCollection atomically writes content to the collection file and
-// updates the collection's UpdatedAt timestamp in the repository.
+// SaveCollection writes content to the collection file and updates the
+// collection's UpdatedAt timestamp in the repository.
 // Content must already be marshalled (e.g. via json.MarshalIndent).
 func (p *Port) SaveCollection(collection *domain.Collection, content []byte) ([]byte, error) {
-	if err := atomicWrite(collection.Path, content); err != nil {
+	if err := os.WriteFile(collection.Path, content, 0644); err != nil {
 		return nil, p.ErrHandler.ErrorReturn(err)
 	}
 	collection.UpdatedAt = time.Now()
@@ -86,7 +85,6 @@ func (p *Port) SaveCollection(collection *domain.Collection, content []byte) ([]
 }
 
 // Version returns the hex-encoded sha256 hash of the file content.
-// It is used for optimistic concurrency control (baseVersion checks).
 func (p *Port) Version(content []byte) string {
 	hash := sha256.Sum256(content)
 	return hex.EncodeToString(hash[:])
@@ -159,11 +157,9 @@ func (p *Port) MutationLine(content []byte, searchID, field string) int {
 	return requestLine
 }
 
-// Update executes the classic optimistic-locking mutation pattern
-// (previously at restrequest/usecase.go:203). It locks WriteMu, loads
-// the collection, checks BaseVersion, runs the caller-provided apply
-// callback that should mutate the unmarshalled docs and return oldValue,
-// then persists and records history.
+// Update executes the collection mutation pattern. It locks WriteMu,
+// loads the collection, runs the caller-provided apply callback, then
+// persists and records history.
 //
 // apply receives the raw oldContent and is expected to return:
 // - oldValue: value before mutation (for history)
@@ -171,18 +167,15 @@ func (p *Port) MutationLine(content []byte, searchID, field string) int {
 // - newContent: marshalled updated file content
 // - err: if non-nil the update is aborted.
 //
-// This keeps the critical section generic while reusing versioning,
-// history and atomic write logic via Port.
-func (p *Port) Update(collectionID, requestID, baseVersion, operation, field string, apply func(oldContent []byte) (oldValue any, newValue any, newContent []byte, err error)) ([]byte, error) {
+// This keeps the critical section generic while reusing history and
+// collection persistence via Port.
+func (p *Port) Update(collectionID, requestID, operation, field string, apply func(oldContent []byte) (oldValue any, newValue any, newContent []byte, err error)) ([]byte, error) {
 	p.WriteMu.Lock()
 	defer p.WriteMu.Unlock()
 
 	collection, oldContent, err := p.LoadCollection(collectionID)
 	if err != nil {
 		return nil, err
-	}
-	if p.Version(oldContent) != baseVersion {
-		return nil, localerror.InvalidData("Request has changed; reload before updating")
 	}
 	oldValue, newValue, newContent, err := apply(oldContent)
 	if err != nil {
@@ -196,32 +189,4 @@ func (p *Port) Update(collectionID, requestID, baseVersion, operation, field str
 		return nil, err
 	}
 	return saved, nil
-}
-
-// atomicWrite writes content to path atomically via a temp file and
-// rename. It is extracted from restrequest/atomic_write.go.
-func atomicWrite(path string, content []byte) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".apitester-*")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-
-	if err := tmp.Chmod(0644); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(content); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, path)
 }

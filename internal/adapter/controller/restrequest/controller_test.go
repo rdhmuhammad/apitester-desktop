@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +14,6 @@ import (
 type createRequestUsecaseStub struct {
 	collectionID        string
 	requestID           string
-	deleteRequest       service.DeleteRequest
 	deleteRequestCalled bool
 }
 
@@ -28,10 +26,9 @@ func (stub *createRequestUsecaseStub) Get(_, _ string) (service.RequestResponse,
 	return service.RequestResponse{}, nil
 }
 
-func (stub *createRequestUsecaseStub) Delete(collectionID, requestID string, req service.DeleteRequest) (service.RequestResponse, error) {
+func (stub *createRequestUsecaseStub) Delete(collectionID, requestID string) (service.RequestResponse, error) {
 	stub.collectionID = collectionID
 	stub.requestID = requestID
-	stub.deleteRequest = req
 	stub.deleteRequestCalled = true
 	return service.RequestResponse{ID: requestID, Version: "next-version"}, nil
 }
@@ -72,12 +69,7 @@ func TestDeleteRequestRoute(t *testing.T) {
 	controller.Route(router.Group(""))
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(
-		http.MethodDelete,
-		"/restrequest/collection-id/request-id",
-		strings.NewReader(`{"baseVersion":"current-version"}`),
-	)
-	request.Header.Set("Content-Type", "application/json")
+	request := httptest.NewRequest(http.MethodDelete, "/restrequest/collection-id/request-id", nil)
 	router.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
@@ -92,10 +84,6 @@ func TestDeleteRequestRoute(t *testing.T) {
 	if stub.requestID != "request-id" {
 		t.Fatalf("request ID = %q, want %q", stub.requestID, "request-id")
 	}
-	if stub.deleteRequest.BaseVersion != "current-version" {
-		t.Fatalf("base version = %q, want %q", stub.deleteRequest.BaseVersion, "current-version")
-	}
-
 	var response struct {
 		Data service.RequestResponse `json:"data"`
 	}
