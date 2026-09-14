@@ -20,6 +20,10 @@ import {selectCollectionId, selectEditorActiveTabId} from "@/app/slices/editorTa
 import {selectResponseByRequestId} from "@/app/slices/restApiSlice.ts";
 import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
 import CustomToast from "@/components/common/toast";
+import type {ScriptLog} from "@/types/response.ts";
+
+const EMPTY_LOGS: ScriptLog[] = []
+const EMPTY_MUTATIONS: Record<string, string | null> = {}
 
 const SectionHeader: React.FC<{
     label: string
@@ -43,7 +47,7 @@ const SectionHeader: React.FC<{
     </CollapsibleTrigger>
 )
 
-const LogEntry: React.FC<{ log: { type: string; message: string; timestamp: number } }> = ({ log }) => {
+const LogEntry: React.FC<{ log: ScriptLog }> = ({ log }) => {
     const time = new Date(log.timestamp).toISOString().slice(11, 23)
     const colors: Record<string, string> = {
         error: "text-red-400",
@@ -66,9 +70,9 @@ const ResponseView: React.FC = () => {
     const currResponse = useAppSelector((state) => selectResponseByRequestId(state, activeTabId))
     const {request, saveResponse} = useRequestConfig(collectionId ?? "", activeTabId)
     const [isSaving, setIsSaving] = useState(false)
-    const scriptResult: unknown = null
-    const scriptLogs: Array<{type: string; message: string; timestamp: number}> = []
-    const scriptMutations: Record<string, string | null> = {}
+    const scriptResult = currResponse?.result
+    const scriptLogs = currResponse?.logs ?? EMPTY_LOGS
+    const scriptMutations = currResponse?.mutations ?? EMPTY_MUTATIONS
     const examples = request?.responses ?? []
 
     const [sourceTab, setSourceTab] = useState("actual")

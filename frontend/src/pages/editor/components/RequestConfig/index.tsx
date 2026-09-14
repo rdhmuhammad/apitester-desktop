@@ -44,11 +44,35 @@ const RequestConfigTabs: React.FC = () => {
     const query = request?.query ?? []
     const headers = request?.headers ?? []
     const headerShow = showSysHeader ? headers : headers.filter((item) =>
-        !["content-type", "user-agent", "accept"].includes(item.key.toLowerCase()))
-    const hasBody = !!request?.body
+        !["user-agent", "accept"].includes(item.key.toLowerCase()))
+    const contentTypeHeader = headers.find((item) => item.key.toLowerCase() === "content-type")
+    const hasBody = !!contentTypeHeader && !contentTypeHeader.disabled
 
     const updateQueryItem = (next: ItemUrl) => updateQuery(query.map((item) => item.id === next.id ? next : item))
     const updateHeaderItem = (next: ItemUrl) => updateHeaders(headers.map((item) => item.id === next.id ? next : item))
+
+    const handleToggleBody = () => {
+        const existingHeader = headers.find((item) => item.key.toLowerCase() === "content-type")
+        if (existingHeader) {
+            updateHeaders(
+                headers.map((item) =>
+                    item.key.toLowerCase() === "content-type"
+                        ? {...item, disabled: hasBody}
+                        : item
+                )
+            )
+        } else {
+            updateHeaders([
+                ...headers,
+                {
+                    id: crypto.randomUUID(),
+                    key: "Content-Type",
+                    value: contentType,
+                    disabled: false,
+                },
+            ])
+        }
+    }
 
     return (
         <section className="rounded-b-xl border border-border bg-card shadow-sm">
@@ -204,7 +228,8 @@ const RequestConfigTabs: React.FC = () => {
                                     updateHeaders([...headers, {
                                         id: crypto.randomUUID(),
                                         key: newHeaderKey.trim(),
-                                        value: newHeaderValue
+                                        value: newHeaderValue,
+                                        disabled: false,
                                     }]);
                                     setNewHeaderKey("");
                                     setNewHeaderValue("")
@@ -239,7 +264,7 @@ const RequestConfigTabs: React.FC = () => {
                                        className="text-slate-600">{contentType}</Badge>
                                 <Button
                                     type="button" variant="ghost" size="sm"
-                                    onClick={() => contentType === "application/json" ? updateJsonBody("") : updateFormDataBody([])}
+                                    onClick={handleToggleBody}
                                     className="h-8 w-8 p-0">{hasBody ?
                                     <ToggleRight className="h-4 w-4 text-emerald-600"/> :
                                     <ToggleLeft className="h-4 w-4 text-slate-400"/>}

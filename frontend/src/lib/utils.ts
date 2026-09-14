@@ -19,8 +19,8 @@ export function getJsonSizeInKB(data: Record<string, any> | string): string {
 
 export const getContentType = (currRequest: CollectionItem | null) => {
     if (!currRequest) return '';
-    let header = currRequest?.request
-        ?.header?.filter(h => h?.key === 'Content-Type') ?? [];
+    const header = currRequest?.request
+        ?.header?.filter(h => h?.key.toLowerCase() === 'content-type' && !h.disabled) ?? [];
     if (header.length > 0) {
         return header[0].value;
     }

@@ -19,14 +19,19 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {LoaderCircle, Plus, Send, Trash2} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {removeEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
-import {setResponse} from "@/app/slices/restApiSlice.ts";
+import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
-import {buildRawRequest, parseBlobResponse, type ISendRequest, useSendRequest as sendRequest} from "@/layout/hooks/useSendRequest.ts";
+import {
+    buildRawRequest,
+    type ISendRequest,
+    parseBlobResponse,
+    useSendRequest as sendRequest
+} from "@/layout/hooks/useSendRequest.ts";
 import {runScript} from "@/layout/hooks/useScriptRunner.ts";
 import CustomToast from "@/components/common/toast";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
-import type { RequestHeaderHandle } from "../types/HeaderSync";
+import type {RequestHeaderHandle} from "../types/HeaderSync";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
 
@@ -41,7 +46,16 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
         .filter(Boolean)
     const {request, updateMethod, updateUrl, updateQuery, deleteRequest} =
         useRequestConfig(activeCollection?.id ?? "", activeTabId)
-    const currRequest = request ? {id: request.id, name: request.name, request: {method: request.method, header: request.headers, url: request.url, body: request.body}} : null
+    const currRequest = request ? {
+        id: request.id,
+        name: request.name,
+        request: {
+            method: request.method,
+            header: request.headers,
+            url: request.url,
+            body: request.body
+        }
+    } : null
     const baseUrlOptions = baseUrls
     const scriptValue = request?.script ?? ""
     const collectionData = activeCollection
@@ -140,6 +154,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             method: requestMethod,
             headers: (currRequest?.request?.header ?? [])
                 .filter(h => !h.disabled)
+                .filter(h => h.key.toLowerCase() !== 'Content-Type'.toLowerCase())
                 .map((header) => ({
                     ...header,
                     value: resolveVariableValue(header.value ?? "")
@@ -157,7 +172,9 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
 
             try {
                 const varsObj: Record<string, string> = {}
-                runtimeVariables.forEach(v => { varsObj[v.key] = v.value })
+                runtimeVariables.forEach(v => {
+                    varsObj[v.key] = v.value
+                })
 
                 const {result, mutations, logs} = await runScript({
                     script: scriptValue,
@@ -170,13 +187,27 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                     if (value === null) {
                         if (existing) setRuntimeVariables((current) => current.filter((item) => item.id !== existing.id))
                     } else if (existing) {
-                        setRuntimeVariables((current) => current.map((item) => item.id === existing.id ? {...item, value} : item))
+                        setRuntimeVariables((current) => current.map((item) => item.id === existing.id ? {
+                            ...item,
+                            value
+                        } : item))
                     } else {
-                        setRuntimeVariables((current) => [...current, {id: crypto.randomUUID(), key, value, type: "string", category: ""}])
+                        setRuntimeVariables((current) => [...current, {
+                            id: crypto.randomUUID(),
+                            key,
+                            value,
+                            type: "string",
+                            category: ""
+                        }])
                     }
                 }
-                void result
-                void logs
+
+                dispatch(setScriptResult({
+                    requestId: currRequest.id,
+                    result,
+                    mutations,
+                    logs,
+                }))
             } catch (err: unknown) {
                 CustomToast.error(`Script error: ${err instanceof Error ? err.message : String(err)}`)
             }
@@ -248,7 +279,11 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             <Select
                 value={requestMethod}
                 disabled={!collectionData}
-                         onValueChange={(value) => { const method = value as ColtReqMethod; setRequestMethod(method); updateMethod(method) }}
+                onValueChange={(value) => {
+                    const method = value as ColtReqMethod;
+                    setRequestMethod(method);
+                    updateMethod(method)
+                }}
             >
                 <SelectTrigger
                     className={cn("min-w-[110px] font-semibold text-white [&_svg]:text-white [&_svg]:opacity-100", methodColorClass[requestMethod])}>
@@ -291,7 +326,7 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                             placeholder="https://api.example.com"
                             aria-label="Add base URL"
                         />
-             <Button
+                        <Button
                             variant="ghost"
                             size="sm"
                             disabled={!collectionData || !newBaseUrl.trim()}
@@ -312,7 +347,10 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                         const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
                         updateUrl(nextUrl)
                         const currentParams = currRequest?.request?.url?.query ?? []
-                        const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {...currentParams.find((item) => item.key === param.key)!, value: param.value} : param)
+                        const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {
+                            ...currentParams.find((item) => item.key === param.key)!,
+                            value: param.value
+                        } : param)
                         updateQuery(nextParams)
                     }}
                     className="border-0 rounded-none shadow-none focus-visible:ring-0"
@@ -331,37 +369,38 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                     <Send className="h-4 w-4 mr-2"/>
                 )}
                 Send Request
-             </Button>
-             <AlertDialog>
-                 <AlertDialogTrigger asChild>
-                     <Button
-                         type="button"
-                         variant="outline"
-                         disabled={!collectionData || isSending || !request}
-                         className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                         aria-label="Delete request"
-                     >
-                         <Trash2 className="h-4 w-4" />
-                     </Button>
-                 </AlertDialogTrigger>
-                 <AlertDialogContent>
-                     <AlertDialogHeader>
-                         <AlertDialogTitle>Delete request?</AlertDialogTitle>
-                         <AlertDialogDescription>
-                             This action cannot be undone. The request &quot;{request?.name || "Untitled request"}&quot; will be permanently deleted.
-                         </AlertDialogDescription>
-                     </AlertDialogHeader>
-                     <AlertDialogFooter>
-                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                         <AlertDialogAction
-                             onClick={() => void handleDeleteRequest()}
-                             className="bg-destructive text-white hover:bg-destructive/90"
-                         >
-                             Delete request
-                         </AlertDialogAction>
-                     </AlertDialogFooter>
-                 </AlertDialogContent>
-             </AlertDialog>
+            </Button>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!collectionData || isSending || !request}
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label="Delete request"
+                    >
+                        <Trash2 className="h-4 w-4"/>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete request?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. The
+                            request &quot;{request?.name || "Untitled request"}&quot; will be permanently deleted.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => void handleDeleteRequest()}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                        >
+                            Delete request
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 })
