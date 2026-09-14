@@ -19,12 +19,12 @@ const TestScenarioEditorHeader: React.FC = () => {
           <Layers className="h-5 w-5 shrink-0 text-indigo-600" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-semibold text-slate-900">{scenario.name}</span>
-              {hasUnsavedChanges && <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">Unsaved</span>}
+              <span className="truncate text-sm font-semibold text-foreground">{scenario.name}</span>
+              {hasUnsavedChanges && <span className="shrink-0 rounded bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">Unsaved</span>}
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-slate-400">tests/{scenario.filename}</span>
-              <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600">{scenario.steps.length} steps</span>
+              <span className="font-mono text-[10px] text-muted-foreground">tests/{scenario.filename}</span>
+              <span className="shrink-0 rounded bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">{scenario.steps.length} steps</span>
             </div>
           </div>
         </div>

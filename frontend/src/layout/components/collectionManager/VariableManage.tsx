@@ -70,9 +70,9 @@ const VariableManage: React.FC = () => {
     }
 
     return (<>
-        <div className="flex-1 overflow-auto rounded-lg border border-slate-200">
+        <div className="flex-1 overflow-auto rounded-lg border border-border">
             <div
-                className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <span className="col-span-5">Key</span>
                 <span className="col-span-5">Value</span>
                 <span className="col-span-2"/>
@@ -84,7 +84,7 @@ const VariableManage: React.FC = () => {
             )}
             {variables.map((v) => (
                 <div key={v.id}
-                     className="grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center gap-2">
+                     className="grid grid-cols-12 border-t border-border px-3 py-2 items-center gap-2">
                     {(() => {
                         const draft = drafts[v.id] ?? {key: v.key, value: v.value}
                         return <>

@@ -142,7 +142,7 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
             <>
               {/* Variables Table */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-slate-50 border-b text-xs font-semibold text-slate-500">
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted border-b text-xs font-semibold text-muted-foreground">
                   <div className="col-span-4">Key</div>
                   <div className="col-span-7">Value</div>
                   <div className="col-span-1"/>
@@ -159,7 +159,7 @@ const EnvironmentVariablesDialog: React.FC<Props> = ({open, onOpenChange}) => {
                           <Input
                             value={key}
                             disabled
-                            className="h-7 text-xs font-mono bg-slate-50"
+                            className="h-7 text-xs font-mono bg-muted"
                           />
                         </div>
                         <div className="col-span-7">

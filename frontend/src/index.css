@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark, .dark *));
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -40,6 +40,41 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
 }
 
 .dark {
@@ -86,41 +121,6 @@
   }
 }
 
-:root {
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-}
-
 #root {
   width: 100%;
 }
@@ -146,4 +146,137 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: oklch(0.7 0 0 / 30%) transparent;
+}
+
+/* CodeMirror Autocomplete and Tooltip Dark/Light Themes */
+.cm-tooltip {
+  border-radius: 6px !important;
+  font-size: 12px !important;
+}
+
+.dark .cm-tooltip,
+.sp-theme-dark .cm-tooltip,
+[data-theme="dark"] .cm-tooltip,
+.cm-editor.cm-dark .cm-tooltip {
+  background-color: #18181b !important;
+  border: 1px solid #3f3f46 !important;
+  color: #f4f4f5 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark .cm-tooltip-autocomplete,
+.sp-theme-dark .cm-tooltip-autocomplete,
+[data-theme="dark"] .cm-tooltip-autocomplete,
+.cm-editor.cm-dark .cm-tooltip-autocomplete {
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+.dark .cm-tooltip-autocomplete > ul,
+.sp-theme-dark .cm-tooltip-autocomplete > ul,
+[data-theme="dark"] .cm-tooltip-autocomplete > ul,
+.cm-editor.cm-dark .cm-tooltip-autocomplete > ul {
+  font-family: var(--font-mono, monospace) !important;
+  padding: 4px 0 !important;
+  max-height: 16em !important;
+  min-width: 260px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #3f3f46 transparent !important;
+}
+
+.dark .cm-tooltip-autocomplete ul li,
+.sp-theme-dark .cm-tooltip-autocomplete ul li,
+[data-theme="dark"] .cm-tooltip-autocomplete ul li,
+.cm-editor.cm-dark .cm-tooltip-autocomplete ul li {
+  padding: 5px 10px !important;
+  line-height: 1.4 !important;
+  color: #e4e4e7 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+}
+
+.dark .cm-tooltip-autocomplete ul li[aria-selected],
+.sp-theme-dark .cm-tooltip-autocomplete ul li[aria-selected],
+[data-theme="dark"] .cm-tooltip-autocomplete ul li[aria-selected],
+.cm-editor.cm-dark .cm-tooltip-autocomplete ul li[aria-selected] {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.dark .cm-tooltip-autocomplete ul li:hover:not([aria-selected]),
+.sp-theme-dark .cm-tooltip-autocomplete ul li:hover:not([aria-selected]),
+[data-theme="dark"] .cm-tooltip-autocomplete ul li:hover:not([aria-selected]),
+.cm-editor.cm-dark .cm-tooltip-autocomplete ul li:hover:not([aria-selected]) {
+  background-color: #27272a !important;
+}
+
+.dark .cm-tooltip-autocomplete .cm-completionMatchedText,
+.sp-theme-dark .cm-tooltip-autocomplete .cm-completionMatchedText,
+[data-theme="dark"] .cm-tooltip-autocomplete .cm-completionMatchedText,
+.cm-editor.cm-dark .cm-completionMatchedText {
+  color: #60a5fa !important;
+  text-decoration: underline !important;
+  font-weight: 600 !important;
+}
+
+.dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText,
+.sp-theme-dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText,
+[data-theme="dark"] .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText,
+.cm-editor.cm-dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText {
+  color: #ffffff !important;
+  text-decoration: underline !important;
+  font-weight: 700 !important;
+}
+
+.dark .cm-tooltip-autocomplete .cm-completionDetail,
+.sp-theme-dark .cm-tooltip-autocomplete .cm-completionDetail,
+[data-theme="dark"] .cm-tooltip-autocomplete .cm-completionDetail,
+.cm-editor.cm-dark .cm-completionDetail {
+  color: #a1a1aa !important;
+  font-style: italic !important;
+  margin-left: auto !important;
+  font-size: 11px !important;
+}
+
+.dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail,
+.sp-theme-dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail,
+[data-theme="dark"] .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail,
+.cm-editor.cm-dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail {
+  color: #dbeafe !important;
+}
+
+.dark .cm-tooltip-autocomplete .cm-completionIcon,
+.sp-theme-dark .cm-tooltip-autocomplete .cm-completionIcon,
+[data-theme="dark"] .cm-tooltip-autocomplete .cm-completionIcon,
+.cm-editor.cm-dark .cm-completionIcon {
+  opacity: 0.85 !important;
+  width: 1.2em !important;
+  display: inline-block !important;
+  text-align: center !important;
+  margin-right: 4px !important;
+}
+
+.dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon,
+.sp-theme-dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon,
+[data-theme="dark"] .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon,
+.cm-editor.cm-dark .cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.dark .cm-tooltip.cm-completionInfo,
+.sp-theme-dark .cm-tooltip.cm-completionInfo,
+[data-theme="dark"] .cm-tooltip.cm-completionInfo,
+.cm-editor.cm-dark .cm-completionInfo {
+  background-color: #18181b !important;
+  border: 1px solid #3f3f46 !important;
+  color: #f4f4f5 !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
 }

@@ -99,18 +99,19 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({value: propValue, onC
 
     return (
         <div className="relative rounded-lg overflow-hidden">
-            <div className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-slate-200">
+            <div className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-border">
                 <SandpackScriptEditor
                     value={currentValue}
                     onChange={handleChange}
                     fileName="script.js"
+                    theme="dark"
                     autoComplete={completionSources}
                     extensions={scriptExtensions}
                     className="h-full"
                 />
             </div>
             {scriptDiagnostic && (
-                <p role="alert" className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <p role="alert" className="mt-2 rounded-md border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                     Invalid JavaScript: {scriptDiagnostic.message}
                 </p>
             )}

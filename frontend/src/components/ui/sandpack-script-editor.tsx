@@ -8,6 +8,7 @@ import {
 } from "@codesandbox/sandpack-react"
 import { autocompletion, completionKeymap, type CompletionSource } from "@codemirror/autocomplete"
 import type { Extension } from "@codemirror/state"
+import { EditorView } from "@codemirror/view"
 import { yaml } from "@codemirror/lang-yaml"
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 
@@ -26,6 +27,198 @@ export interface SandpackScriptEditorProps {
     theme?: SandpackThemeProp
     onSelectionContextMenu?: (selectedText: string, position: { x: number; y: number }) => void
 }
+
+const darkAutocompleteTheme = EditorView.theme({
+    ".cm-tooltip": {
+        backgroundColor: "#18181b !important",
+        border: "1px solid #3f3f46 !important",
+        color: "#f4f4f5 !important",
+        borderRadius: "6px",
+        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)",
+    },
+    ".cm-tooltip.cm-tooltip-autocomplete": {
+        borderRadius: "6px",
+        overflow: "hidden",
+        "& > ul": {
+            fontFamily: "var(--font-mono, monospace)",
+            padding: "4px 0",
+            maxHeight: "16em",
+            minWidth: "260px",
+            scrollbarWidth: "thin",
+            scrollbarColor: "#3f3f46 transparent",
+        },
+        "& > ul > li": {
+            padding: "5px 10px",
+            lineHeight: "1.4",
+            color: "#e4e4e7",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "12px",
+        },
+        "& > ul > li[aria-selected]": {
+            backgroundColor: "#2563eb !important",
+            color: "#ffffff !important",
+        },
+        "& > ul > li:hover:not([aria-selected])": {
+            backgroundColor: "#27272a !important",
+        },
+        "& > ul > completion-section": {
+            borderBottom: "1px solid #3f3f46",
+            color: "#a1a1aa",
+            fontSize: "11px",
+            padding: "4px 8px",
+            opacity: "0.8",
+        },
+    },
+    ".cm-completionMatchedText": {
+        color: "#60a5fa !important",
+        textDecoration: "underline",
+        fontWeight: "600",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText": {
+        color: "#ffffff !important",
+        textDecoration: "underline",
+        fontWeight: "700",
+    },
+    ".cm-completionDetail": {
+        color: "#a1a1aa",
+        fontStyle: "italic",
+        marginLeft: "auto",
+        fontSize: "11px",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
+        color: "#dbeafe !important",
+    },
+    ".cm-completionIcon": {
+        opacity: "0.85",
+        width: "1.2em",
+        display: "inline-block",
+        textAlign: "center",
+        marginRight: "4px",
+        fontSize: "12px",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon": {
+        color: "#ffffff !important",
+        opacity: "1",
+    },
+    ".cm-completionIcon-function, .cm-completionIcon-method": {
+        color: "#a78bfa",
+    },
+    ".cm-completionIcon-variable, .cm-completionIcon-property": {
+        color: "#38bdf8",
+    },
+    ".cm-completionIcon-keyword": {
+        color: "#f472b6",
+    },
+    ".cm-completionIcon-class, .cm-completionIcon-interface": {
+        color: "#fbbf24",
+    },
+    ".cm-completionIcon-constant": {
+        color: "#34d399",
+    },
+    ".cm-completionIcon-type": {
+        color: "#818cf8",
+    },
+    ".cm-tooltip.cm-completionInfo": {
+        backgroundColor: "#18181b !important",
+        border: "1px solid #3f3f46 !important",
+        color: "#f4f4f5 !important",
+        borderRadius: "6px",
+        padding: "8px 12px",
+        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6)",
+        fontSize: "12px",
+        lineHeight: "1.5",
+    },
+}, { dark: true })
+
+const lightAutocompleteTheme = EditorView.theme({
+    ".cm-tooltip": {
+        backgroundColor: "#ffffff !important",
+        border: "1px solid #e2e8f0 !important",
+        color: "#0f172a !important",
+        borderRadius: "6px",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+    },
+    ".cm-tooltip.cm-tooltip-autocomplete": {
+        borderRadius: "6px",
+        overflow: "hidden",
+        "& > ul": {
+            fontFamily: "var(--font-mono, monospace)",
+            padding: "4px 0",
+            maxHeight: "16em",
+            minWidth: "260px",
+            scrollbarWidth: "thin",
+            scrollbarColor: "#cbd5e1 transparent",
+        },
+        "& > ul > li": {
+            padding: "5px 10px",
+            lineHeight: "1.4",
+            color: "#334155",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "12px",
+        },
+        "& > ul > li[aria-selected]": {
+            backgroundColor: "#2563eb !important",
+            color: "#ffffff !important",
+        },
+        "& > ul > li:hover:not([aria-selected])": {
+            backgroundColor: "#f1f5f9 !important",
+        },
+        "& > ul > completion-section": {
+            borderBottom: "1px solid #e2e8f0",
+            color: "#64748b",
+            fontSize: "11px",
+            padding: "4px 8px",
+            opacity: "0.8",
+        },
+    },
+    ".cm-completionMatchedText": {
+        color: "#2563eb !important",
+        textDecoration: "underline",
+        fontWeight: "600",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText": {
+        color: "#ffffff !important",
+        textDecoration: "underline",
+        fontWeight: "700",
+    },
+    ".cm-completionDetail": {
+        color: "#64748b",
+        fontStyle: "italic",
+        marginLeft: "auto",
+        fontSize: "11px",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
+        color: "#dbeafe !important",
+    },
+    ".cm-completionIcon": {
+        opacity: "0.85",
+        width: "1.2em",
+        display: "inline-block",
+        textAlign: "center",
+        marginRight: "4px",
+        fontSize: "12px",
+    },
+    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon": {
+        color: "#ffffff !important",
+        opacity: "1",
+    },
+    ".cm-tooltip.cm-completionInfo": {
+        backgroundColor: "#ffffff !important",
+        border: "1px solid #e2e8f0 !important",
+        color: "#0f172a !important",
+        borderRadius: "6px",
+        padding: "8px 12px",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+        fontSize: "12px",
+        lineHeight: "1.5",
+    },
+}, { dark: false })
 
 function SyncScript({ value, onChange, fileName }: {
     value: string
@@ -105,15 +298,19 @@ const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
         }]
     }, [yamlLanguage])
 
+    const effectiveTheme: SandpackThemeProp = theme ?? "dark"
+    const isDark = effectiveTheme !== "light"
+    const themeExtension = useMemo(() => isDark ? darkAutocompleteTheme : lightAutocompleteTheme, [isDark])
+
     const languageExtensions = useMemo(() => {
-        const result: Extension[] = [...extensions]
+        const result: Extension[] = [themeExtension, ...extensions]
         if (yamlLanguage) {
             if (completionSources.length > 0) {
                 result.unshift(yamlLanguage.language.data.of({autocomplete: completionSources}))
             }
         }
         return result
-    }, [completionSources, extensions, yamlLanguage])
+    }, [completionSources, extensions, themeExtension, yamlLanguage])
 
     const editorExtensions = useMemo(() => {
         if (!autoComplete) return undefined
@@ -145,11 +342,13 @@ const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
         onSelectionContextMenu(selectedText, {x: event.clientX, y: event.clientY})
     }
 
+
+
     return (
         <SandpackProvider
             key={editorKey}
             files={files}
-            theme={theme}
+            theme={effectiveTheme}
             style={className ? {height: "100%"} : undefined}
             customSetup={customSetup}
             options={providerOptions}
@@ -175,9 +374,10 @@ const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
     )
 }
 
-export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = (props) => (
+export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({ theme = "dark", ...props }) => (
     <SandpackScriptEditorInstance
-        key={`${props.editorKey ?? ""}:${props.fileName ?? "index.js"}`}
+        key={`${props.editorKey ?? ""}:${props.fileName ?? "index.js"}:${theme}`}
+        theme={theme}
         {...props}
     />
 )

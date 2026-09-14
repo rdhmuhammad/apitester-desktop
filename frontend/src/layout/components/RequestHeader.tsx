@@ -76,11 +76,11 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
 
     const requestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
     const methodColorClass: Record<ColtReqMethod, string> = {
-        GET: "bg-emerald-600",
-        POST: "bg-amber-600",
-        PUT: "bg-blue-600",
-        PATCH: "bg-violet-600",
-        DELETE: "bg-red-600"
+        GET: "bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-700 text-white dark:text-white border-emerald-600 dark:border-emerald-600",
+        POST: "bg-amber-600 dark:bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-700 text-white dark:text-white border-amber-600 dark:border-amber-600",
+        PUT: "bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white dark:text-white border-blue-600 dark:border-blue-600",
+        PATCH: "bg-violet-600 dark:bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-700 text-white dark:text-white border-violet-600 dark:border-violet-600",
+        DELETE: "bg-red-600 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700 text-white dark:text-white border-red-600 dark:border-red-600"
     };
     const [requestMethod, setRequestMethod] = useState<ColtReqMethod>("GET");
     const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
@@ -251,12 +251,12 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
                          onValueChange={(value) => { const method = value as ColtReqMethod; setRequestMethod(method); updateMethod(method) }}
             >
                 <SelectTrigger
-                    className={cn("min-w-[110px] font-semibold text-white", methodColorClass[requestMethod])}>
+                    className={cn("min-w-[110px] font-semibold text-white [&_svg]:text-white [&_svg]:opacity-100", methodColorClass[requestMethod])}>
                     <SelectValue placeholder="Method"/>
                 </SelectTrigger>
                 <SelectContent>
                     {requestMethods.map((method) => (
-                        <SelectItem key={method} value={method} className={cn("font-semibold", "text-black")}>
+                        <SelectItem key={method} value={method} className={cn("font-semibold", "text-foreground")}>
                             {method}
                         </SelectItem>
                     ))}

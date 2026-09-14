@@ -45,7 +45,7 @@ const DragNode: React.FC<{
                     {dropPosition === 'after' && effectiveOver && <div className={dropIndicatorBelow}/>} 
                     <button
                         type="button"
-                        className="cursor-grab flex items-center justify-center shrink-0 w-5 h-5 rounded hover:bg-slate-200 text-slate-300 hover:text-slate-500 mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="cursor-grab flex items-center justify-center shrink-0 w-5 h-5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300 mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         {...listeners}
                         {...attributes}
                         ref={setDraggableRef}
@@ -55,7 +55,7 @@ const DragNode: React.FC<{
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                         {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500"/> :
                             <ChevronRight className="h-4 w-4 text-slate-500"/>}
@@ -72,7 +72,7 @@ const DragNode: React.FC<{
     return (
         <div
             key={node.id}
-            className={cn("flex items-center group relative rounded-md", isActive && "bg-indigo-100")}
+            className={cn("flex items-center group relative rounded-md", isActive && "bg-indigo-100 dark:bg-indigo-950/60")}
             style={{...indentStyle, ...draggableStyle}}
             ref={setDroppableRef}
         >
@@ -80,7 +80,7 @@ const DragNode: React.FC<{
             {dropPosition === 'after' && effectiveOver && <div className={dropIndicatorBelow}/>} 
             <button
                 type="button"
-                className="cursor-grab flex items-center justify-center shrink-0 w-5 h-5 rounded hover:bg-slate-200 text-slate-300 hover:text-slate-500 mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="cursor-grab flex items-center justify-center shrink-0 w-5 h-5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-300 mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 {...listeners}
                 {...attributes}
                 ref={setDraggableRef}
@@ -90,11 +90,11 @@ const DragNode: React.FC<{
             <button
                 type="button"
                 onClick={onClick}
-                className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-100', isActive && 'bg-indigo-100')}
+                className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent', isActive && 'bg-indigo-100 dark:bg-indigo-950/60')}
             >
                 <FileCode2 className="h-4 w-4 text-slate-400"/>
                 <span className={`w-12 text-xs font-semibold ${methodColorClass[node.method ?? "GET"]}`}>{node.method ?? "GET"}</span>
-                <span className="truncate text-slate-700">{node.name}</span>
+                <span className="truncate text-sidebar-foreground">{node.name}</span>
             </button>
         </div>
     )

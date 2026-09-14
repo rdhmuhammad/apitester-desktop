@@ -205,13 +205,13 @@ const TestScenarioEditor: React.FC = () => {
     <div className="space-y-4 p-4">
       {/* Raw View */}
       {viewMode === 'raw' && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-xl border border-border bg-card shadow-sm">
           <textarea
             value={scenario.content}
             onChange={(e) => {
               void e.target.value
             }}
-            className="w-full h-[600px] p-4 font-mono text-xs text-slate-800 bg-transparent resize-none focus:outline-none"
+            className="w-full h-[600px] p-4 font-mono text-xs text-foreground bg-transparent resize-none focus:outline-none"
             spellCheck={false}
           />
         </div>
@@ -228,17 +228,17 @@ const TestScenarioEditor: React.FC = () => {
               <div
                 key={step.id}
                 className={cn(
-                  'rounded-xl border bg-white shadow-sm transition-all group',
+                  'rounded-xl border bg-card shadow-sm transition-all group',
                   result?.status === 'passed' && 'border-emerald-300',
                   result?.status === 'failed' && 'border-rose-300',
                   result?.status === 'running' && 'border-indigo-400 animate-pulse',
-                  !result && 'border-slate-200',
+                  !result && 'border-border',
                 )}
               >
                 {/* Step Header */}
                 <div
                   onClick={() => toggleExpand(step.id)}
-                  className="p-3 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none border-b border-slate-100"
+                  className="p-3 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none border-b border-border"
                 >
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <span className="font-mono text-xs font-bold text-slate-400 w-6">#{index + 1}</span>
@@ -265,7 +265,7 @@ const TestScenarioEditor: React.FC = () => {
                         if (matched.length === 0) return null
                         return (
                           <div
-                            className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+                            className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg"
                             onMouseDown={(e) => e.preventDefault()}
                           >
                             {matched.map((req) => (
@@ -276,7 +276,7 @@ const TestScenarioEditor: React.FC = () => {
                                   e.stopPropagation()
                                   handleApplyRequest(index, req)
                                 }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-accent border-b border-border last:border-b-0"
                               >
                                 <span className={cn(
                                   'rounded-md px-1.5 py-0.5 text-[10px] font-bold shrink-0',
@@ -322,7 +322,7 @@ const TestScenarioEditor: React.FC = () => {
                 {isExpanded && (
                   <div className="p-3">
                     <Tabs defaultValue="request" className="gap-0">
-                      <TabsList className="h-8 rounded-lg bg-slate-100">
+                      <TabsList className="h-8 rounded-lg bg-muted">
                         <TabsTrigger value="request" className="text-xs">Request</TabsTrigger>
                         <TabsTrigger value="headers" className="text-xs">Headers</TabsTrigger>
                         <TabsTrigger value="assertions" className="text-xs">
@@ -359,7 +359,7 @@ const TestScenarioEditor: React.FC = () => {
                           value={step.body ?? ''}
                           onChange={(e) => handleUpdateStep(index, {body: e.target.value})}
                           placeholder="Request body (JSON)"
-                          className="w-full h-32 p-3 font-mono text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg resize-y focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full h-32 p-3 font-mono text-xs text-foreground bg-muted border border-border rounded-lg resize-y focus:outline-none focus:ring-1 focus:ring-indigo-500"
                           spellCheck={false}
                         />
                       </TabsContent>
@@ -426,7 +426,7 @@ const TestScenarioEditor: React.FC = () => {
                                      onChange={(e) => handleUpdateCapture(index, cap.id, 'expression', e.target.value)}
                                      className="h-8 text-xs font-mono flex-1" placeholder="response.body.id"/>
                               {capResult?.value !== undefined && (
-                                <span className="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 truncate max-w-[120px]">
+                                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 truncate max-w-[120px]">
                                   {String(capResult.value)}
                                 </span>
                               )}

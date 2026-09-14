@@ -5,7 +5,7 @@ const AutomationSidebar: React.FC<{searchQuery: string}> = () => {
 
   return (
     <div className="mt-4">
-      <div className="flex items-center gap-1.5 border-b border-slate-100 px-2 py-2">
+      <div className="flex items-center gap-1.5 border-b border-sidebar-border px-2 py-2">
         <Wrench className="h-4 w-4 text-violet-600" />
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Automation ({files.length})

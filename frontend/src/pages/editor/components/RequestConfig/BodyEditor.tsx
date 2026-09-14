@@ -148,7 +148,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
             return (
                 <div className="relative rounded-lg overflow-hidden">
                     <div
-                        className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-slate-200"
+                        className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-border"
                         onClick={menu.open ? onClosePopup : undefined}
                     >
                         <SandpackScriptEditor
@@ -168,7 +168,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                         />
                     </div>
                     {jsonDiagnostic && (
-                        <p role="alert" className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <p role="alert" className="mt-2 rounded-md border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                             Invalid JSON: {jsonDiagnostic.message}
                         </p>
                     )}
@@ -200,7 +200,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                                     CustomToast.success("Success modify variable data")
                                                     setMenu((menu) => ({...menu, open: false}))
                                                 }}
-                                                className="flex h-6 w-full items-center justify-start hover:bg-gray-100">
+                                                className="flex h-6 w-full items-center justify-start hover:bg-accent">
                                                     <span
                                                         className="mr-1 h-[12px] w-[12px] rounded-full bg-emerald-400"></span>
                                             <div className="text-sm leading-none">{vr.key}</div>
@@ -214,9 +214,9 @@ export const BodyEditor: React.FC<IBodyEditor> = (
             )
         case "multipart/form-data":
             return (
-                <div className="relative rounded-lg overflow-hidden border border-slate-200">
+                <div className="relative rounded-lg overflow-hidden border border-border">
                     <div
-                        className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                        className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         <span className="col-span-3">Key</span>
                         <span className="col-span-3">Value</span>
                         <span className="col-span-4">Description</span>
@@ -225,20 +225,20 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                     {selectBody?.formdata?.map((item) => (
                         <div key={item.id ?? item.key}
                              className={cn(
-                                 "grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center",
+                                 "grid grid-cols-12 border-t border-border px-3 py-2 items-center",
                                  item.disabled && "opacity-50"
                              )}>
                             <div className="col-span-3">
                                 <Input
                                     value={item.key}
                                     onChange={(e) => updateFormdataField(item.id!, "key", e.target.value)}
-                                    className="h-8 bg-white"
+                                    className="h-8"
                                     disabled={item.disabled}
                                 />
                             </div>
                             <div className="col-span-3 pl-2">
                                 <div className={cn(
-                                    "flex h-8 items-center justify-between rounded-md border border-slate-200 bg-white",
+                                    "flex h-8 items-center justify-between rounded-md border border-input bg-background",
                                     "transition-[color,box-shadow]",
                                     " focus-within:ring-[3px] focus-within:ring-gray-300",
                                 )}>
@@ -259,7 +259,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                             />
                                             <label
                                                 htmlFor={`file-${item.id}`}
-                                                className="cursor-pointer rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                                                className="cursor-pointer rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent"
                                             >
                                                 {item.src ? item.src : "Choose File"}
                                             </label>
@@ -285,8 +285,8 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                         }}
                                         className={cn(
                                             "mr-2 select-none rounded-sm border border-slate-200",
-                                            "px-2 py-0.5 text-[11px] font-medium text-slate-500 ",
-                                            "hover:bg-gray-100",
+                                            "px-2 py-0.5 text-[11px] font-medium text-muted-foreground ",
+                                            "hover:bg-accent",
                                             "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                                         )}
                                     >
@@ -298,7 +298,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                 <Input
                                     value={item.description ?? ""}
                                     onChange={(e) => updateFormdataField(item.id!, "description", e.target.value)}
-                                    className="h-8 bg-white text-xs text-gray-500"
+                                    className="h-8 text-xs text-muted-foreground"
                                     disabled={item.disabled}
                                     placeholder="description"
                                 />
@@ -329,7 +329,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                             </div>
                         </div>
                     ))}
-                    <div className="grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center">
+                    <div className="grid grid-cols-12 border-t border-border px-3 py-2 items-center">
                         <div className="col-span-3">
                             <Input
                                 value={newFdKey}
@@ -340,7 +340,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                         </div>
                             <div className="col-span-3 pl-2">
                                 <div className={cn(
-                                    "flex h-8 items-center justify-between rounded-md border border-slate-200 bg-white",
+                                    "flex h-8 items-center justify-between rounded-md border border-input bg-background",
                                     "transition-[color,box-shadow]",
                                     " focus-within:ring-[3px] focus-within:ring-gray-300",
                                 )}>
@@ -361,7 +361,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                             />
                                             <label
                                                 htmlFor={`file-new-fd`}
-                                                className="cursor-pointer rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                                                className="cursor-pointer rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent"
                                             >
                                                 {newFdValue ? newFdValue : "Choose File"}
                                             </label>
@@ -389,8 +389,8 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                         }}
                                         className={cn(
                                             "mr-2 select-none rounded-sm border border-slate-200",
-                                            "px-2 py-0.5 text-[11px] font-medium text-slate-500 ",
-                                            "hover:bg-gray-100",
+                                            "px-2 py-0.5 text-[11px] font-medium text-muted-foreground ",
+                                            "hover:bg-accent",
                                             "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                                         )}
                                     >

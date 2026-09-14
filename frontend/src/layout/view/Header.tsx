@@ -5,7 +5,7 @@ import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {Button} from "@/components/ui/button.tsx";
-import {LoaderCircle, Settings, TriangleAlert, Wifi, WifiOff} from "lucide-react";
+import {LoaderCircle, Moon, Settings, Sun, TriangleAlert, Wifi, WifiOff} from "lucide-react";
 import type {HeaderAction} from "@/layout/types/headerContext.ts";
 import CollectionManager from "@/layout/components/collectionManager";
 import RequestHeader from "@/layout/components/RequestHeader.tsx";
@@ -16,6 +16,7 @@ import {SOCKET_NAMESPACES} from "@/config/socket.ts";
 import TestScenarioEditorHeader from "@/layout/components/TestScenarioEditorHeader.tsx";
 import AutomationEditorHeader from "@/layout/components/AutomationEditorHeader.tsx";
 import InventoryEditorHeader from "@/layout/components/InventoryEditorHeader.tsx";
+import {useTheme} from "@/hooks/useTheme.ts";
 
 const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     const [managerOpen, setManagerOpen] = useState(false);
@@ -24,6 +25,7 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     const requestHeaderRef = useRef<RequestHeaderHandle>(null)
     const {pull, isPulling, isPushing} = useCollectionPushPull()
     const {status: socketStatus} = useSocket(SOCKET_NAMESPACES.collection)
+    const {theme, setTheme} = useTheme()
 
     const socketIndicator = {
         connecting: {label: "Connecting", icon: LoaderCircle, className: "text-amber-500 animate-spin"},
@@ -55,7 +57,7 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     })
 
     return (
-        <header className="fixed top-0 z-50 w-full gap-4 h-[60px] bg-white border-b border-gray-200 px-6 shadow-sm
+        <header className="fixed top-0 z-50 w-full gap-4 h-[60px] bg-background border-b border-border px-6 shadow-sm
          flex flex-row items-center">
             <div className="basis-1/4 flex flex-row h-full items-center gap-3">
                 <img
@@ -63,7 +65,7 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
                     alt='Stock management'
                     className='w-[30px] h-[37px] object-cover'
                 />
-                <h1 className="text-xl italic font-semibold text-gray-800">
+                <h1 className="text-xl italic font-semibold text-foreground">
                     Apitester
                 </h1>
                 <div className="flex items-center h-full gap-2 ml-4">
@@ -83,6 +85,20 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
                         aria-label={`Socket ${socketIndicator.label.toLowerCase()}`}
                     >
                         <SocketIcon className={`h-4 w-4 ${socketIndicator.className}`} />
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 p-0"
+                        title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                        aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    >
+                        {theme === "dark" ? (
+                            <Sun className="h-4 w-4" />
+                        ) : (
+                            <Moon className="h-4 w-4" />
+                        )}
                     </Button>
                     <CollectionManager open={managerOpen} onOpenChange={setManagerOpen}/>
                 </div>

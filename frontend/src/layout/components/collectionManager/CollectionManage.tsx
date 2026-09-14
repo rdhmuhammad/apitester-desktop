@@ -118,9 +118,9 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
     }
 
     return <>
-        <div className="flex-1 overflow-auto rounded-lg border border-slate-200">
+        <div className="flex-1 overflow-auto rounded-lg border border-border">
             <div
-                className="grid grid-cols-12 bg-slate-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-600">
+                className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <span className="col-span-1"/>
                 <span className="col-span-4">Collection Name</span>
                 <span className="col-span-5">File Path</span>
@@ -132,22 +132,22 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
                 <div className="px-3 py-6 text-center text-sm text-slate-400">No collections yet. Add one below.</div>
             ) : collections.map((collection) => (
                 <div key={collection.id}
-                     className={cn("grid grid-cols-12 border-t border-slate-200 px-3 py-2 items-center cursor-pointer", selectedId === collection.id && "bg-indigo-50")}
+                     className={cn("grid grid-cols-12 border-t border-border px-3 py-2 items-center cursor-pointer", selectedId === collection.id && "bg-indigo-50 dark:bg-indigo-950/40")}
                      onClick={() => handleRowClick(collection.id)}>
                     <div className="col-span-1 flex justify-center">
                         <div
-                            className={cn("h-4 w-4 rounded-full border-2 flex items-center justify-center", selectedId === collection.id ? "border-indigo-600" : "border-slate-300")}>
+                            className={cn("h-4 w-4 rounded-full border-2 flex items-center justify-center", selectedId === collection.id ? "border-indigo-600" : "border-slate-300 dark:border-slate-600")}>
                             {selectedId === collection.id && <div className="h-2 w-2 rounded-full bg-indigo-600"/>}
                         </div>
                     </div>
-                    <span className="col-span-4 text-sm font-medium text-slate-700">{collection.name}</span>
-                    <span className="col-span-5 text-sm text-slate-500 truncate">{collection.path || "(no file)"}</span>
+                    <span className="col-span-4 text-sm font-medium text-foreground">{collection.name}</span>
+                    <span className="col-span-5 text-sm text-muted-foreground truncate">{collection.path || "(no file)"}</span>
                     <div className="col-span-2 flex justify-end gap-1">
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     handleBrowseRowFile(collection.id)
-                                }}>
+                                 }}>
                             <FileUp className="h-4 w-4"/>
                         </Button>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
@@ -171,7 +171,7 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
                     <Button variant="outline" size="sm" onClick={handleAdd}><Plus
                         className="h-4 w-4 mr-1"/> Add</Button>
                 </div>
-                {newFilePath && <p className="text-xs text-slate-500 truncate px-1">Path: {newFilePath}</p>}
+                {newFilePath && <p className="text-xs text-muted-foreground truncate px-1">Path: {newFilePath}</p>}
             </div>
         </div>
     </>

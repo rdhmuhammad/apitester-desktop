@@ -28,13 +28,13 @@ const SectionHeader: React.FC<{
     onToggle: () => void
 }> = ({ label, count, open, onToggle }) => (
     <CollapsibleTrigger asChild onClick={onToggle}>
-        <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-50 rounded-md">
+        <div className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-accent rounded-md">
             <div className="flex items-center gap-2">
                 <ChevronDown
                     className="h-4 w-4 text-slate-500 transition-transform duration-200"
                     style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}
                 />
-                <span className="text-sm font-medium text-slate-700">{label}</span>
+                <span className="text-sm font-medium text-foreground">{label}</span>
                 {count !== undefined && count > 0 && (
                     <Badge variant="secondary" className="text-xs px-1.5 py-0">{count}</Badge>
                 )}
@@ -212,10 +212,10 @@ const ResponseView: React.FC = () => {
     return (
         <>
         <section
-            className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-slate-800">Response</h2>
+                    <h2 className="text-sm font-semibold text-foreground">Response</h2>
                     {responseCode && <Badge className={badgeColor}>{`${responseCode} ${responseStatus}`}</Badge>}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -229,9 +229,9 @@ const ResponseView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="border-b border-slate-200 px-4 pt-2">
+            <div className="border-b border-border px-4 pt-2">
                 <Tabs value={sourceTab} onValueChange={onSourceChange}>
-                    <TabsList className="h-8 rounded-lg bg-slate-100">
+                    <TabsList className="h-8 rounded-lg bg-muted">
                         <TabsTrigger value="actual" className="h-7 px-3 text-xs">
                             Actual Response
                         </TabsTrigger>
@@ -250,7 +250,7 @@ const ResponseView: React.FC = () => {
 
             <Tabs defaultValue="pretty" className="flex-1 overflow-hidden p-4">
                 <div className="mb-3 flex items-center justify-between">
-                    <TabsList className="h-9 rounded-lg bg-slate-100">
+                    <TabsList className="h-9 rounded-lg bg-muted">
                         <TabsTrigger value="pretty">Pretty</TabsTrigger>
                         <TabsTrigger value="console">Console</TabsTrigger>
                     </TabsList>
@@ -287,7 +287,7 @@ const ResponseView: React.FC = () => {
                         ) : isPdf && currResponse?.data ? (
                             <iframe src={currResponse.data as string} className="w-full h-[500px] border-0 rounded-md" />
                         ) : isExcel && visualizeExcel ? (
-                            <div className="h-full overflow-auto rounded-md border border-slate-200">
+                            <div className="h-full overflow-auto rounded-md border border-border">
                                 <table className="w-full text-sm border-collapse">
                                     <thead className="sticky top-0 z-10">
                                         <tr className="bg-slate-100">
@@ -298,9 +298,9 @@ const ResponseView: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {excelData.map((row, ri) => (
-                                            <tr key={ri} className="hover:bg-slate-50 even:bg-slate-50/50">
+                                            <tr key={ri} className="hover:bg-muted/50 even:bg-muted/30">
                                                 {excelHeaders.map((_, ci) => (
-                                                    <td key={ci} className="border border-slate-200 px-3 py-1.5 text-slate-600 whitespace-nowrap">{row[ci] != null ? String(row[ci]) : ''}</td>
+                                                    <td key={ci} className="border border-border px-3 py-1.5 text-muted-foreground whitespace-nowrap">{row[ci] != null ? String(row[ci]) : ''}</td>
                                                 ))}
                                             </tr>
                                         ))}
@@ -334,7 +334,7 @@ const ResponseView: React.FC = () => {
                             {/* Request Raw */}
                             {currResponse?.rawRequest && (
                                 <Collapsible open={responseOpen} onOpenChange={setResponseOpen}
-                                    className="rounded-lg border border-slate-200">
+                                    className="rounded-lg border border-border">
                                     <SectionHeader
                                         label="Request Raw"
                                         open={responseOpen}
@@ -351,7 +351,7 @@ const ResponseView: React.FC = () => {
                             {/* Script Result */}
                             {hasResult && (
                                 <Collapsible open={resultOpen} onOpenChange={setResultOpen}
-                                    className="rounded-lg border border-slate-200">
+                                    className="rounded-lg border border-border">
                                     <SectionHeader
                                         label="Script Result"
                                         open={resultOpen}
@@ -368,7 +368,7 @@ const ResponseView: React.FC = () => {
                             {/* Mutations */}
                             {hasMutations && (
                                 <Collapsible open={mutationsOpen} onOpenChange={setMutationsOpen}
-                                    className="rounded-lg border border-slate-200">
+                                    className="rounded-lg border border-border">
                                     <SectionHeader
                                         label="Mutations"
                                         count={mutationKeys.length}
@@ -376,18 +376,18 @@ const ResponseView: React.FC = () => {
                                         onToggle={() => setMutationsOpen(!mutationsOpen)}
                                     />
                                     <CollapsibleContent className="px-3 pb-3">
-                                        <div className="overflow-hidden rounded-md border border-slate-200">
+                                        <div className="overflow-hidden rounded-md border border-border">
                                             <div
-                                                className="grid grid-cols-2 bg-slate-100 px-3 py-1.5 text-xs font-medium uppercase text-slate-600">
+                                                className="grid grid-cols-2 bg-muted px-3 py-1.5 text-xs font-medium uppercase text-muted-foreground">
                                                 <span>Key</span>
                                                 <span>Value</span>
                                             </div>
                                             {mutationKeys.map((key) => (
                                                 <div key={key}
-                                                    className="grid grid-cols-2 border-t border-slate-200 px-3 py-1.5 text-xs">
+                                                    className="grid grid-cols-2 border-t border-border px-3 py-1.5 text-xs">
                                                     <span
-                                                        className="font-mono text-slate-700 truncate">{key}</span>
-                                                    <span className="font-mono text-slate-500 truncate">
+                                                        className="font-mono text-foreground truncate">{key}</span>
+                                                    <span className="font-mono text-muted-foreground truncate">
                                                         {scriptMutations[key] ?? "(deleted)"}
                                                     </span>
                                                 </div>
@@ -400,7 +400,7 @@ const ResponseView: React.FC = () => {
                             {/* Console Logs */}
                             {hasLogs && (
                                 <Collapsible open={logsOpen} onOpenChange={setLogsOpen}
-                                    className="rounded-lg border border-slate-200">
+                                    className="rounded-lg border border-border">
                                     <SectionHeader
                                         label="Console Logs"
                                         count={scriptLogs.length}

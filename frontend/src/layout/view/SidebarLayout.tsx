@@ -245,19 +245,19 @@ const SidebarLayout: React.FC = () => {
 
     return (
         <Sidebar
-            className="fixed left-0 top-[60px] z-30 h-[calc(100dvh-60px)] w-64 flex-col border-r border-gray-200 bg-white"
+            className="fixed left-0 top-[60px] z-30 h-[calc(100dvh-60px)] w-64 flex-col border-r border-sidebar-border bg-sidebar"
             collapsible={"none"}
         >
-            <SidebarContent className="flex flex-col overflow-y-auto px-3 py-2 bg-white">
+            <SidebarContent className="flex flex-col overflow-y-auto px-3 py-2 bg-sidebar">
                 <div className="px-3 pb-2">
                     <div className="relative">
-                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"/>
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground"/>
                         <input
                             type="text"
                             placeholder="Search collections & test suites..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs pl-8 pr-3 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                            className="w-full bg-sidebar-accent border border-sidebar-border text-sidebar-foreground placeholder-muted-foreground text-xs pl-8 pr-3 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
                         />
                     </div>
                 </div>
@@ -279,7 +279,7 @@ const SidebarLayout: React.FC = () => {
                         <DragOverlay dropAnimation={null}>
                             {draggedNode ? (
                                 <div
-                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white shadow-lg border border-slate-200 opacity-90">
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-card shadow-lg border border-border opacity-90">
                                     {draggedNode.category === 'FOLD'
                                         ? <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>
                                         : <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>
@@ -288,7 +288,7 @@ const SidebarLayout: React.FC = () => {
                                         <span
                                             className={`text-xs font-semibold shrink-0 ${methodColorClass[draggedNode?.method ?? "GET"]}`}>{draggedNode?.method ?? "GET"}</span>
                                     )}
-                                    <span className="truncate text-sm text-slate-700">{draggedNode.name}</span>
+                                    <span className="truncate text-sm text-foreground">{draggedNode.name}</span>
                                 </div>
                             ) : null}
                         </DragOverlay>
