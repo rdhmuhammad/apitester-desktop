@@ -16,8 +16,10 @@ import {Download, Link2, Eye, EyeOff, ChevronDown} from "lucide-react";
 import {useMemo, useState, useCallback, useEffect} from "react";
 import * as XLSX from 'xlsx';
 import {useAppSelector} from "@/app/store/hooks.ts";
-import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {selectCollectionId, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import {selectResponseByRequestId} from "@/app/slices/restApiSlice.ts";
+import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
+import CustomToast from "@/components/common/toast";
 
 const SectionHeader: React.FC<{
     label: string
@@ -58,22 +60,16 @@ const LogEntry: React.FC<{ log: { type: string; message: string; timestamp: numb
     )
 }
 
-type ActiveRequest = {
-    id: string
-    exampleResponse?: Array<{code?: number; status?: string; body?: string; name: string}>
-}
-
 const ResponseView: React.FC = () => {
     const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const collectionId = useAppSelector(selectCollectionId)
     const currResponse = useAppSelector((state) => selectResponseByRequestId(state, activeTabId))
-    const getEmptyRequest = (): ActiveRequest | null => null
-    const selectedRequest = getEmptyRequest()
+    const {request, saveResponse} = useRequestConfig(collectionId ?? "", activeTabId)
+    const [isSaving, setIsSaving] = useState(false)
     const scriptResult: unknown = null
     const scriptLogs: Array<{type: string; message: string; timestamp: number}> = []
     const scriptMutations: Record<string, string | null> = {}
-    const dispatch = (_action: unknown) => { void _action }
-    const saveExampleResponse = (payload: {id: string; name: string}) => { void payload; return {type: 'noop'} }
-    const examples = selectedRequest?.exampleResponse ?? []
+    const examples = request?.responses ?? []
 
     const [sourceTab, setSourceTab] = useState("actual")
 
@@ -94,7 +90,10 @@ const ResponseView: React.FC = () => {
 
     const responseBody = useMemo(() => {
         if (activeExample) return activeExample.body
-        return JSON.stringify(currResponse?.data)
+        if (!currResponse?.data) return ""
+        return typeof currResponse.data === "string"
+            ? currResponse.data
+            : JSON.stringify(currResponse.data)
     }, [activeExample, currResponse])
 
     const prettyResponse = useMemo(() => {
@@ -147,11 +146,32 @@ const ResponseView: React.FC = () => {
         setExcelData([])
     }, [currResponse])
 
-    const handleSaveExample = () => {
-        if (!selectedRequest?.id || !exampleName.trim() || !currResponse) return
-        dispatch(saveExampleResponse({ id: selectedRequest.id, name: exampleName.trim() }))
-        setExampleName("")
-        setDialogOpen(false)
+    const handleSaveExample = async () => {
+        if (!activeTabId || !collectionId || !exampleName.trim() || !currResponse) return
+        try {
+            setIsSaving(true)
+            const headers = currResponse.headers
+                ? Object.entries(currResponse.headers).map(([key, value]) => ({ key, value }))
+                : []
+            const body = typeof currResponse.data === "string"
+                ? currResponse.data
+                : JSON.stringify(currResponse.data)
+
+            await saveResponse({
+                name: exampleName.trim(),
+                status: currResponse.statusText || "OK",
+                code: currResponse.statusCode,
+                body,
+                header: headers,
+            })
+            CustomToast.success("Example response saved")
+            setExampleName("")
+            setDialogOpen(false)
+        } catch (err) {
+            CustomToast.error(err instanceof Error ? err.message : "Failed to save response")
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const dataUrlToArrayBuffer = (dataUrl: string): ArrayBuffer => {
@@ -420,11 +440,14 @@ const ResponseView: React.FC = () => {
                     value={exampleName}
                     onChange={(e) => setExampleName(e.target.value)}
                     placeholder="e.g. Success 200"
-                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveExample() }}
+                    disabled={isSaving}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !isSaving) handleSaveExample() }}
                 />
                 <DialogFooter>
-                    <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                    <Button size="sm" disabled={!exampleName.trim()} onClick={handleSaveExample}>Save</Button>
+                    <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} disabled={isSaving}>Cancel</Button>
+                    <Button size="sm" disabled={!exampleName.trim() || isSaving} onClick={handleSaveExample}>
+                        {isSaving ? "Saving..." : "Save"}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

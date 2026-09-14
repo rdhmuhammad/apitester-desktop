@@ -36,9 +36,13 @@ const (
 	RequestUpdateBodyFormdata
 	RequestUpdateScript
 	RequestDelete
+	RequestSaveResponse
+	RequestSaveScript
 	RequestError
 	RequestSuccess
 )
+
+const RequestSavePostRequestScript = RequestSaveScript
 
 type RequestIdentity struct {
 	CollectionID string `json:"collectionId"`
@@ -98,6 +102,18 @@ type RequestDeletePayload struct {
 	RequestIdentity
 }
 
+type RequestSaveResponsePayload struct {
+	RequestIdentity
+	service.SaveResponseRequest
+}
+
+type RequestSaveScriptPayload struct {
+	RequestIdentity
+	service.SavePostRequestScriptRequest
+}
+
+type RequestSavePostRequestScriptPayload = RequestSaveScriptPayload
+
 func decodeRequestPayload(msg []any, target any) {
 	if len(msg) == 0 {
 		return
@@ -150,5 +166,13 @@ func (p *RequestUpdateScriptPayload) From(msg ...any) {
 }
 
 func (p *RequestDeletePayload) From(msg ...any) {
+	decodeRequestPayload(msg, p)
+}
+
+func (p *RequestSaveResponsePayload) From(msg ...any) {
+	decodeRequestPayload(msg, p)
+}
+
+func (p *RequestSaveScriptPayload) From(msg ...any) {
 	decodeRequestPayload(msg, p)
 }

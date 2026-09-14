@@ -21,6 +21,8 @@ type Usecase interface {
 	UpdateFormDataBody(collectionID, requestID string, req service.UpdateFormDataBodyRequest) (service.RequestResponse, error)
 	UpdatePostRequestScript(collectionID, requestID string, req service.UpdatePostRequestScriptRequest) (service.RequestResponse, error)
 	Delete(collectionID, requestID string) (service.RequestResponse, error)
+	SaveResponse(collectionID, requestID string, req service.SaveResponseRequest) (service.RequestResponse, error)
+	SavePostRequestScript(collectionID, requestID string, req service.SavePostRequestScriptRequest) (service.RequestResponse, error)
 }
 
 type RequestSocket struct {
@@ -171,6 +173,38 @@ func (s *RequestSocket) Delete(_ *cio.NS, client *socket.Socket, message cio.Mes
 	s.emitResult(client, RequestDelete.Name(), res, err)
 }
 
+func (s *RequestSocket) SaveResponse(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	payload, ok := message.(*RequestSaveResponsePayload)
+	if !ok {
+		return
+	}
+	collectionID, requestID := requestIDs(client, payload.RequestIdentity)
+	if collectionID == "" || requestID == "" {
+		s.emitError(client, RequestSaveResponse.Name(), "Collection id and request id are required")
+		return
+	}
+	res, err := s.usecase.SaveResponse(collectionID, requestID, payload.SaveResponseRequest)
+	s.emitResult(client, RequestSaveResponse.Name(), res, err)
+}
+
+func (s *RequestSocket) SavePostRequestScript(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	payload, ok := message.(*RequestSaveScriptPayload)
+	if !ok {
+		return
+	}
+	collectionID, requestID := requestIDs(client, payload.RequestIdentity)
+	if collectionID == "" || requestID == "" {
+		s.emitError(client, RequestSaveScript.Name(), "Collection id and request id are required")
+		return
+	}
+	res, err := s.usecase.SavePostRequestScript(collectionID, requestID, payload.SavePostRequestScriptRequest)
+	s.emitResult(client, RequestSaveScript.Name(), res, err)
+}
+
+func (s *RequestSocket) SaveScript(ns *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	s.SavePostRequestScript(ns, client, message)
+}
+
 func (s *RequestSocket) OnSpace(ns cio.NSInitiate) {
 	ns("restrequest", nil).
 		Event(RequestUpdateUrl.Name(), &RequestUpdateURLPayload{}, s.UpdateURL).
@@ -183,6 +217,9 @@ func (s *RequestSocket) OnSpace(ns cio.NSInitiate) {
 		Event(RequestUpdateBodyFormdata.Name(), &RequestUpdateFormDataBodyPayload{}, s.UpdateFormDataBody).
 		Event(RequestUpdateScript.Name(), &RequestUpdateScriptPayload{}, s.UpdateScript).
 		Event(RequestDelete.Name(), &RequestDeletePayload{}, s.Delete).
+		Event(RequestSaveResponse.Name(), &RequestSaveResponsePayload{}, s.SaveResponse).
+		Event(RequestSaveScript.Name(), &RequestSaveScriptPayload{}, s.SavePostRequestScript).
+		Event("request:save:post:request:script", &RequestSaveScriptPayload{}, s.SavePostRequestScript).
 		Build()
 }
 

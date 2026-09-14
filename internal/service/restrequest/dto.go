@@ -3,15 +3,16 @@ package restrequest
 import collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
 
 type RequestResponse struct {
-	ID      string                         `json:"id"`
-	Name    string                         `json:"name"`
-	Method  string                         `json:"method"`
-	URL     collectionService.RequestURL   `json:"url"`
-	Headers []collectionService.Header     `json:"headers"`
-	Query   []collectionService.Property   `json:"query"`
-	Body    *collectionService.RequestBody `json:"body,omitempty"`
-	Script  string                         `json:"script"`
-	Version string                         `json:"version"`
+	ID        string                                 `json:"id"`
+	Name      string                                 `json:"name"`
+	Method    string                                 `json:"method"`
+	URL       collectionService.RequestURL           `json:"url"`
+	Headers   []collectionService.Header             `json:"headers"`
+	Query     []collectionService.Property           `json:"query"`
+	Body      *collectionService.RequestBody         `json:"body,omitempty"`
+	Script    string                                 `json:"script"`
+	Responses []collectionService.CollectionResponse `json:"responses,omitempty"`
+	Version   string                                 `json:"version"`
 }
 
 type UpdateURLRequest struct {
@@ -50,4 +51,60 @@ type UpdateFormDataBodyRequest struct {
 type UpdatePostRequestScriptRequest struct {
 	Exec []string `json:"exec"`
 	Type string   `json:"type"`
+}
+
+type SavePostRequestScriptRequest struct {
+	Exec   []string `json:"exec,omitempty"`
+	Script string   `json:"script,omitempty"`
+	Type   string   `json:"type,omitempty"`
+}
+
+type SaveScriptRequest = SavePostRequestScriptRequest
+
+type SaveResponseRequest struct {
+	Response        *collectionService.CollectionResponse `json:"response,omitempty"`
+	Name            string                                `json:"name,omitempty"`
+	OriginalRequest *collectionService.Request            `json:"originalRequest,omitempty"`
+	Status          string                                `json:"status,omitempty"`
+	Code            int                                   `json:"code,omitempty"`
+	PreviewLanguage *string                               `json:"_postman_previewlanguage,omitempty"`
+	Header          []collectionService.Header            `json:"header,omitempty"`
+	Cookie          []collectionService.ResponseCookie    `json:"cookie,omitempty"`
+	Body            string                                `json:"body,omitempty"`
+}
+
+func (r SaveResponseRequest) ToCollectionResponse(req *collectionService.Request) collectionService.CollectionResponse {
+	var resp collectionService.CollectionResponse
+	if r.Response != nil {
+		resp = *r.Response
+	} else {
+		resp = collectionService.CollectionResponse{
+			Name:            r.Name,
+			OriginalRequest: r.OriginalRequest,
+			Status:          r.Status,
+			Code:            r.Code,
+			PreviewLanguage: r.PreviewLanguage,
+			Header:          r.Header,
+			Cookie:          r.Cookie,
+			Body:            r.Body,
+		}
+	}
+	if resp.OriginalRequest == nil && req != nil {
+		origReq := *req
+		resp.OriginalRequest = &origReq
+	}
+	if resp.Name == "" {
+		if resp.Status != "" {
+			resp.Name = resp.Status
+		} else {
+			resp.Name = "Response"
+		}
+	}
+	if resp.Header == nil {
+		resp.Header = []collectionService.Header{}
+	}
+	if resp.Cookie == nil {
+		resp.Cookie = []collectionService.ResponseCookie{}
+	}
+	return resp
 }

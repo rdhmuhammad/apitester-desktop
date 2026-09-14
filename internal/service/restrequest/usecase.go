@@ -259,6 +259,68 @@ func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req Up
 		})
 }
 
+func (u *Usecase) SavePostRequestScript(collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
+	exec := req.Exec
+	if len(exec) == 0 && req.Script != "" {
+		exec = strings.Split(req.Script, "\n")
+	}
+	if exec == nil {
+		exec = []string{}
+	}
+	scriptType := req.Type
+	if scriptType == "" {
+		scriptType = "text/javascript"
+	}
+	script := collectionService.EventScript{Exec: exec, Type: scriptType}
+	return u.update(collectionID, requestID, "save_post_request_script", "event.script", script,
+		func(item *collectionService.CollectionItem) any {
+			for i := range item.Event {
+				if strings.EqualFold(item.Event[i].Listen, "test") || strings.EqualFold(item.Event[i].Listen, "post-request") {
+					old := item.Event[i].Script
+					item.Event[i].Listen = "test"
+					item.Event[i].Script = script
+					return old
+				}
+			}
+			item.Event = append(item.Event, collectionService.CollectionEvent{Listen: "test", Script: script})
+			return nil
+		})
+}
+
+func (u *Usecase) SaveScript(collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
+	return u.SavePostRequestScript(collectionID, requestID, req)
+}
+
+func (u *Usecase) SaveResponse(collectionID, requestID string, req SaveResponseRequest) (RequestResponse, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(collectionID)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+
+	item := findRequest(docs.Item, requestID)
+	if item == nil || item.Request == nil {
+		return RequestResponse{}, localerror.InvalidData("Request not found")
+	}
+
+	newResponse := req.ToCollectionResponse(item.Request)
+	oldValue := append([]collectionService.CollectionResponse(nil), item.Response...)
+	item.Response = append(item.Response, newResponse)
+
+	updated, err := u.saveCollection(collection, docs)
+	if err != nil {
+		return RequestResponse{}, err
+	}
+
+	if err := u.RecordHistory(collection, requestID, "save_response", "response", oldValue, newResponse, content, updated); err != nil {
+		return RequestResponse{}, err
+	}
+
+	return requestResponse(collection, updated, item), nil
+}
+
 func (u *Usecase) Delete(collectionID, requestID string) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
@@ -374,15 +436,16 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 	// For consistency, compute hash here without Port dependency
 	// We'll use a local helper that mirrors base.Port.Version
 	return RequestResponse{
-		ID:      item.ID,
-		Name:    item.Name,
-		Method:  item.Request.Method,
-		URL:     item.Request.URL,
-		Headers: item.Request.Header,
-		Query:   item.Request.URL.Query,
-		Body:    item.Request.Body,
-		Script:  script,
-		Version: version(content),
+		ID:        item.ID,
+		Name:      item.Name,
+		Method:    item.Request.Method,
+		URL:       item.Request.URL,
+		Headers:   item.Request.Header,
+		Query:     item.Request.URL.Query,
+		Body:      item.Request.Body,
+		Script:    script,
+		Responses: item.Response,
+		Version:   version(content),
 	}
 }
 

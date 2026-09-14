@@ -23,7 +23,7 @@ const RequestConfigTabs: React.FC = () => {
     const {
         request, updateHeaders, updateQuery,
         updateJsonBody, updateFormDataBody,
-        updateScript
+        updateScript, saveScript,
     } = useRequestConfig(activeCollection?.id ?? "", activeTabId)
 
 
@@ -256,7 +256,7 @@ const RequestConfigTabs: React.FC = () => {
                     </div>
                 </TabsContent>
                 <TabsContent value="scripts" className="p-4"><ScriptEditor value={request?.script ?? ""}
-                                                                           onChange={updateScript}/></TabsContent>
+                                                                           onChange={saveScript}/></TabsContent>
             </Tabs>
         </section>
     )

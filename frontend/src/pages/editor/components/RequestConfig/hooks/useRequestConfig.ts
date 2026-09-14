@@ -116,6 +116,41 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         },
         [collectionId, enabled, queryClient, queryKey, requestId])
 
+    const saveResponse = useCallback(
+        async (payload: {
+            name: string
+            status?: string
+            code?: number
+            body?: string
+            header?: Array<{key: string; value: string}>
+        }) => {
+            const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+            const baseVersion = current?.version ?? ""
+            const result = await RequestConfigServices.saveResponse(collectionId, requestId, {
+                baseVersion,
+                ...payload,
+            })
+            queryClient.setQueryData(queryKey, result)
+            setMutationError(null)
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
+            return result
+        },
+        [collectionId, queryClient, queryKey, requestId]
+    )
+
+    const saveScript = useCallback(
+        (script: string) =>
+            update("script", script, (data) =>
+                RequestConfigServices.savePostRequestScript(collectionId, requestId, {
+                    ...data,
+                    exec: script.split("\n"),
+                    script,
+                    type: "text/javascript",
+                })),
+        [collectionId, requestId, update]
+    )
+
+
     return {
         request: requestQuery.data ?? null,
         loading: requestQuery.isLoading || requestQuery.isFetching,
@@ -129,6 +164,8 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         updateJsonBody,
         updateFormDataBody,
         updateScript,
+        saveScript,
+        saveResponse,
         deleteRequest,
     }
 }

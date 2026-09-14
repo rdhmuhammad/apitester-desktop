@@ -3,6 +3,14 @@ import type {ItemUrl, RequestBody, RequestURL} from "@/pages/editor/types/api.ts
 import type {Response} from "@/types/response.ts"
 import {socketCollection} from "@/pages/editor/services/mainSocket.ts"
 
+export interface ExampleResponse {
+    name: string
+    status?: string
+    code?: number
+    body?: string
+    header?: ItemUrl[] | Array<{key: string; value: string}>
+}
+
 export interface RestRequestResponse {
     id: string
     name: string
@@ -12,6 +20,7 @@ export interface RestRequestResponse {
     query: ItemUrl[]
     body?: RequestBody
     script: string
+    responses?: ExampleResponse[]
     version: string
 }
 
@@ -31,6 +40,8 @@ const socketEvents = {
     updateFormDataBody: "request:update:body:formdata",
     updatePostRequestScript: "request:update:script",
     delete: "request:delete",
+    saveResponse: "request:save:response",
+    saveScript: "request:save:script",
     error: "request:error",
     success: "request:success",
 } as const
@@ -113,6 +124,37 @@ export const RequestConfigServices = {
 
     updatePostRequestScript: (collectionId: string, requestId: string, data: Versioned & {exec: string[]; type?: string}) =>
         emitRequestEvent(socketEvents.updatePostRequestScript, socketEvents.updatePostRequestScript, {collectionId, requestId}, data),
+
+    saveResponse: (
+        collectionId: string,
+        requestId: string,
+        data: Versioned & {
+            name: string
+            status?: string
+            code?: number
+            body?: string
+            header?: Array<{key: string; value: string}>
+        }
+    ) =>
+        emitRequestEvent(
+            socketEvents.saveResponse,
+            socketEvents.saveResponse,
+            {collectionId, requestId},
+            data
+        ),
+
+    savePostRequestScript: (
+        collectionId: string,
+        requestId: string,
+        data: Versioned & {exec?: string[]; script?: string; type?: string}
+    ) =>
+        emitRequestEvent(
+            socketEvents.saveScript,
+            socketEvents.saveScript,
+            {collectionId, requestId},
+            data
+        ),
+
 
     delete: async (collectionId: string, requestId: string, data: Versioned): Promise<RestRequestResponse> => {
         const response = await axios.delete<Response<RestRequestResponse>>(
