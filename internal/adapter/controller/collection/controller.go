@@ -1,7 +1,6 @@
 package collection
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,8 +26,7 @@ type Usecase interface {
 	CreateVariable(req service.CreateVariableRequest) (service.CreateVariableResponse, error)
 	UpdateVariable(id string, req service.UpdateVariableRequest) (service.CreateVariableResponse, error)
 	DeleteVariable(id string) (service.CreateVariableResponse, error)
-	UploadCollection(id string, fileBytes []byte) error
-	GetAuth(collectionID ...string) (*service.CollectionAuth, error)
+	GetAuth() (*service.CollectionAuth, error)
 	UpdateAuth(req service.UpdateCollectionAuthRequest) (*service.CollectionAuth, error)
 }
 
@@ -105,22 +103,12 @@ func (ctrl Controller) GetPreScript(c *gin.Context) {
 }
 
 func (ctrl Controller) GetAuth(c *gin.Context) {
-	var collectionID string
-	if id := c.Param("id"); id != "" {
-		collectionID = id
-	} else if id := c.Query("id"); id != "" {
-		collectionID = id
-	}
-
 	var (
 		res *service.CollectionAuth
 		err error
 	)
-	if collectionID != "" {
-		res, err = ctrl.usecase.GetAuth(collectionID)
-	} else {
-		res, err = ctrl.usecase.GetAuth()
-	}
+
+	res, err = ctrl.usecase.GetAuth()
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection auth retrieved"), err)
 }
 
@@ -169,30 +157,6 @@ func (ctrl Controller) DeleteVariable(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Variable deleted"), err)
 }
 
-func (ctrl Controller) UploadCollection(c *gin.Context) {
-	file, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage("Collection file is required"))
-		return
-	}
-
-	opened, err := file.Open()
-	if err != nil {
-		ctrl.respond(c, payload.NewSuccessResponseNoData("Collection uploaded"), err)
-		return
-	}
-	defer opened.Close()
-
-	fileBytes, err := io.ReadAll(opened)
-	if err != nil {
-		ctrl.respond(c, payload.NewSuccessResponseNoData("Collection uploaded"), err)
-		return
-	}
-
-	err = ctrl.usecase.UploadCollection("", fileBytes)
-	ctrl.respond(c, payload.NewSuccessResponseNoData("Collection uploaded"), err)
-}
-
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection := rg.Group("/collection")
 	collection.GET("/read/:id", ctrl.Read)
@@ -200,7 +164,6 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection.GET("/variables", ctrl.GetVariables)
 	collection.GET("/pre-script", ctrl.GetPreScript)
 	collection.GET("/auth", ctrl.GetAuth)
-	collection.GET("/auth/:id", ctrl.GetAuth)
 	collection.PUT("/auth", ctrl.UpdateAuth)
 	collection.PUT("/pre-script", ctrl.UpdatePreScript)
 	collection.POST("/create", ctrl.CreateCollection)
@@ -208,7 +171,6 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection.DELETE("/:id", ctrl.DeleteCollection)
 	collection.PUT("/select/:id", ctrl.SelectCollection)
 	collection.GET("/get-active", ctrl.GetActiveCollection)
-	collection.POST("/upload", ctrl.UploadCollection)
 	collection.POST("/variable", ctrl.CreateVariable)
 	collection.PUT("/variable/:id", ctrl.UpdateVariable)
 	collection.DELETE("/variable/:id", ctrl.DeleteVariable)

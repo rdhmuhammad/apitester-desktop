@@ -122,7 +122,7 @@ func TestGetAuth_ByCollectionID(t *testing.T) {
 	usecase, collection := setupTestCollectionUsecase(t, docs, false)
 
 	// Fetch by explicit collection ID even when isSelected is false
-	auth, err := usecase.GetAuth(collection.ID)
+	auth, err := usecase.GetAuth()
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestGetAuth_CollectionNotFound(t *testing.T) {
 
 	usecase, _ := setupTestCollectionUsecase(t, docs, true)
 
-	_, err := usecase.GetAuth("non-existent-id")
+	_, err := usecase.GetAuth()
 	if err == nil {
 		t.Fatal("expected error for non-existent collection, got nil")
 	}

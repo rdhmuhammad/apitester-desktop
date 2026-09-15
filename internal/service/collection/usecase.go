@@ -78,6 +78,7 @@ func (u *Usecase) Read(id string) (ReadResponse, error) {
 	if err != nil {
 		return ReadResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
 	if collection == nil {
 		return ReadResponse{}, localerror.InvalidData("Collection not found")
 	}
@@ -112,29 +113,32 @@ func (u *Usecase) Read(id string) (ReadResponse, error) {
 
 func (u *Usecase) CreateCollection(req CreateCollectionRequest) (domain.Collection, error) {
 	if strings.TrimSpace(req.Path) != "" {
-		fileBytes, err := os.ReadFile(req.Path)
-		if err != nil {
-			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
-		}
+		return domain.Collection{}, localerror.InvalidData("Local path is empty")
+	}
 
-		var docsContent DocsContent
-		content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
-		if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
-			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
-		}
+	fileBytes, err := os.ReadFile(req.Path)
+	if err != nil {
+		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+	}
 
-		docsContent.Item = setId(docsContent.Item)
-		for i := range docsContent.Variable {
-			docsContent.Variable[i].ID = uuid.NewString()
-		}
+	var docsContent DocsContent
+	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
+	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
+		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+	}
 
-		updatedContent, err := json.MarshalIndent(docsContent, "", "  ")
-		if err != nil {
-			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
-		}
-		if err := os.WriteFile(req.Path, updatedContent, 0644); err != nil {
-			return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
-		}
+	docsContent.Item = setId(docsContent.Item)
+	for i := range docsContent.Variable {
+		docsContent.Variable[i].ID = uuid.NewString()
+	}
+
+	updatedContent, err := json.MarshalIndent(docsContent, "", "  ")
+	if err != nil {
+		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	if err := os.WriteFile(req.Path, updatedContent, 0644); err != nil {
+		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	now := time.Now()
@@ -146,6 +150,7 @@ func (u *Usecase) CreateCollection(req CreateCollectionRequest) (domain.Collecti
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
+
 	collection.TestSuiteID = uuid.NewString()
 	collection.AutomationID = uuid.NewString()
 	if err := u.CollectionRepo.Create(context.Background(), collection.ID, &collection); err != nil {
@@ -299,25 +304,14 @@ func (u *Usecase) GetPreScript() (string, error) {
 	return "", nil
 }
 
-func (u *Usecase) GetAuth(collectionID ...string) (*CollectionAuth, error) {
+func (u *Usecase) GetAuth() (*CollectionAuth, error) {
 	var targetPath string
-	if len(collectionID) > 0 && strings.TrimSpace(collectionID[0]) != "" {
-		collection, err := u.CollectionRepo.View(context.Background(), collectionID[0])
-		if err != nil {
-			return nil, u.ErrHandler.ErrorReturn(err)
-		}
-		if collection == nil {
-			return nil, localerror.InvalidData("Collection not found")
-		}
-		targetPath = collection.Path
-	} else {
-		selected := findSelectedCollection(u.CollectionRepo)
-		if selected == nil {
-			return nil, localerror.InvalidData("No active collection")
-		}
-		targetPath = selected.Path
+	selected := findSelectedCollection(u.CollectionRepo)
+	if selected == nil {
+		return nil, localerror.InvalidData("No active collection")
 	}
 
+	targetPath = selected.Path
 	fileBytes, err := os.ReadFile(targetPath)
 	if err != nil {
 		return nil, u.ErrHandler.ErrorReturn(err)
@@ -640,87 +634,7 @@ func (u *Usecase) DeleteVariable(variableID string) (CreateVariableResponse, err
 	return CreateVariableResponse{Variable: deleted, Version: u.Version(saved)}, nil
 }
 
-func (u *Usecase) WriteCollection(id string, req WriteCollectionRequest) error {
-	if req.Content == "" {
-		return localerror.InvalidData("Collection content is required")
-	}
-	if req.StartPos < 0 || req.EndPost < req.StartPos {
-		return localerror.InvalidData("Invalid collection write position")
-	}
-
-	collection, err := u.CollectionRepo.View(context.Background(), id)
-	if err != nil {
-		return u.ErrHandler.ErrorReturn(err)
-	}
-	if collection == nil {
-		return localerror.InvalidData("Collection not found")
-	}
-
-	// TODO: replace only the requested range in collection.Path.
-
-	return nil
-}
-
-func (u *Usecase) UploadCollection(id string, fileBytes []byte) error {
-	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
-
-	var docsContent DocsContent
-	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
-		return localerror.InvalidData("Invalid collection.json file")
-	}
-
-	if docsContent.Info.Name == "" {
-		return localerror.InvalidData("Collection info name is required")
-	}
-
-	if len(docsContent.Item) == 0 {
-		return localerror.InvalidData("Collection item is required")
-	}
-
-	docsContent.Item = setId(docsContent.Item)
-	for i := range docsContent.Variable {
-		docsContent.Variable[i].ID = uuid.NewString()
-	}
-
-	updatedContent, err := json.MarshalIndent(docsContent, "", "  ")
-	if err != nil {
-		return u.ErrHandler.ErrorReturn(err)
-	}
-
-	return u.saveToFile(id, updatedContent)
-}
-
 // ================================ Helper Function ================================
-
-func (u *Usecase) saveToFile(id string, content []byte) error {
-	if _, err := u.UpdateCollectionByID(id, UpdateCollectionRequest{}); err != nil {
-		return u.ErrHandler.ErrorReturn(err)
-	}
-
-	selected := findSelectedCollection(u.CollectionRepo)
-	if selected == nil {
-		return localerror.InvalidData("No active collection selected")
-	}
-
-	if err := os.WriteFile(selected.Path, content, 0644); err != nil {
-		return u.ErrHandler.ErrorReturn(err)
-	}
-
-	info, err := os.Stat(selected.Path)
-	if err != nil {
-		return u.ErrHandler.ErrorReturn(err)
-	}
-
-	if u.watcher != nil && u.watcher.State != nil {
-		u.watcher.State.Update(string(content), info.ModTime())
-	}
-
-	if info.ModTime().IsZero() && u.watcher != nil && u.watcher.State != nil {
-		u.watcher.State.Update(string(content), time.Now())
-	}
-
-	return nil
-}
 
 func setId(item []CollectionItem) []CollectionItem {
 	for i := range item {

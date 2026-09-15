@@ -145,27 +145,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         },
     })
 
-    const uploadCollectionMutation = useMutation({
-        mutationFn: (file: File) => CollectionServices.uploadCollection(file),
-        onSuccess: () => {
-            CustomToast.success("Collection uploaded")
-        },
-        onError: (error: AxiosError<Response<unknown>>) => {
-            CustomToast.error(error.response?.data.message || "Failed to upload collection")
-        },
-    })
-
-    const writeCollectionMutation = useMutation({
-        mutationFn: (payload: {id: string; content: string}) =>
-            CollectionServices.writeCollection(payload.id, payload.content),
-        onSuccess: () => {
-            CustomToast.success("Collection saved")
-        },
-        onError: (error: AxiosError<Response<unknown>>) => {
-            CustomToast.error(error.response?.data.message || "Failed to save collection")
-        },
-    })
-
     const createVariableMutation = useMutation({
         mutationFn: (data: CreateCollectionVariableRequest) =>
             CollectionServices.createVariable(data),
@@ -237,8 +216,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         updateCollectionMutation,
         deleteCollectionMutation,
         selectCollectionMutation,
-        uploadCollectionMutation,
-        writeCollectionMutation,
         createVariableMutation,
         updateVariableMutation,
         deleteVariableMutation,

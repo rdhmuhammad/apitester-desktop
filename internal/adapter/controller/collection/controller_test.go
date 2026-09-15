@@ -64,7 +64,7 @@ func (s *collectionUsecaseStub) UploadCollection(id string, fileBytes []byte) er
 	return nil
 }
 
-func (s *collectionUsecaseStub) GetAuth(collectionID ...string) (*service.CollectionAuth, error) {
+func (s *collectionUsecaseStub) GetAuth() (*service.CollectionAuth, error) {
 	s.getAuthPassedID = collectionID
 	return s.authToReturn, s.authErrToReturn
 }

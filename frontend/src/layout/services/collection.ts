@@ -71,17 +71,6 @@ export const CollectionServices = {
         return response.data.data
     },
 
-    uploadCollection: async (file: File): Promise<string> => {
-        const formData = new FormData()
-        formData.append("file", file)
-
-        const response = await axios.post<Response<null>>('/collection/upload', formData, {
-            headers: {"Content-Type": "multipart/form-data"}
-        })
-
-        return response.data.message
-    },
-
     listCollections: async (): Promise<Collection[]> => {
         const response = await axios.get<Response<Collection[]>>('/collection/list')
         return response.data.data
@@ -92,7 +81,7 @@ export const CollectionServices = {
         return response.data.data
     },
 
-    updateCollection: async (id: string, data: {name?: string; path?: string}): Promise<Collection> => {
+    updateCollection: async (id: string, data: { name?: string; path?: string }): Promise<Collection> => {
         const response = await axios.put<Response<Collection>>(`/collection/${id}`, data)
         return response.data.data
     },
@@ -122,9 +111,8 @@ export const CollectionServices = {
         return response.data.data ?? ""
     },
 
-    getAuth: async (id?: string): Promise<CollectionAuth | null> => {
-        const url = id ? `/collection/auth/${id}` : '/collection/auth'
-        const response = await axios.get<Response<CollectionAuth | null>>(url)
+    getAuth: async (): Promise<CollectionAuth | null> => {
+        const response = await axios.get<Response<CollectionAuth | null>>(`/collection/auth`)
         return response.data.data ?? null
     },
 
@@ -181,12 +169,5 @@ export const CollectionServices = {
     getRequestTree: async (collectionId: string): Promise<RequestTree[]> => {
         const response = await axios.get<Response<RequestTree[]>>(`/restrequest/tree/${collectionId}`)
         return response.data.data
-    },
-
-    writeCollection: async (id: string, content: string): Promise<string> => {
-        const response = await axios.put<Response<null>>(`/collection/write/${id}`, content, {
-            headers: {"Content-Type": "application/json"}
-        })
-        return response.data.message
     },
 }
