@@ -1,5 +1,5 @@
 import axios from "@/config/axios.ts"
-import type {ItemUrl, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
+import type {ItemUrl, ReqAuth, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
 import type {Response} from "@/types/response.ts"
 import {socketCollection} from "@/pages/editor/services/mainSocket.ts"
 
@@ -19,6 +19,7 @@ export interface RestRequestResponse {
     headers: ItemUrl[]
     query: ItemUrl[]
     body?: RequestBody
+    auth?: ReqAuth
     script: string
     responses?: ExampleResponse[]
     version: string
@@ -35,6 +36,7 @@ const socketEvents = {
     updateUrl: "request:update:url",
     updateHeaders: "request:update:headers",
     updateAuthorization: "request:update:authorization",
+    updateAuth: "request:update:auth",
     updateQuery: "request:update:query",
     updateJsonBody: "request:update:body:json",
     updateFormDataBody: "request:update:body:formdata",
@@ -112,6 +114,9 @@ export const RequestConfigServices = {
 
     updateAuthorization: (collectionId: string, requestId: string, data: Versioned & {type: string; token?: string}) =>
         emitRequestEvent(socketEvents.updateAuthorization, socketEvents.updateAuthorization, {collectionId, requestId}, data),
+
+    updateAuth: (collectionId: string, requestId: string, data: Versioned & {type: string; bearer?: ItemUrl[]; authSource: string}) =>
+        emitRequestEvent(socketEvents.updateAuth, socketEvents.updateAuth, {collectionId, requestId}, data),
 
     updateQuery: (collectionId: string, requestId: string, data: Versioned & {query: ItemUrl[]}) =>
         emitRequestEvent(socketEvents.updateQuery, socketEvents.updateQuery, {collectionId, requestId}, data),

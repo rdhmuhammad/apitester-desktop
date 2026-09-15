@@ -2,7 +2,7 @@ import React from "react";
 import {ShieldCheck} from "lucide-react";
 import {Input} from "@/components/ui/input.tsx";
 
-export type AuthType = "none" | "inherit" | "bearer";
+export type AuthType = "none" | "inherit" | "onrequest";
 
 interface AuthValueProps {
     authType: AuthType;
@@ -19,7 +19,7 @@ export const AuthDropdownOps: React.FC<AuthValueProps> = ({authType, bearerValue
                     <Input className="bg-muted" disabled={true} type="text" readOnly/>
                 </div>
             );
-        case "bearer":
+        case "onrequest":
             return (
                 <div>
                     <p className="text-sm font-medium text-foreground">Bearer Token</p>
@@ -52,7 +52,7 @@ export const AuthLabel: React.FC<AuthValueProps> = ({authType}) => {
                     No auth will be sent for this request.
                 </div>
             );
-        case "bearer":
+        case "onrequest":
             return (
                 <div
                     className="flex items-center gap-2 font-medium border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/40 p-3 text-emerald-700 dark:text-emerald-300">

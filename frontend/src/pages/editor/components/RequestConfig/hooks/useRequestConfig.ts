@@ -6,7 +6,7 @@ import {
     type RestRequestResponse,
     type Versioned,
 } from "../services/requestConfig.ts"
-import type {ItemUrl, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
+import type {ItemUrl, ReqAuth, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
 
 export const useRequestConfig = (collectionId: string, requestId: string) => {
     const queryClient = useQueryClient()
@@ -73,6 +73,15 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
                 RequestConfigServices.updateHeaders(collectionId, requestId, {
                     ...data,
                     headers
+                })),
+        [collectionId, requestId, update])
+    const updateAuth = useCallback((auth: ReqAuth) =>
+            update("auth", auth, (data) =>
+                RequestConfigServices.updateAuth(collectionId, requestId, {
+                    ...data,
+                    type: auth.type,
+                    bearer: auth.bearer,
+                    authSource: auth.authSource ?? "none",
                 })),
         [collectionId, requestId, update])
     const updateQuery = useCallback((query: ItemUrl[]) =>
@@ -160,6 +169,7 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         updateName,
         updateUrl,
         updateHeaders,
+        updateAuth,
         updateQuery,
         updateJsonBody,
         updateFormDataBody,

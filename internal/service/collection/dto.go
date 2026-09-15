@@ -59,6 +59,7 @@ type ResponseCookie struct {
 type Request struct {
 	FunIden     string       `json:"funIden"`
 	Method      string       `json:"method"`
+	Auth        *ReqAuth     `json:"auth,omitempty"`
 	Header      []Header     `json:"header"`
 	Body        *RequestBody `json:"body,omitempty"`
 	URL         RequestURL   `json:"url"`
@@ -91,6 +92,11 @@ type CollectionAuth struct {
 	Bearer []Property `json:"bearer,omitempty"`
 }
 
+type UpdateCollectionAuthRequest struct {
+	Type   string     `json:"type"`
+	Bearer []Property `json:"bearer,omitempty"`
+}
+
 type Property struct {
 	Id          string `json:"id"`
 	Key         string `json:"key"`
@@ -99,6 +105,20 @@ type Property struct {
 	Src         string `json:"src,omitempty"`
 	Description string `json:"description,omitempty"`
 	Disabled    bool   `json:"disabled,omitempty"`
+}
+
+type ReqAuth struct {
+	Type       string     `json:"type"`
+	Bearer     []Property `json:"bearer,omitempty"`
+	AuthSource string     `json:"authSource" binding:"omitempty,oneof=inherit onrequest none"`
+}
+
+func (r *ReqAuth) SetType(auth string) {
+	if auth == "" {
+		r.Type = "bearer"
+		return
+	}
+	r.Type = auth
 }
 
 type CollectionEvent struct {

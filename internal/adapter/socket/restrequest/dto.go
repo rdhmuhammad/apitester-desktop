@@ -43,6 +43,8 @@ const (
 )
 
 const RequestSavePostRequestScript = RequestSaveScript
+const RequestUpdateAuth = "request:update:auth"
+const RequestUpdateAuthEvent = RequestUpdateAuth
 
 type RequestIdentity struct {
 	CollectionID string `json:"collectionId"`
@@ -66,6 +68,11 @@ type RequestUpdateHeadersPayload struct {
 type RequestUpdateAuthorizationPayload struct {
 	RequestIdentity
 	service.UpdateAuthorizationRequest
+}
+
+type RequestUpdateAuthPayload struct {
+	RequestIdentity
+	service.UpdateAuthRequest
 }
 
 type RequestUpdateMethodPayload struct {
@@ -138,6 +145,10 @@ func (p *RequestUpdateHeadersPayload) From(msg ...any) {
 }
 
 func (p *RequestUpdateAuthorizationPayload) From(msg ...any) {
+	decodeRequestPayload(msg, p)
+}
+
+func (p *RequestUpdateAuthPayload) From(msg ...any) {
 	decodeRequestPayload(msg, p)
 }
 

@@ -10,9 +10,16 @@ type RequestResponse struct {
 	Headers   []collectionService.Header             `json:"headers"`
 	Query     []collectionService.Property           `json:"query"`
 	Body      *collectionService.RequestBody         `json:"body,omitempty"`
+	Auth      *collectionService.ReqAuth             `json:"auth,omitempty"`
 	Script    string                                 `json:"script"`
 	Responses []collectionService.CollectionResponse `json:"responses,omitempty"`
 	Version   string                                 `json:"version"`
+}
+
+type UpdateAuthRequest struct {
+	Type       string                       `json:"type"`
+	Bearer     []collectionService.Property `json:"bearer,omitempty"`
+	AuthSource string                       `json:"authSource"`
 }
 
 type UpdateURLRequest struct {

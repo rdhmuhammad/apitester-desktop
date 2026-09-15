@@ -6,9 +6,10 @@ import {
     type DeleteCollectionVariableRequest,
     type UpdateCollectionVariableRequest,
     type UpdateCollectionPreScriptRequest,
+    type UpdateCollectionAuthRequest,
     type RequestTree,
 } from "../services/collection"
-import type {CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api"
+import type {CollectionAuth, CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api"
 import CustomToast from "@/components/common/toast"
 import type {AxiosError} from "axios"
 import type {Response} from "@/types/response"
@@ -66,6 +67,26 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         queryFn: CollectionServices.getPreScript,
         gcTime: 0,
         refetchOnWindowFocus: false,
+    })
+
+    const authQuery = useQuery<CollectionAuth | null>({
+        queryKey: ["collection", "auth"],
+        queryFn: () => CollectionServices.getAuth(),
+        gcTime: 0,
+        refetchOnWindowFocus: false,
+    })
+
+    const updateAuthMutation = useMutation({
+        mutationFn: (data: UpdateCollectionAuthRequest) =>
+            CollectionServices.updateAuth(data),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "auth"]})
+            await queryClient.invalidateQueries({queryKey: ["collection", "detail", collectionId]})
+            CustomToast.success("Collection authorization updated")
+        },
+        onError: (error: AxiosError<Response<unknown>>) => {
+            CustomToast.error(error.response?.data.message || "Failed to update collection authorization")
+        },
     })
 
     const updatePreScriptMutation = useMutation({
@@ -190,24 +211,28 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         requestTree: treeQuery.data ?? EMPTY_TREE,
         variables: variablesQuery.data ?? EMPTY_VARIABLES,
         preScript: preScriptQuery.data ?? EMPTY_PRE_SCRIPT,
+        auth: authQuery.data ?? null,
         isLoadingCollections: collectionsQuery.isLoading || collectionsQuery.isFetching,
         isLoadingActiveCollection: activeCollectionQuery.isLoading || activeCollectionQuery.isFetching,
         isLoadingCollection: collectionQuery.isLoading || collectionQuery.isFetching,
         isLoadingTree: treeQuery.isLoading || treeQuery.isFetching,
         isLoadingVariables: variablesQuery.isLoading || variablesQuery.isFetching,
         isLoadingPreScript: preScriptQuery.isLoading || preScriptQuery.isFetching,
+        isLoadingAuth: authQuery.isLoading || authQuery.isFetching,
         refetchCollections: collectionsQuery.refetch,
         refetchActiveCollection: activeCollectionQuery.refetch,
         refetchCollection: collectionQuery.refetch,
         refetchTree: treeQuery.refetch,
         refetchVariables: variablesQuery.refetch,
         refetchPreScript: preScriptQuery.refetch,
+        refetchAuth: authQuery.refetch,
         collectionsQuery,
         activeCollectionQuery,
         collectionQuery,
         treeQuery,
         variablesQuery,
         preScriptQuery,
+        authQuery,
         createCollectionMutation,
         updateCollectionMutation,
         deleteCollectionMutation,
@@ -218,5 +243,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         updateVariableMutation,
         deleteVariableMutation,
         updatePreScriptMutation,
+        updateAuthMutation,
     }
 }

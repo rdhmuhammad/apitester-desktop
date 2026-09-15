@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/alert-dialog.tsx";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
 import {cn} from "@/lib/utils.ts";
-import {Braces, Folder, Globe} from "lucide-react";
+import {Braces, Folder, Globe, Shield} from "lucide-react";
 import VariableManage from "@/layout/components/collectionManager/VariableManage.tsx";
 import CollectionManage from "@/layout/components/collectionManager/CollectionManage.tsx";
 import ScriptManage from "@/layout/components/collectionManager/ScriptManage.tsx";
+import AuthManage from "@/layout/components/collectionManager/AuthManage.tsx";
 
 interface CollectionManagerDialogProps {
     open: boolean
@@ -39,9 +40,10 @@ const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpen
                 <Tabs orientation="vertical" defaultValue="collection" className="flex-row gap-0 flex-1 min-h-0">
                     {!isScriptExpanded && (
                         <TabsList className="flex-col h-full w-12 shrink-0 rounded-lg">
-                            <TabsTrigger value="environment"><Globe className="h-4 w-4 m-0"/></TabsTrigger>
-                            <TabsTrigger value="collection"><Folder className="h-4 w-4 m-0"/></TabsTrigger>
-                            <TabsTrigger value="scripts"><Braces className="h-4 w-4 m-0"/></TabsTrigger>
+                            <TabsTrigger value="environment" title="Variables"><Globe className="h-4 w-4 m-0"/></TabsTrigger>
+                            <TabsTrigger value="collection" title="Collections"><Folder className="h-4 w-4 m-0"/></TabsTrigger>
+                            <TabsTrigger value="scripts" title="Scripts"><Braces className="h-4 w-4 m-0"/></TabsTrigger>
+                            <TabsTrigger value="auth" title="Auth Manager"><Shield className="h-4 w-4 m-0"/></TabsTrigger>
                         </TabsList>
                     )}
 
@@ -63,6 +65,11 @@ const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpen
                                 onCollapse={() => setIsScriptExpanded(false)}
                             />
                         </TabsContent>
+                        {!isScriptExpanded && (
+                            <TabsContent value="auth" className="flex flex-col h-full min-h-0">
+                                <AuthManage />
+                            </TabsContent>
+                        )}
                     </div>
                 </Tabs>
 

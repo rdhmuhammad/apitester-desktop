@@ -66,7 +66,8 @@ func (u *Usecase) Get(collectionID, requestID string) (RequestResponse, error) {
 	if err != nil {
 		return RequestResponse{}, err
 	}
-	item := findRequest(docs.Item, requestID)
+
+	item := findRequest(docs.Item, requestID, docs.Auth)
 	if item == nil || item.Request == nil {
 		return RequestResponse{}, localerror.InvalidData("Request not found")
 	}
@@ -156,6 +157,45 @@ func (u *Usecase) UpdateAuthorization(collectionID, requestID string, req Update
 	}
 
 	return requestResponse(collection, updated, item), nil
+}
+
+func (u *Usecase) UpdateAuth(collectionID, requestID string, req UpdateAuthRequest) (RequestResponse, error) {
+	authSource := strings.TrimSpace(req.AuthSource)
+	if strings.EqualFold(authSource, "inherit") {
+		authSource = "inherit"
+	} else {
+		authSource = strings.ToLower(authSource)
+	}
+
+	auth := &collectionService.ReqAuth{
+		AuthSource: authSource,
+	}
+
+	if authSource == "onrequest" || authSource == "inherit" {
+		auth.SetType(req.Type)
+		if req.Bearer != nil {
+			bearer := make([]collectionService.Property, len(req.Bearer))
+			copy(bearer, req.Bearer)
+			for i := range bearer {
+				if bearer[i].Id == "" {
+					bearer[i].Id = uuid.NewString()
+				}
+			}
+			auth.Bearer = bearer
+		} else {
+			auth.Bearer = []collectionService.Property{}
+		}
+	} else {
+		auth.Type = ""
+		auth.Bearer = nil
+	}
+
+	return u.update(collectionID, requestID, "update_auth", "request.auth", auth,
+		func(item *collectionService.CollectionItem) any {
+			old := item.Request.Auth
+			item.Request.Auth = auth
+			return old
+		})
 }
 
 func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodRequest) (RequestResponse, error) {
@@ -381,10 +421,12 @@ func (u *Usecase) loadCollection(id string) (*domain.Collection, *collectionServ
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	var docs collectionService.DocsContent
 	if err := json.Unmarshal(content, &docs); err != nil {
 		return nil, nil, nil, localerror.InvalidData("Invalid collection.json file")
 	}
+
 	return collection, &docs, content, nil
 }
 
@@ -396,16 +438,83 @@ func (u *Usecase) saveCollection(collection *domain.Collection, docs *collection
 	return u.Port.SaveCollection(collection, content)
 }
 
-func findRequest(items []collectionService.CollectionItem, id string) *collectionService.CollectionItem {
+func findRequest(items []collectionService.CollectionItem, id string, auth ...*collectionService.CollectionAuth) *collectionService.CollectionItem {
 	for i := range items {
 		if items[i].ID == id {
+			if len(auth) > 0 && items[i].Request != nil {
+				resolveAuth(&items[i], auth[0])
+			}
 			return &items[i]
 		}
-		if item := findRequest(items[i].Item, id); item != nil {
+		if item := findRequest(items[i].Item, id, auth...); item != nil {
 			return item
 		}
 	}
 	return nil
+}
+
+func resolveAuth(item *collectionService.CollectionItem, collectionAuth *collectionService.CollectionAuth) {
+	if item == nil || item.Request == nil {
+		return
+	}
+
+	// 1. Get value from DocsContent.Auth if not null then set value to item.Request.Auth, also set item.Request.Auth.AuthSource = inheret
+	if collectionAuth != nil {
+		var bearer []collectionService.Property
+		if collectionAuth.Bearer != nil {
+			bearer = make([]collectionService.Property, len(collectionAuth.Bearer))
+			copy(bearer, collectionAuth.Bearer)
+		}
+		item.Request.Auth = &collectionService.ReqAuth{
+			Type:       collectionAuth.Type,
+			Bearer:     bearer,
+			AuthSource: "inherit",
+		}
+	}
+
+	// 2. Find at header if any header authorization, if exist then set value to item.Request.Auth also set authSource = onrequest
+	var authHeader *collectionService.Header
+	for i := range item.Request.Header {
+		if strings.EqualFold(strings.TrimSpace(item.Request.Header[i].Key), "Authorization") && !item.Request.Header[i].Disabled && strings.TrimSpace(item.Request.Header[i].Value) != "" {
+			authHeader = &item.Request.Header[i]
+			break
+		}
+	}
+	if authHeader != nil {
+		token := strings.TrimSpace(authHeader.Value)
+		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+			token = strings.TrimSpace(token[7:])
+		}
+		id := authHeader.Id
+		if id == "" {
+			id = uuid.NewString()
+		}
+		item.Request.Auth = &collectionService.ReqAuth{
+			Type: "bearer",
+			Bearer: []collectionService.Property{
+				{
+					Id:    id,
+					Key:   "token",
+					Value: token,
+					Type:  "string",
+				},
+			},
+			AuthSource: "onrequest",
+		}
+	} else if item.Request.Auth != nil && item.Request.Auth.AuthSource == "onrequest" && len(item.Request.Auth.Bearer) > 0 {
+		// Preserve explicit onrequest auth if already configured
+	} else if item.Request.Auth != nil && item.Request.Auth.AuthSource == "none" && authHeader == nil {
+		// Preserve explicit none auth if already configured
+	}
+
+	// 3. If none of them above satisfied set authSource to none
+	if item.Request.Auth == nil || item.Request.Auth.AuthSource == "" {
+		item.Request.Auth = &collectionService.ReqAuth{
+			Type:       "",
+			Bearer:     nil,
+			AuthSource: "none",
+		}
+	}
 }
 
 func removeRequest(items []collectionService.CollectionItem, id string) ([]collectionService.CollectionItem, *collectionService.CollectionItem) {
@@ -443,6 +552,7 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 		Headers:   item.Request.Header,
 		Query:     item.Request.URL.Query,
 		Body:      item.Request.Body,
+		Auth:      item.Request.Auth,
 		Script:    script,
 		Responses: item.Response,
 		Version:   version(content),

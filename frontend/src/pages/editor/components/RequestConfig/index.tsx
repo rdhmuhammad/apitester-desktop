@@ -12,9 +12,12 @@ import ScriptEditor from "@/pages/editor/components/RequestConfig/ScriptEditor.t
 import {useAppSelector} from "@/app/store/hooks.ts"
 import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts"
 import {useQueryClient} from "@tanstack/react-query"
-import type {Collection} from "@/layout/services/collection"
+import {type Collection} from "@/layout/services/collection"
+import {useDebouncedCallback} from "use-debounce"
 import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts"
-import type {ItemUrl} from "@/pages/editor/types/api.ts"
+import type {RestRequestResponse} from "@/pages/editor/components/RequestConfig/services/requestConfig.ts"
+import type {CollectionAuth, ItemUrl} from "@/pages/editor/types/api.ts"
+import {useCollection} from "@/layout/hooks/useCollection.ts";
 
 const RequestConfigTabs: React.FC = () => {
     const activeTabId = useAppSelector(selectEditorActiveTabId)
@@ -23,9 +26,40 @@ const RequestConfigTabs: React.FC = () => {
     const {
         request, updateHeaders, updateQuery,
         updateJsonBody, updateFormDataBody,
+        updateAuth,
         saveScript,
     } = useRequestConfig(activeCollection?.id ?? "", activeTabId)
+    const {
+        auth
+    } = useCollection(activeCollection?.id ?? "")
 
+    const resolveAuthFromRequest = (req?: RestRequestResponse | null): { type: AuthType; token: string } => {
+        const auth = req?.auth
+        if (!auth)
+            return {
+                type: "none",
+                token: ""
+            }
+        const source = auth.authSource?.toLowerCase()
+        let type: AuthType = "none"
+        if (source === "onrequest" || (!source && auth.type?.toLowerCase() === "bearer")) {
+            type = "onrequest"
+        } else if (source === "inherit") {
+            type = "inherit"
+        } else if (source === "none") {
+            type = "none"
+        }
+        const tokenProperty = auth.bearer?.find((item) => item.key?.toLowerCase() === "token")
+        let token = tokenProperty?.value ?? auth.bearer?.[0]?.value ?? ""
+        if (!token && type === "onrequest") {
+            const authHeader = req?.headers?.find((h) => h.key.trim().toLowerCase() === "authorization")
+            if (authHeader && authHeader.value) {
+                const headerVal = authHeader.value.trim()
+                token = headerVal.toLowerCase().startsWith("bearer ") ? headerVal.slice(7).trim() : headerVal
+            }
+        }
+        return {type, token}
+    }
 
     const [newParamKey, setNewParamKey] = useState("")
     const [newParamValue, setNewParamValue] = useState("")
@@ -36,6 +70,143 @@ const RequestConfigTabs: React.FC = () => {
     const [contentType, setContentType] = useState<ContentType>(request?.body?.mode === "formdata" ? "multipart/form-data" : "application/json")
     const [authType, setAuthType] = useState<AuthType>("none")
     const [bearerToken, setBearerToken] = useState("")
+
+    useEffect(() => {
+        const resolved = resolveAuthFromRequest(request)
+        setAuthType(resolved.type)
+        setBearerToken(resolved.token)
+    }, [request?.id, request?.auth])
+
+    const handleAuthTypeChange = async (newType: AuthType) => {
+        setAuthType(newType)
+
+        if (newType === "onrequest") {
+            const updatedReq = await updateAuth({
+                type: "bearer",
+                authSource: "onrequest",
+                bearer: [
+                    {
+                        id: crypto.randomUUID(),
+                        key: "token",
+                        value: bearerToken,
+                        type: "string",
+                    },
+                ],
+            })
+
+            const currentHeaders = updatedReq?.headers ?? request?.headers ?? []
+            const authHeaderValue = bearerToken.trim().toLowerCase().startsWith("bearer ")
+                ? bearerToken.trim()
+                : (bearerToken.trim() ? `Bearer ${bearerToken.trim()}` : "Bearer ")
+
+            const hasAuthHeader = currentHeaders.some(
+                (item) => item.key.trim().toLowerCase() === "authorization"
+            )
+
+            const updatedHeaders: ItemUrl[] = hasAuthHeader
+                ? currentHeaders.map((item) =>
+                    item.key.trim().toLowerCase() === "authorization"
+                        ? {...item, key: "Authorization", value: authHeaderValue, disabled: false}
+                        : item
+                )
+                : [
+                    ...currentHeaders,
+                    {
+                        id: crypto.randomUUID(),
+                        key: "Authorization",
+                        value: authHeaderValue,
+                        disabled: false,
+                    },
+                ]
+
+            await updateHeaders(updatedHeaders)
+        } else if (newType === "inherit") {
+            const authQueryState = queryClient.getQueryState<CollectionAuth | null>(["collection", "auth"])
+            let collectionAuth = queryClient.getQueryData<CollectionAuth | null>(["collection", "auth"]) ?? authQueryState?.data ?? null
+            if (!collectionAuth) {
+                collectionAuth = auth
+            }
+
+            const parsedType = collectionAuth?.type || "bearer"
+            const parsedBearer: ItemUrl[] = (collectionAuth?.bearer ?? []).map((item) => ({
+                id: (item as any).id ?? crypto.randomUUID(),
+                key: item.key,
+                value: item.value,
+                type: item.type ?? "string",
+            }))
+
+            const parsedToken = parsedBearer.find((b) => b.key?.toLowerCase() === "token")?.value
+                ?? parsedBearer[0]?.value
+                ?? ""
+            setBearerToken(parsedToken)
+
+            const updatedReq = await updateAuth({
+                type: parsedType,
+                authSource: "inherit",
+                bearer: parsedBearer,
+            })
+
+            const currentHeaders = updatedReq?.headers ?? request?.headers ?? []
+            const updatedHeaders = currentHeaders.map(
+                item =>
+                    item.key.trim().toLowerCase() === "authorization" ?
+                        {...item, value: parsedToken} : item
+            )
+
+            await updateHeaders(updatedHeaders)
+        } else {
+            setBearerToken("")
+            const updatedReq = await updateAuth({
+                type: "",
+                authSource: "none",
+                bearer: [],
+            })
+
+            const currentHeaders = updatedReq?.headers ?? request?.headers ?? []
+            const updatedHeaders = currentHeaders.filter(
+                (item) => item.key.trim().toLowerCase() !== "authorization"
+            )
+            await updateHeaders(updatedHeaders)
+        }
+    }
+
+    const debouncedUpdateBearer = useDebouncedCallback((token: string) => {
+        updateAuth({
+            type: "bearer",
+            authSource: "onrequest",
+            bearer: [
+                {
+                    id: crypto.randomUUID(),
+                    key: "token",
+                    value: token,
+                    type: "string",
+                },
+            ],
+        })
+
+        const currentHeaders = request?.headers ?? []
+        const hasAuthHeader = currentHeaders.some(
+            (item) => item.key.trim().toLowerCase() === "authorization"
+        )
+        if (hasAuthHeader) {
+            const authHeaderValue = token.trim().toLowerCase().startsWith("bearer ")
+                ? token.trim()
+                : (token.trim() ? `Bearer ${token.trim()}` : "Bearer ")
+
+            updateHeaders(
+                currentHeaders.map((item) =>
+                    item.key.trim().toLowerCase() === "authorization"
+                        ? {...item, key: "Authorization", value: authHeaderValue, disabled: false}
+                        : item
+                )
+            )
+        }
+    }, 400)
+
+    const handleBearerChange = (value: string) => {
+        setBearerToken(value)
+        debouncedUpdateBearer(value)
+    }
 
     useEffect(() => {
         setContentType(request?.body?.mode === "formdata" ? "multipart/form-data" : "application/json")
@@ -158,12 +329,19 @@ const RequestConfigTabs: React.FC = () => {
                     <div className="grid gap-4 rounded-lg border border-slate-200 p-4 md:grid-cols-2">
                         <div className="space-y-2"><p className="text-sm font-medium text-slate-700">Auth Type</p>
                             <Select value={authType}
-                                    onValueChange={(value) => setAuthType(value as AuthType)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>
-                                <SelectItem value="none">No Auth</SelectItem><SelectItem value="inherit">Inherit From
-                                Parent</SelectItem><SelectItem value="bearer">Bearer Token</SelectItem>
-                            </SelectContent></Select>
+                                    onValueChange={(value) => handleAuthTypeChange(value as AuthType)}>
+                                <SelectTrigger>
+                                    <SelectValue/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">No Auth</SelectItem>
+                                    <SelectItem value="inherit">Inherit From Parent</SelectItem>
+                                    <SelectItem value="onrequest">Bearer Token</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <AuthDropdownOps authType={authType} bearerValue={bearerToken} onBearerChange={setBearerToken}/>
+                        <AuthDropdownOps authType={authType} bearerValue={bearerToken}
+                                         onBearerChange={handleBearerChange}/>
                         <div className="md:col-span-2 rounded-md border text-sm"><AuthLabel authType={authType}/></div>
                     </div>
                 </TabsContent>

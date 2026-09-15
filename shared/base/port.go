@@ -59,14 +59,18 @@ func (p *Port) LoadCollection(id string) (*domain.Collection, []byte, error) {
 	if err != nil {
 		return nil, nil, p.ErrHandler.ErrorReturn(err)
 	}
+
 	if collection == nil {
 		return nil, nil, localerror.InvalidData("Collection not found")
 	}
+
 	content, err := os.ReadFile(collection.Path)
 	if err != nil {
 		return nil, nil, p.ErrHandler.ErrorReturn(err)
 	}
+
 	content = []byte(strings.TrimPrefix(string(content), "\uFEFF"))
+
 	return collection, content, nil
 }
 

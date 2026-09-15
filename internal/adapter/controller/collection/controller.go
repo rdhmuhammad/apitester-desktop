@@ -28,6 +28,8 @@ type Usecase interface {
 	UpdateVariable(id string, req service.UpdateVariableRequest) (service.CreateVariableResponse, error)
 	DeleteVariable(id string) (service.CreateVariableResponse, error)
 	UploadCollection(id string, fileBytes []byte) error
+	GetAuth(collectionID ...string) (*service.CollectionAuth, error)
+	UpdateAuth(req service.UpdateCollectionAuthRequest) (*service.CollectionAuth, error)
 }
 
 type Controller struct {
@@ -102,6 +104,36 @@ func (ctrl Controller) GetPreScript(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection pre-request script retrieved"), err)
 }
 
+func (ctrl Controller) GetAuth(c *gin.Context) {
+	var collectionID string
+	if id := c.Param("id"); id != "" {
+		collectionID = id
+	} else if id := c.Query("id"); id != "" {
+		collectionID = id
+	}
+
+	var (
+		res *service.CollectionAuth
+		err error
+	)
+	if collectionID != "" {
+		res, err = ctrl.usecase.GetAuth(collectionID)
+	} else {
+		res, err = ctrl.usecase.GetAuth()
+	}
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection auth retrieved"), err)
+}
+
+func (ctrl Controller) UpdateAuth(c *gin.Context) {
+	var req service.UpdateCollectionAuthRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
+		return
+	}
+	res, err := ctrl.usecase.UpdateAuth(req)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection auth updated"), err)
+}
+
 func (ctrl Controller) UpdatePreScript(c *gin.Context) {
 	var req service.UpdatePreScriptRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -167,6 +199,9 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection.GET("/list", ctrl.ListCollections)
 	collection.GET("/variables", ctrl.GetVariables)
 	collection.GET("/pre-script", ctrl.GetPreScript)
+	collection.GET("/auth", ctrl.GetAuth)
+	collection.GET("/auth/:id", ctrl.GetAuth)
+	collection.PUT("/auth", ctrl.UpdateAuth)
 	collection.PUT("/pre-script", ctrl.UpdatePreScript)
 	collection.POST("/create", ctrl.CreateCollection)
 	collection.PUT("/:id", ctrl.UpdateCollectionByID)

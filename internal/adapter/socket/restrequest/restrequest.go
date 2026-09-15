@@ -14,6 +14,7 @@ type Usecase interface {
 	UpdateURL(collectionID, requestID string, req service.UpdateURLRequest) (service.RequestResponse, error)
 	UpdateHeaders(collectionID, requestID string, req service.UpdateHeadersRequest) (service.RequestResponse, error)
 	UpdateAuthorization(collectionID, requestID string, req service.UpdateAuthorizationRequest) (service.RequestResponse, error)
+	UpdateAuth(collectionID, requestID string, req service.UpdateAuthRequest) (service.RequestResponse, error)
 	UpdateMethod(collectionID, requestID string, req service.UpdateMethodRequest) (service.RequestResponse, error)
 	UpdateName(collectionID, requestID string, req service.UpdateNameRequest) (service.RequestResponse, error)
 	UpdateQuery(collectionID, requestID string, req service.UpdateQueryRequest) (service.RequestResponse, error)
@@ -45,6 +46,20 @@ func (s *RequestSocket) UpdateAuthorization(_ *cio.NS, client *socket.Socket, me
 	}
 	res, err := s.usecase.UpdateAuthorization(collectionID, requestID, payload.UpdateAuthorizationRequest)
 	s.emitResult(client, RequestUpdateAuthorization.Name(), res, err)
+}
+
+func (s *RequestSocket) UpdateAuth(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	payload, ok := message.(*RequestUpdateAuthPayload)
+	if !ok {
+		return
+	}
+	collectionID, requestID := requestIDs(client, payload.RequestIdentity)
+	if collectionID == "" || requestID == "" {
+		s.emitError(client, RequestUpdateAuth, "Collection id and request id are required")
+		return
+	}
+	res, err := s.usecase.UpdateAuth(collectionID, requestID, payload.UpdateAuthRequest)
+	s.emitResult(client, RequestUpdateAuth, res, err)
 }
 
 func (s *RequestSocket) UpdateURL(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
@@ -210,6 +225,7 @@ func (s *RequestSocket) OnSpace(ns cio.NSInitiate) {
 		Event(RequestUpdateUrl.Name(), &RequestUpdateURLPayload{}, s.UpdateURL).
 		Event(RequestUpdateHeaders.Name(), &RequestUpdateHeadersPayload{}, s.UpdateHeaders).
 		Event(RequestUpdateAuthorization.Name(), &RequestUpdateAuthorizationPayload{}, s.UpdateAuthorization).
+		Event(RequestUpdateAuth, &RequestUpdateAuthPayload{}, s.UpdateAuth).
 		Event(RequestUpdateMethod.Name(), &RequestUpdateMethodPayload{}, s.UpdateMethod).
 		Event(RequestUpdateName.Name(), &RequestUpdateNamePayload{}, s.UpdateName).
 		Event(RequestUpdateQuery.Name(), &RequestUpdateQueryPayload{}, s.UpdateQuery).

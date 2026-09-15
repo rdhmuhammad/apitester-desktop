@@ -82,3 +82,38 @@ func TestRequestSaveScriptContract(t *testing.T) {
 		t.Fatalf("decoded type = %q, want text/javascript", payload.Type)
 	}
 }
+
+func TestRequestUpdateAuthContract(t *testing.T) {
+	if RequestUpdateAuth != "request:update:auth" {
+		t.Fatalf("RequestUpdateAuth = %q, want %q", RequestUpdateAuth, "request:update:auth")
+	}
+
+	payload := RequestUpdateAuthPayload{}
+	payload.From(map[string]any{
+		"collectionId": "collection-id",
+		"requestId":    "request-id",
+		"type":         "bearer",
+		"bearer": []map[string]any{
+			{
+				"id":    "uuid",
+				"key":   "token",
+				"value": "{{token}}",
+				"type":  "string",
+			},
+		},
+		"authSource": "onrequest",
+	})
+
+	if payload.CollectionID != "collection-id" || payload.RequestID != "request-id" {
+		t.Fatalf("decoded identity = %#v", payload.RequestIdentity)
+	}
+	if payload.Type != "bearer" {
+		t.Fatalf("decoded type = %q, want %q", payload.Type, "bearer")
+	}
+	if payload.AuthSource != "onrequest" {
+		t.Fatalf("decoded authSource = %q, want %q", payload.AuthSource, "onrequest")
+	}
+	if len(payload.Bearer) != 1 || payload.Bearer[0].Key != "token" || payload.Bearer[0].Value != "{{token}}" {
+		t.Fatalf("decoded bearer = %#v", payload.Bearer)
+	}
+}

@@ -299,6 +299,96 @@ func (u *Usecase) GetPreScript() (string, error) {
 	return "", nil
 }
 
+func (u *Usecase) GetAuth(collectionID ...string) (*CollectionAuth, error) {
+	var targetPath string
+	if len(collectionID) > 0 && strings.TrimSpace(collectionID[0]) != "" {
+		collection, err := u.CollectionRepo.View(context.Background(), collectionID[0])
+		if err != nil {
+			return nil, u.ErrHandler.ErrorReturn(err)
+		}
+		if collection == nil {
+			return nil, localerror.InvalidData("Collection not found")
+		}
+		targetPath = collection.Path
+	} else {
+		selected := findSelectedCollection(u.CollectionRepo)
+		if selected == nil {
+			return nil, localerror.InvalidData("No active collection")
+		}
+		targetPath = selected.Path
+	}
+
+	fileBytes, err := os.ReadFile(targetPath)
+	if err != nil {
+		return nil, u.ErrHandler.ErrorReturn(err)
+	}
+
+	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
+	var docsContent DocsContent
+	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
+		return nil, u.ErrHandler.ErrorReturn(err)
+	}
+
+	return docsContent.Auth, nil
+}
+
+func (u *Usecase) UpdateAuth(req UpdateCollectionAuthRequest) (*CollectionAuth, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	selected := findSelectedCollection(u.CollectionRepo)
+	if selected == nil {
+		return nil, localerror.InvalidData("No active collection")
+	}
+
+	collection, oldContent, err := u.LoadCollection(selected.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var docs DocsContent
+	if err := json.Unmarshal(oldContent, &docs); err != nil {
+		return nil, localerror.InvalidData("Invalid collection.json file")
+	}
+
+	oldAuth := docs.Auth
+	if strings.EqualFold(strings.TrimSpace(req.Type), "none") || strings.TrimSpace(req.Type) == "" {
+		docs.Auth = nil
+	} else {
+		bearer := make([]Property, len(req.Bearer))
+		copy(bearer, req.Bearer)
+		for i := range bearer {
+			if bearer[i].Id == "" {
+				bearer[i].Id = uuid.NewString()
+			}
+			if bearer[i].Key == "" {
+				bearer[i].Key = "token"
+			}
+			if bearer[i].Type == "" {
+				bearer[i].Type = "string"
+			}
+		}
+		docs.Auth = &CollectionAuth{
+			Type:   strings.ToLower(strings.TrimSpace(req.Type)),
+			Bearer: bearer,
+		}
+	}
+
+	newContent, err := json.MarshalIndent(docs, "", "  ")
+	if err != nil {
+		return nil, u.ErrHandler.ErrorReturn(err)
+	}
+	saved, err := u.SaveCollection(collection, newContent)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.RecordHistory(collection, "", "update_collection_auth", "auth", oldAuth, docs.Auth, oldContent, saved); err != nil {
+		return nil, err
+	}
+
+	return docs.Auth, nil
+}
+
 func (u *Usecase) UpdatePreScript(req UpdatePreScriptRequest) (UpdatePreScriptResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()

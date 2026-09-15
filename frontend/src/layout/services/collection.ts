@@ -1,4 +1,4 @@
-import type {CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api.ts";
+import type {CollectionAuth, CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api.ts";
 import axios from "@/config/axios.ts";
 import type {Response} from "@/types/response.ts";
 
@@ -53,6 +53,16 @@ export interface UpdateCollectionPreScriptRequest {
 export interface UpdateCollectionPreScriptResponse {
     script: string
     version: string
+}
+
+export interface UpdateCollectionAuthRequest {
+    type: string
+    bearer?: Array<{
+        id?: string
+        key: string
+        value: string
+        type?: string
+    }>
 }
 
 export const CollectionServices = {
@@ -110,6 +120,17 @@ export const CollectionServices = {
     getPreScript: async (): Promise<string> => {
         const response = await axios.get<Response<string>>('/collection/pre-script')
         return response.data.data ?? ""
+    },
+
+    getAuth: async (id?: string): Promise<CollectionAuth | null> => {
+        const url = id ? `/collection/auth/${id}` : '/collection/auth'
+        const response = await axios.get<Response<CollectionAuth | null>>(url)
+        return response.data.data ?? null
+    },
+
+    updateAuth: async (data: UpdateCollectionAuthRequest): Promise<CollectionAuth | null> => {
+        const response = await axios.put<Response<CollectionAuth | null>>('/collection/auth', data)
+        return response.data.data ?? null
     },
 
     updatePreScript: async (

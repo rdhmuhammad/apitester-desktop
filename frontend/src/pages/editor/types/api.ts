@@ -53,9 +53,16 @@ export interface ResponseCookie {
   httpOnly?: boolean;
 }
 
+export interface ReqAuth {
+  type: string;
+  bearer?: ItemUrl[];
+  authSource?: "inherit" | "onrequest" | "none" | string;
+}
+
 export interface Request {
   funIden?: string;
   method: string;
+  auth?: ReqAuth;
   header: ItemUrl[];
   body?: RequestBody;
   url: RequestURL;
