@@ -1,6 +1,6 @@
 # Wiki Index
 
-This index lists the maintained knowledge pages for the API Tester codebase. Repository-backed usecases receive `*bbolt.DB` and create typed repositories locally with `db.NewRepository`; `shared/api/default.go` does not centralize repository construction.
+This index lists the maintained knowledge pages for the API Tester codebase. Repository-backed usecases receive `*bbolt.DB` and create typed repositories locally with `db.NewRepository`; `shared/api/default.go` does not centralize repository construction. 
 
 ## Patterns
 
@@ -30,6 +30,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 
 - [[patterns/usecase/index]] - Usecase pattern pages.
 - [[patterns/usecase/new-usecase-workflow]] - Workflow and checklist for creating a new Go usecase, based on the collection service.
+- [[patterns/usecase/usecase-rules-of-engagement]] - (Must-follow rule for usecase logic) Coding constraints for error wrapping (with localerror exceptions), context spacing, 4-line helper extraction (except simple branching), parameter bounds, struct encapsulation (setters/getters), and context propagation.
 
 ### Frontend
 
@@ -44,9 +45,11 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with serialized direct writes and no current version check.
 - [[decisions/collection-history-for-restrequest-mutations]] - `collection_history` audit records preserving old and new content hashes for successful mutations.
 - [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.
+- [[decisions/usecase-rules-of-engagement]] - Standardized usecase method complexity, error reporting, struct encapsulation, and execution context limits.
 
 ## Concepts
 
 - [[concepts/index]] - Reusable domain and codebase concepts.
 - [[concepts/backend/file-backed-editor-sync]] - Target design for filesystem-backed editor coordination, versioning, hashing, and conflict handling.
+- [[concepts/backend/usecase-design-rules]] - Reusable structural standards for usecase orchestration, error boundaries, parameter encapsulation, and execution lifecycles.
 - [[concepts/frontend/redux-toolkit]] - Modern Redux Toolkit structure, state boundaries, and data flow.

@@ -2,7 +2,7 @@
 
 **Summary**: New Go usecases in this project are built around a dependency-owning `Usecase` struct, a constructor that initializes shared services and repositories, and methods that validate and persist domain entities. When a usecase needs a repository, its constructor receives the shared `*bbolt.DB` and creates the typed repository dependencies itself.
 **Sources**: `internal/service/collection/usecase.go`, `pkg/db/repository.go`, `shared/api/default.go`
-**Last updated**: 2026-09-08
+**Last updated**: 2026-09-15
 
 ---
 
@@ -110,7 +110,7 @@ Keep related reconciliation in focused helpers. The collection usecase uses `ens
 - Define the `Usecase` struct and only the dependencies it needs.
 - Add a constructor that accepts `*bbolt.DB`, initializes shared services, and creates each required repository with `db.NewRepository`.
 - Fail fast when repository initialization fails; do not hide `db.NewRepository` errors.
-- Implement methods for the feature's read, write, update, and delete behavior.
+- Implement methods following the mandatory [[patterns/usecase/usecase-rules-of-engagement]] (error return wrapping, context paragraphing, 4-line helper extraction, max 3 params, max 2 returns, struct setters/getters, and context propagation).
 - Validate missing entities and map errors consistently with `localerror`.
 - Keep cross-entity synchronization in helpers where it is non-trivial.
 - Wire the controller into `shared/api/default.go`.
@@ -120,4 +120,6 @@ The exact dependencies and methods vary by feature. The collection usecase is a 
 
 ## Related pages
 
-No additional wiki pages have been created for these concepts yet.
+- [[patterns/usecase/usecase-rules-of-engagement]]
+- [[decisions/usecase-rules-of-engagement]]
+- [[concepts/backend/usecase-design-rules]]
