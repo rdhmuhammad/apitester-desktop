@@ -1,33 +1,23 @@
-import {useEffect, useState} from "react";
-import {cn, getContentType} from "@/lib/utils.ts";
+import {useEffect, useRef, useState} from "react";
+import {cn} from "@/lib/utils.ts";
 import {isTestTab} from "@/lib/tabUtils.ts";
 
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog.tsx";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
-import {LoaderCircle, Plus, Send, Trash2} from "lucide-react";
-import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
-import {removeEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
-import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select.tsx";
+import { LoaderCircle, Plus, Send, X } from "lucide-react";
+import DeleteRequestDialog from "./DeleteRequestDialog.tsx";
+import {useAppSelector} from "@/app/store/hooks.ts";
+import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import {
-    buildRawRequest,
-    type ISendRequest,
-    parseBlobResponse,
-    useSendRequest as sendRequest
+    type ISendRequest, useRequestSender
 } from "@/layout/hooks/useSendRequest.ts";
-import {runScript} from "@/layout/hooks/useScriptRunner.ts";
-import CustomToast from "@/components/common/toast";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
@@ -35,41 +25,22 @@ import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 
 const RequestHeader: React.FC = () => {
-    const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
     const {activeCollection, variables} = useCollection()
     const baseUrls = variables
         .filter((item) => item.category === "BASE_URL" || item.key.toLowerCase().includes("base_url"))
         .map((item) => item.value)
         .filter(Boolean)
-    const {request, updateMethod, updateUrl, updateQuery, deleteRequest} =
-        useRequestConfig(activeCollection?.id ?? "", activeTabId)
-    const currRequest = request ? {
-        id: request.id,
-        name: request.name,
-        request: {
-            method: request.method,
-            header: request.headers,
-            url: request.url,
-            body: request.body
-        }
-    } : null
+    const {request, updateMethod, updateUrl, updateQuery} = useRequestConfig(activeCollection?.id ?? "", activeTabId)
+    const sendRequestAction = useRequestSender()
+
     const baseUrlOptions = baseUrls
     const scriptValue = request?.script ?? ""
     const collectionData = activeCollection
     const envVars: Record<string, string> = {}
     const [runtimeVariables, setRuntimeVariables] = useState<CollectionVar[]>(variables)
+
     useEffect(() => setRuntimeVariables(variables), [variables])
-
-    useEffect(() => {
-        const raw = currRequest?.request?.url?.raw ?? ''
-        const queryIndex = raw.indexOf('?')
-        setEndpoint(queryIndex >= 0 ? raw.slice(0, queryIndex) : raw)
-    }, [currRequest?.request?.url?.raw]);
-
-    useEffect(() => {
-        setRequestMethod((currRequest?.request?.method ?? 'GET') as ColtReqMethod)
-    }, [currRequest?.request?.method]);
 
     useEffect(() => {
         if (baseUrlOptions.length === 0) {
@@ -94,11 +65,17 @@ const RequestHeader: React.FC = () => {
         PATCH: "bg-violet-600 dark:bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-700 text-white dark:text-white border-violet-600 dark:border-violet-600",
         DELETE: "bg-red-600 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700 text-white dark:text-white border-red-600 dark:border-red-600"
     };
-    const [requestMethod, setRequestMethod] = useState<ColtReqMethod>("GET");
+    
+    const currentMethod = (request?.method ?? "GET") as ColtReqMethod;
+    const rawUrl = request?.url?.raw ?? "";
+    const queryIndex = rawUrl.indexOf('?');
+    const currentEndpoint = queryIndex >= 0 ? rawUrl.slice(0, queryIndex) : rawUrl;
+
     const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
-    const [endpoint, setEndpoint] = useState(currRequest?.request?.url.raw ?? "");
     const [newBaseUrl, setNewBaseUrl] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [isHoveringButton, setIsHoveringButton] = useState(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     const resolveVariableValue = (value: string): string => {
         return value.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
@@ -143,102 +120,47 @@ const RequestHeader: React.FC = () => {
     }
 
     const handleSendRequest = () => {
-        if (!currRequest?.id || isSending) return
+        if (!request?.id || isSending) return
         setIsSending(true)
+        
+        abortControllerRef.current = new AbortController();
+        const headerValue = request.headers?.find(h => h?.key.toLowerCase() === 'content-type' && !h.disabled)?.value ?? '';
+        
         const sendRequestConfig: ISendRequest = {
             baseUrl: selectedBaseUrl,
-            endpoint: formatEndpoint(endpoint),
-            method: requestMethod,
-            headers: (currRequest?.request?.header ?? [])
+            endpoint: formatEndpoint(currentEndpoint),
+            method: currentMethod,
+            headers: (request.headers ?? [])
                 .filter(h => !h.disabled)
                 .filter(h => h.key.toLowerCase() !== 'Content-Type'.toLowerCase())
                 .map((header) => ({
                     ...header,
                     value: resolveVariableValue(header.value ?? "")
                 })),
-            requestParams: (currRequest?.request?.url.query ?? [])
+            requestParams: (request.url?.query ?? [])
                 .filter(q => !q.disabled),
-            contentType: getContentType(currRequest),
-            raw: currRequest?.request?.body?.raw,
-            formData: currRequest?.request?.body?.formdata
+            contentType: headerValue,
+            raw: request.body?.raw,
+            formData: request.body?.formdata,
+            signal: abortControllerRef.current.signal
         }
-        sendRequest(sendRequestConfig).then(async (response) => {
-            if (!response) return
-            dispatch(setResponse({requestId: currRequest.id, response}))
-            if (!scriptValue?.trim()) return
+        sendRequestAction(sendRequestConfig, {
+            requestId: request.id,
+            scriptValue,
+            runtimeVariables,
+            setRuntimeVariables
+        }).finally(() => {
+            setIsSending(false)
+            abortControllerRef.current = null
+        })
+    };
 
-            try {
-                const varsObj: Record<string, string> = {}
-                runtimeVariables.forEach(v => {
-                    varsObj[v.key] = v.value
-                })
-
-                const {result, mutations, logs} = await runScript({
-                    script: scriptValue,
-                    response,
-                    variables: varsObj,
-                })
-
-                for (const [key, value] of Object.entries(mutations)) {
-                    const existing = runtimeVariables.find(v => v.key === key)
-                    if (value === null) {
-                        if (existing) setRuntimeVariables((current) => current.filter((item) => item.id !== existing.id))
-                    } else if (existing) {
-                        setRuntimeVariables((current) => current.map((item) => item.id === existing.id ? {
-                            ...item,
-                            value
-                        } : item))
-                    } else {
-                        setRuntimeVariables((current) => [...current, {
-                            id: crypto.randomUUID(),
-                            key,
-                            value,
-                            type: "string",
-                            category: ""
-                        }])
-                    }
-                }
-
-                dispatch(setScriptResult({
-                    requestId: currRequest.id,
-                    result,
-                    mutations,
-                    logs,
-                }))
-            } catch (err: unknown) {
-                CustomToast.error(`Script error: ${err instanceof Error ? err.message : String(err)}`)
-            }
-        }).catch(async (error: {
-            message?: string
-            duration?: number
-            response?: {
-                data?: Blob
-                headers?: Record<string, string | undefined>
-                status?: number
-                statusText?: string
-            }
-        }) => {
-            const blob = error.response?.data
-            const contentType = error.response?.headers?.["content-type"] ?? ""
-            const {data, size, isBinary} = blob
-                ? await parseBlobResponse(blob, contentType)
-                : {data: null, size: "0", isBinary: false}
-            dispatch(setResponse({
-                requestId: currRequest.id,
-                response: {
-                    rawRequest: buildRawRequest(sendRequestConfig),
-                    protocol: "HTTP/1.1",
-                    responseTime: error.duration ?? 0,
-                    responseSize: size,
-                    statusCode: error.response?.status ?? 0,
-                    statusText: error.response?.statusText ?? error.message ?? "UNKNOWN",
-                    data,
-                    contentType,
-                    isBinary,
-                },
-            }))
-            CustomToast.error(error.message ?? "Request failed");
-        }).finally(() => setIsSending(false))
+    const handleCancelRequest = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsSending(false);
     };
 
     // Handle Ctrl+Enter keyboard shortcut to send request
@@ -271,29 +193,18 @@ const RequestHeader: React.FC = () => {
         setNewBaseUrl('')
     }
 
-    const handleDeleteRequest = async () => {
-        if (!request || !activeTabId) return
-        try {
-            await deleteRequest()
-            dispatch(removeEditorTab(activeTabId))
-        } catch (error) {
-            CustomToast.error(error instanceof Error ? error.message : String(error))
-        }
-    }
-
     return (
         <div className="basis-3/4 flex items-center h-full gap-3">
             <Select
-                value={requestMethod}
+                value={currentMethod}
                 disabled={!collectionData}
                 onValueChange={(value) => {
                     const method = value as ColtReqMethod;
-                    setRequestMethod(method);
                     updateMethod(method)
                 }}
             >
                 <SelectTrigger
-                    className={cn("min-w-[110px] font-semibold text-white [&_svg]:text-white [&_svg]:opacity-100", methodColorClass[requestMethod])}>
+                    className={cn("min-w-[110px] font-semibold text-white [&_svg]:text-white [&_svg]:opacity-100", methodColorClass[currentMethod])}>
                     <SelectValue placeholder="Method"/>
                 </SelectTrigger>
                 <SelectContent>
@@ -345,15 +256,15 @@ const RequestHeader: React.FC = () => {
                     </div>
                 )}
                 <Input
-                    value={formatEndpoint(endpoint)}
+                    value={formatEndpoint(currentEndpoint)}
                     disabled={!collectionData}
                     onChange={(event) => {
                         const value = event.target.value
                         const {cleanUrl, params} = parseQueryParamsFromUrl(value)
-                        setEndpoint(cleanUrl)
+                        
                         const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
                         updateUrl(nextUrl)
-                        const currentParams = currRequest?.request?.url?.query ?? []
+                        const currentParams = request?.url?.query ?? []
                         const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {
                             ...currentParams.find((item) => item.key === param.key)!,
                             value: param.value
@@ -366,48 +277,37 @@ const RequestHeader: React.FC = () => {
                 />
             </div>
             <Button
-                disabled={!collectionData || isSending || isTestTab(activeTabId)}
-                onClick={handleSendRequest}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
+                disabled={!collectionData || (!isSending && isTestTab(activeTabId))}
+                onClick={isSending ? handleCancelRequest : handleSendRequest}
+                onMouseEnter={() => setIsHoveringButton(true)}
+                onMouseLeave={() => setIsHoveringButton(false)}
+                className={cn(
+                    "text-white whitespace-nowrap transition-colors",
+                    (isSending && isHoveringButton)
+                        ? "bg-red-600 hover:bg-red-700 hover:text-white" 
+                        : "bg-indigo-600 hover:bg-indigo-700 hover:disabled:bg-indigo-600"
+                )}
             >
                 {isSending ? (
-                    <LoaderCircle className="h-4 w-4 mr-2 animate-spin"/>
+                    isHoveringButton ? (
+                        <>
+                            <X className="h-4 w-4 mr-2"/>
+                            Cancel Request
+                        </>
+                    ) : (
+                        <>
+                            <LoaderCircle className="h-4 w-4 mr-2 animate-spin"/>
+                            Sending...
+                        </>
+                    )
                 ) : (
-                    <Send className="h-4 w-4 mr-2"/>
+                    <>
+                        <Send className="h-4 w-4 mr-2"/>
+                        Send Request
+                    </>
                 )}
-                Send Request
             </Button>
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!collectionData || isSending || !request}
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                        aria-label="Delete request"
-                    >
-                        <Trash2 className="h-4 w-4"/>
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete request?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. The
-                            request &quot;{request?.name || "Untitled request"}&quot; will be permanently deleted.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => void handleDeleteRequest()}
-                            className="bg-destructive text-white hover:bg-destructive/90"
-                        >
-                            Delete request
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <DeleteRequestDialog disabled={!collectionData || isSending} />
         </div>
     )
 }
