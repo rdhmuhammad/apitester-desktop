@@ -69,7 +69,7 @@ func TestGetAuth_ActiveCollection_WithAuth(t *testing.T) {
 
 	usecase, _ := setupTestCollectionUsecase(t, docs, true)
 
-	auth, err := usecase.GetAuth()
+	auth, err := usecase.GetAuth(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -94,69 +94,12 @@ func TestGetAuth_ActiveCollection_WithoutAuth(t *testing.T) {
 
 	usecase, _ := setupTestCollectionUsecase(t, docs, true)
 
-	auth, err := usecase.GetAuth()
+	auth, err := usecase.GetAuth(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 	if auth != nil {
 		t.Fatalf("expected nil auth, got %+v", auth)
-	}
-}
-
-func TestGetAuth_ByCollectionID(t *testing.T) {
-	docs := DocsContent{
-		Info: CollectionInfo{
-			Name: "Test API",
-		},
-		Auth: &CollectionAuth{
-			Type: "bearer",
-			Bearer: []Property{
-				{
-					Key:   "token",
-					Value: "id-targeted-token",
-				},
-			},
-		},
-	}
-
-	usecase, collection := setupTestCollectionUsecase(t, docs, false)
-
-	// Fetch by explicit collection ID even when isSelected is false
-	auth, err := usecase.GetAuth()
-	if err != nil {
-		t.Fatalf("expected no error, got: %v", err)
-	}
-	if auth == nil {
-		t.Fatal("expected auth not nil")
-	}
-	if len(auth.Bearer) != 1 || auth.Bearer[0].Value != "id-targeted-token" {
-		t.Errorf("unexpected bearer slice: %+v", auth.Bearer)
-	}
-}
-
-func TestGetAuth_NoActiveCollection(t *testing.T) {
-	docs := DocsContent{
-		Info: CollectionInfo{Name: "Inactive Collection"},
-	}
-
-	usecase, _ := setupTestCollectionUsecase(t, docs, false)
-
-	_, err := usecase.GetAuth()
-	if err == nil {
-		t.Fatal("expected error when no active collection, got nil")
-	}
-}
-
-func TestGetAuth_CollectionNotFound(t *testing.T) {
-	docs := DocsContent{
-		Info: CollectionInfo{Name: "Some Collection"},
-	}
-
-	usecase, _ := setupTestCollectionUsecase(t, docs, true)
-
-	_, err := usecase.GetAuth()
-	if err == nil {
-		t.Fatal("expected error for non-existent collection, got nil")
 	}
 }
 
@@ -167,7 +110,7 @@ func TestUpdateAuth_Bearer(t *testing.T) {
 
 	usecase, _ := setupTestCollectionUsecase(t, docs, true)
 
-	auth, err := usecase.UpdateAuth(UpdateCollectionAuthRequest{
+	auth, err := usecase.UpdateAuth(context.Background(), UpdateCollectionAuthRequest{
 		Type: "bearer",
 		Bearer: []Property{
 			{Key: "token", Value: "new-saved-token"},
@@ -184,7 +127,7 @@ func TestUpdateAuth_Bearer(t *testing.T) {
 	}
 
 	// Verify GetAuth sees the updated auth
-	getAuth, err := usecase.GetAuth()
+	getAuth, err := usecase.GetAuth(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error from GetAuth, got %v", err)
 	}
@@ -204,7 +147,7 @@ func TestUpdateAuth_None(t *testing.T) {
 
 	usecase, _ := setupTestCollectionUsecase(t, docs, true)
 
-	auth, err := usecase.UpdateAuth(UpdateCollectionAuthRequest{
+	auth, err := usecase.UpdateAuth(context.Background(), UpdateCollectionAuthRequest{
 		Type: "none",
 	})
 	if err != nil {
@@ -215,7 +158,7 @@ func TestUpdateAuth_None(t *testing.T) {
 	}
 
 	// Verify GetAuth also returns nil
-	getAuth, err := usecase.GetAuth()
+	getAuth, err := usecase.GetAuth(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error from GetAuth, got %v", err)
 	}

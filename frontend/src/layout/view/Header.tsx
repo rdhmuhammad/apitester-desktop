@@ -10,7 +10,6 @@ import type {HeaderAction} from "@/layout/types/headerContext.ts";
 import CollectionManager from "@/layout/components/collectionManager";
 import RequestHeader from "@/layout/components/RequestHeader.tsx";
 import type {RequestHeaderHandle} from "@/layout/types/HeaderSync.ts";
-import {useCollectionPushPull} from "@/layout/hooks/useCollectionPushPull.ts";
 import {useSocket} from "@/hooks/useSocket.ts";
 import {SOCKET_NAMESPACES} from "@/config/socket.ts";
 import TestScenarioEditorHeader from "@/layout/components/TestScenarioEditorHeader.tsx";
@@ -23,7 +22,6 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     const {activeCollection: collectionData} = useCollection()
     const activeEditorTab = useAppSelector(selectEditorActiveTab)
     const requestHeaderRef = useRef<RequestHeaderHandle>(null)
-    const {pull, isPulling, isPushing} = useCollectionPushPull()
     const {status: socketStatus} = useSocket(SOCKET_NAMESPACES.collection)
     const {theme, setTheme} = useTheme()
 
@@ -38,17 +36,13 @@ const HeaderLayout: React.FC<{ onSend: HeaderAction }> = ({onSend}) => {
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             const requestHeader = requestHeaderRef.current
-            if (!collectionData || isPulling || isPushing) return
+            if (!collectionData) return
             if (!event.ctrlKey && !event.metaKey) return
             switch (event.key) {
                 case "Enter":
                     if (!requestHeader || requestHeader.isSending) return
                     event.preventDefault()
                     requestHeader.sendRequest()
-                    break
-                case "p":
-                    event.preventDefault()
-                    pull()
                     break
             }
         }

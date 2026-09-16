@@ -4,7 +4,7 @@ import { pmCompletionSource, resCompletionSource } from "@/lib/pmCompletions"
 import { useDebouncedCallback } from "use-debounce"
 import { useAppSelector } from "@/app/store/hooks.ts"
 import { selectEditorActiveTabId, selectCollectionId } from "@/app/slices/editorTabsSlice.ts"
-import { useRequestConfig } from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts"
+import { useRequestConfig } from "@/pages/editor/hooks/useRequestConfig.ts"
 import { linter, type Diagnostic } from "@codemirror/lint"
 
 interface ScriptEditorProps {

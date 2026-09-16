@@ -33,7 +33,7 @@ import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
 import type {RequestHeaderHandle} from "../types/HeaderSync";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
-import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
+import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 
 const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(({onSend}, ref) => {

@@ -54,8 +54,8 @@ func NewPort(lg logger.Logger, database *bbolt.DB) *Port {
 // domain collection. The caller is responsible for unmarshalling the
 // content into its own DocsContent type. This avoids a circular import
 // on collection service DTOs.
-func (p *Port) LoadCollection(id string) (*domain.Collection, []byte, error) {
-	collection, err := p.CollectionRepo.View(context.Background(), id)
+func (p *Port) LoadCollection(ctx context.Context, id string) (*domain.Collection, []byte, error) {
+	collection, err := p.CollectionRepo.View(ctx, id)
 	if err != nil {
 		return nil, nil, p.ErrHandler.ErrorReturn(err)
 	}
@@ -77,12 +77,12 @@ func (p *Port) LoadCollection(id string) (*domain.Collection, []byte, error) {
 // SaveCollection writes content to the collection file and updates the
 // collection's UpdatedAt timestamp in the repository.
 // Content must already be marshalled (e.g. via json.MarshalIndent).
-func (p *Port) SaveCollection(collection *domain.Collection, content []byte) ([]byte, error) {
+func (p *Port) SaveCollection(ctx context.Context, collection *domain.Collection, content []byte) ([]byte, error) {
 	if err := os.WriteFile(collection.Path, content, 0644); err != nil {
 		return nil, p.ErrHandler.ErrorReturn(err)
 	}
 	collection.UpdatedAt = time.Now()
-	if err := p.CollectionRepo.Update(context.Background(), collection.ID, collection); err != nil {
+	if err := p.CollectionRepo.Update(ctx, collection.ID, collection); err != nil {
 		return nil, p.ErrHandler.ErrorReturn(err)
 	}
 	return content, nil
@@ -97,7 +97,7 @@ func (p *Port) Version(content []byte) string {
 // RecordHistory persists a CollectionHistory entry describing a mutation.
 // oldValue / newValue are marshalled to JSON. The method mirrors
 // restrequest/usecase.go::recordHistory (line 229).
-func (p *Port) RecordHistory(collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
+func (p *Port) RecordHistory(ctx context.Context, collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
 	oldJSON, err := json.Marshal(oldValue)
 	if err != nil {
 		return p.ErrHandler.ErrorReturn(err)
@@ -121,7 +121,8 @@ func (p *Port) RecordHistory(collection *domain.Collection, requestID, operation
 		Line:         line,
 		CreatedAt:    time.Now(),
 	}
-	if err := p.HistoryRepo.Create(context.Background(), history.ID, &history); err != nil {
+
+	if err := p.HistoryRepo.Create(ctx, history.ID, &history); err != nil {
 		return p.ErrHandler.ErrorReturn(err)
 	}
 	return nil
@@ -173,11 +174,11 @@ func (p *Port) MutationLine(content []byte, searchID, field string) int {
 //
 // This keeps the critical section generic while reusing history and
 // collection persistence via Port.
-func (p *Port) Update(collectionID, requestID, operation, field string, apply func(oldContent []byte) (oldValue any, newValue any, newContent []byte, err error)) ([]byte, error) {
+func (p *Port) Update(ctx context.Context, collectionID, requestID, operation, field string, apply func(oldContent []byte) (oldValue any, newValue any, newContent []byte, err error)) ([]byte, error) {
 	p.WriteMu.Lock()
 	defer p.WriteMu.Unlock()
 
-	collection, oldContent, err := p.LoadCollection(collectionID)
+	collection, oldContent, err := p.LoadCollection(ctx, collectionID)
 	if err != nil {
 		return nil, err
 	}
@@ -185,11 +186,11 @@ func (p *Port) Update(collectionID, requestID, operation, field string, apply fu
 	if err != nil {
 		return nil, err
 	}
-	saved, err := p.SaveCollection(collection, newContent)
+	saved, err := p.SaveCollection(ctx, collection, newContent)
 	if err != nil {
 		return nil, err
 	}
-	if err := p.RecordHistory(collection, requestID, operation, field, oldValue, newValue, oldContent, saved); err != nil {
+	if err := p.RecordHistory(ctx, collection, requestID, operation, field, oldValue, newValue, oldContent, saved); err != nil {
 		return nil, err
 	}
 	return saved, nil

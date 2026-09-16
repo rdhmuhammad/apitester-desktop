@@ -35,7 +35,6 @@ const socketEvents = {
     updateName: "request:update:name",
     updateUrl: "request:update:url",
     updateHeaders: "request:update:headers",
-    updateAuthorization: "request:update:authorization",
     updateAuth: "request:update:auth",
     updateQuery: "request:update:query",
     updateJsonBody: "request:update:body:json",
@@ -111,9 +110,6 @@ export const RequestConfigServices = {
 
     updateHeaders: (collectionId: string, requestId: string, data: Versioned & {headers: ItemUrl[]}) =>
         emitRequestEvent(socketEvents.updateHeaders, socketEvents.updateHeaders, {collectionId, requestId}, data),
-
-    updateAuthorization: (collectionId: string, requestId: string, data: Versioned & {type: string; token?: string}) =>
-        emitRequestEvent(socketEvents.updateAuthorization, socketEvents.updateAuthorization, {collectionId, requestId}, data),
 
     updateAuth: (collectionId: string, requestId: string, data: Versioned & {type: string; bearer?: ItemUrl[]; authSource: string}) =>
         emitRequestEvent(socketEvents.updateAuth, socketEvents.updateAuth, {collectionId, requestId}, data),

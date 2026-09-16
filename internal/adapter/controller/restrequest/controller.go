@@ -1,6 +1,7 @@
 package restrequest
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,9 +13,9 @@ import (
 )
 
 type Usecase interface {
-	CreateRequest(collectionID string) (service.RequestResponse, error)
-	Get(collectionID, requestID string) (service.RequestResponse, error)
-	Delete(collectionID, requestID string) (service.RequestResponse, error)
+	CreateRequest(ctx context.Context, collectionID string) (service.RequestResponse, error)
+	Get(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
+	Delete(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
 }
 
 type Controller struct {
@@ -27,17 +28,17 @@ func NewController(lg logger.Logger, database *bbolt.DB) Controller {
 }
 
 func (ctrl Controller) CreateRequest(c *gin.Context) {
-	res, err := ctrl.usecase.CreateRequest(c.Param("collectionId"))
+	res, err := ctrl.usecase.CreateRequest(c.Request.Context(), c.Param("collectionId"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request created"), err)
 }
 
 func (ctrl Controller) Get(c *gin.Context) {
-	res, err := ctrl.usecase.Get(c.Param("collectionId"), c.Param("requestId"))
+	res, err := ctrl.usecase.Get(c.Request.Context(), c.Param("collectionId"), c.Param("requestId"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request retrieved"), err)
 }
 
 func (ctrl Controller) Delete(c *gin.Context) {
-	res, err := ctrl.usecase.Delete(c.Param("collectionId"), c.Param("requestId"))
+	res, err := ctrl.usecase.Delete(c.Request.Context(), c.Param("collectionId"), c.Param("requestId"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request deleted"), err)
 }
 

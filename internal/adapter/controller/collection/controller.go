@@ -1,6 +1,7 @@
 package collection
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,21 +14,21 @@ import (
 )
 
 type Usecase interface {
-	Read(id string) (service.ReadResponse, error)
-	ListCollections() ([]domain.Collection, error)
-	CreateCollection(req service.CreateCollectionRequest) (domain.Collection, error)
-	UpdateCollectionByID(id string, req service.UpdateCollectionRequest) (domain.Collection, error)
-	DeleteCollection(id string) error
-	SelectCollection(id string) (domain.Collection, error)
-	GetActiveCollection() (domain.Collection, error)
-	GetVariables() ([]service.CollectionVar, error)
-	GetPreScript() (string, error)
-	UpdatePreScript(req service.UpdatePreScriptRequest) (service.UpdatePreScriptResponse, error)
-	CreateVariable(req service.CreateVariableRequest) (service.CreateVariableResponse, error)
-	UpdateVariable(id string, req service.UpdateVariableRequest) (service.CreateVariableResponse, error)
-	DeleteVariable(id string) (service.CreateVariableResponse, error)
-	GetAuth() (*service.CollectionAuth, error)
-	UpdateAuth(req service.UpdateCollectionAuthRequest) (*service.CollectionAuth, error)
+	Read(ctx context.Context, id string) (service.ReadResponse, error)
+	ListCollections(ctx context.Context) ([]domain.Collection, error)
+	CreateCollection(ctx context.Context, req service.CreateCollectionRequest) (domain.Collection, error)
+	UpdateCollectionByID(ctx context.Context, id string, req service.UpdateCollectionRequest) (domain.Collection, error)
+	DeleteCollection(ctx context.Context, id string) error
+	SelectCollection(ctx context.Context, id string) (domain.Collection, error)
+	GetActiveCollection(ctx context.Context) (domain.Collection, error)
+	GetVariables(ctx context.Context) ([]service.CollectionVar, error)
+	GetPreScript(ctx context.Context) (string, error)
+	UpdatePreScript(ctx context.Context, req service.UpdatePreScriptRequest) (service.UpdatePreScriptResponse, error)
+	CreateVariable(ctx context.Context, req service.CreateVariableRequest) (service.CreateVariableResponse, error)
+	UpdateVariable(ctx context.Context, id string, req service.UpdateVariableRequest) (service.CreateVariableResponse, error)
+	DeleteVariable(ctx context.Context, id string) (service.CreateVariableResponse, error)
+	GetAuth(ctx context.Context) (*service.CollectionAuth, error)
+	UpdateAuth(ctx context.Context, req service.UpdateCollectionAuthRequest) (*service.CollectionAuth, error)
 }
 
 type Controller struct {
@@ -46,12 +47,12 @@ func NewController(
 }
 
 func (ctrl Controller) ListCollections(c *gin.Context) {
-	res, err := ctrl.usecase.ListCollections()
+	res, err := ctrl.usecase.ListCollections(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collections retrieved"), err)
 }
 
 func (ctrl Controller) Read(c *gin.Context) {
-	res, err := ctrl.usecase.Read(c.Param("id"))
+	res, err := ctrl.usecase.Read(c.Request.Context(), c.Param("id"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection retrieved"), err)
 }
 
@@ -62,7 +63,7 @@ func (ctrl Controller) CreateCollection(c *gin.Context) {
 		return
 	}
 
-	res, err := ctrl.usecase.CreateCollection(req)
+	res, err := ctrl.usecase.CreateCollection(c.Request.Context(), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection created"), err)
 }
 
@@ -73,32 +74,32 @@ func (ctrl Controller) UpdateCollectionByID(c *gin.Context) {
 		return
 	}
 
-	res, err := ctrl.usecase.UpdateCollectionByID(c.Param("id"), req)
+	res, err := ctrl.usecase.UpdateCollectionByID(c.Request.Context(), c.Param("id"), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection updated"), err)
 }
 
 func (ctrl Controller) DeleteCollection(c *gin.Context) {
-	err := ctrl.usecase.DeleteCollection(c.Param("id"))
+	err := ctrl.usecase.DeleteCollection(c.Request.Context(), c.Param("id"))
 	ctrl.respond(c, payload.NewSuccessResponseNoData("Collection deleted"), err)
 }
 
 func (ctrl Controller) SelectCollection(c *gin.Context) {
-	res, err := ctrl.usecase.SelectCollection(c.Param("id"))
+	res, err := ctrl.usecase.SelectCollection(c.Request.Context(), c.Param("id"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection selected"), err)
 }
 
 func (ctrl Controller) GetActiveCollection(c *gin.Context) {
-	res, err := ctrl.usecase.GetActiveCollection()
+	res, err := ctrl.usecase.GetActiveCollection(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Active collection retrieved"), err)
 }
 
 func (ctrl Controller) GetVariables(c *gin.Context) {
-	res, err := ctrl.usecase.GetVariables()
+	res, err := ctrl.usecase.GetVariables(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection variables retrieved"), err)
 }
 
 func (ctrl Controller) GetPreScript(c *gin.Context) {
-	res, err := ctrl.usecase.GetPreScript()
+	res, err := ctrl.usecase.GetPreScript(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection pre-request script retrieved"), err)
 }
 
@@ -108,7 +109,7 @@ func (ctrl Controller) GetAuth(c *gin.Context) {
 		err error
 	)
 
-	res, err = ctrl.usecase.GetAuth()
+	res, err = ctrl.usecase.GetAuth(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection auth retrieved"), err)
 }
 
@@ -118,7 +119,7 @@ func (ctrl Controller) UpdateAuth(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
 		return
 	}
-	res, err := ctrl.usecase.UpdateAuth(req)
+	res, err := ctrl.usecase.UpdateAuth(c.Request.Context(), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection auth updated"), err)
 }
 
@@ -128,7 +129,7 @@ func (ctrl Controller) UpdatePreScript(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
 		return
 	}
-	res, err := ctrl.usecase.UpdatePreScript(req)
+	res, err := ctrl.usecase.UpdatePreScript(c.Request.Context(), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection pre-request script updated"), err)
 }
 
@@ -138,7 +139,7 @@ func (ctrl Controller) CreateVariable(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
 		return
 	}
-	res, err := ctrl.usecase.CreateVariable(req)
+	res, err := ctrl.usecase.CreateVariable(c.Request.Context(), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Variable created"), err)
 }
 
@@ -148,12 +149,12 @@ func (ctrl Controller) UpdateVariable(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
 		return
 	}
-	res, err := ctrl.usecase.UpdateVariable(c.Param("id"), req)
+	res, err := ctrl.usecase.UpdateVariable(c.Request.Context(), c.Param("id"), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Variable updated"), err)
 }
 
 func (ctrl Controller) DeleteVariable(c *gin.Context) {
-	res, err := ctrl.usecase.DeleteVariable(c.Param("id"))
+	res, err := ctrl.usecase.DeleteVariable(c.Request.Context(), c.Param("id"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Variable deleted"), err)
 }
 

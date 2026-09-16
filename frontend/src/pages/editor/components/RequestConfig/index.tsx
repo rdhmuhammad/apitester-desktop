@@ -14,8 +14,8 @@ import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts"
 import {useQueryClient} from "@tanstack/react-query"
 import {type Collection} from "@/layout/services/collection"
 import {useDebouncedCallback} from "use-debounce"
-import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts"
-import type {RestRequestResponse} from "@/pages/editor/components/RequestConfig/services/requestConfig.ts"
+import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts"
+import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts"
 import type {CollectionAuth, ItemUrl} from "@/pages/editor/types/api.ts"
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 
@@ -147,11 +147,32 @@ const RequestConfigTabs: React.FC = () => {
             })
 
             const currentHeaders = updatedReq?.headers ?? request?.headers ?? []
-            const updatedHeaders = currentHeaders.map(
-                item =>
-                    item.key.trim().toLowerCase() === "authorization" ?
-                        {...item, value: parsedToken} : item
+            const hasAuthHeader = currentHeaders.some(
+                (item) => item.key.trim().toLowerCase() === "authorization"
             )
+
+            const authHeaderValue = parsedType === "bearer" 
+                ? (parsedToken.trim() ? `Bearer ${parsedToken.trim()}` : "Bearer ") 
+                : parsedToken
+
+            const updatedHeaders = hasAuthHeader
+                ? currentHeaders.map(
+                    item =>
+                        item.key.trim().toLowerCase() === "authorization" ?
+                            {
+                                ...item,
+                                value: authHeaderValue
+                            } : item
+                )
+                : [
+                    ...currentHeaders,
+                    {
+                        id: crypto.randomUUID(),
+                        key: "Authorization",
+                        value: authHeaderValue,
+                        disabled: false,
+                    }
+                ]
 
             await updateHeaders(updatedHeaders)
         } else {

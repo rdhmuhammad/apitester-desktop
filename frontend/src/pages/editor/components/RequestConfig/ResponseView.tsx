@@ -18,7 +18,7 @@ import * as XLSX from 'xlsx';
 import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectCollectionId, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import {selectResponseByRequestId} from "@/app/slices/restApiSlice.ts";
-import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
+import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 import CustomToast from "@/components/common/toast";
 import type {ScriptLog} from "@/types/response.ts";
 

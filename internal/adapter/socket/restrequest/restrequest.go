@@ -1,6 +1,9 @@
 package restrequest
 
 import (
+	"context"
+	"time"
+
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"go.etcd.io/bbolt"
 	"strings"
@@ -11,19 +14,18 @@ import (
 )
 
 type Usecase interface {
-	UpdateURL(collectionID, requestID string, req service.UpdateURLRequest) (service.RequestResponse, error)
-	UpdateHeaders(collectionID, requestID string, req service.UpdateHeadersRequest) (service.RequestResponse, error)
-	UpdateAuthorization(collectionID, requestID string, req service.UpdateAuthorizationRequest) (service.RequestResponse, error)
-	UpdateAuth(collectionID, requestID string, req service.UpdateAuthRequest) (service.RequestResponse, error)
-	UpdateMethod(collectionID, requestID string, req service.UpdateMethodRequest) (service.RequestResponse, error)
-	UpdateName(collectionID, requestID string, req service.UpdateNameRequest) (service.RequestResponse, error)
-	UpdateQuery(collectionID, requestID string, req service.UpdateQueryRequest) (service.RequestResponse, error)
-	UpdateJSONBody(collectionID, requestID string, req service.UpdateJSONBodyRequest) (service.RequestResponse, error)
-	UpdateFormDataBody(collectionID, requestID string, req service.UpdateFormDataBodyRequest) (service.RequestResponse, error)
-	UpdatePostRequestScript(collectionID, requestID string, req service.UpdatePostRequestScriptRequest) (service.RequestResponse, error)
-	Delete(collectionID, requestID string) (service.RequestResponse, error)
-	SaveResponse(collectionID, requestID string, req service.SaveResponseRequest) (service.RequestResponse, error)
-	SavePostRequestScript(collectionID, requestID string, req service.SavePostRequestScriptRequest) (service.RequestResponse, error)
+	UpdateURL(ctx context.Context, collectionID, requestID string, req service.UpdateURLRequest) (service.RequestResponse, error)
+	UpdateHeaders(ctx context.Context, collectionID, requestID string, req service.UpdateHeadersRequest) (service.RequestResponse, error)
+	UpdateAuth(ctx context.Context, collectionID, requestID string, req service.UpdateAuthRequest) (service.RequestResponse, error)
+	UpdateMethod(ctx context.Context, collectionID, requestID string, req service.UpdateMethodRequest) (service.RequestResponse, error)
+	UpdateName(ctx context.Context, collectionID, requestID string, req service.UpdateNameRequest) (service.RequestResponse, error)
+	UpdateQuery(ctx context.Context, collectionID, requestID string, req service.UpdateQueryRequest) (service.RequestResponse, error)
+	UpdateJSONBody(ctx context.Context, collectionID, requestID string, req service.UpdateJSONBodyRequest) (service.RequestResponse, error)
+	UpdateFormDataBody(ctx context.Context, collectionID, requestID string, req service.UpdateFormDataBodyRequest) (service.RequestResponse, error)
+	UpdatePostRequestScript(ctx context.Context, collectionID, requestID string, req service.UpdatePostRequestScriptRequest) (service.RequestResponse, error)
+	Delete(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
+	SaveResponse(ctx context.Context, collectionID, requestID string, req service.SaveResponseRequest) (service.RequestResponse, error)
+	SavePostRequestScript(ctx context.Context, collectionID, requestID string, req service.SavePostRequestScriptRequest) (service.RequestResponse, error)
 }
 
 type RequestSocket struct {
@@ -32,20 +34,6 @@ type RequestSocket struct {
 
 func NewRestRequestSocket(lg *logger.ReZero, dbBolt *bbolt.DB) *RequestSocket {
 	return &RequestSocket{usecase: service.NewUsecase(lg, dbBolt)}
-}
-
-func (s *RequestSocket) UpdateAuthorization(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateAuthorizationPayload)
-	if !ok {
-		return
-	}
-	collectionID, requestID := requestIDs(client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateAuthorization.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateAuthorization(collectionID, requestID, payload.UpdateAuthorizationRequest)
-	s.emitResult(client, RequestUpdateAuthorization.Name(), res, err)
 }
 
 func (s *RequestSocket) UpdateAuth(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
@@ -58,7 +46,9 @@ func (s *RequestSocket) UpdateAuth(_ *cio.NS, client *socket.Socket, message cio
 		s.emitError(client, RequestUpdateAuth, "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateAuth(collectionID, requestID, payload.UpdateAuthRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateAuth(ctx, collectionID, requestID, payload.UpdateAuthRequest)
 	s.emitResult(client, RequestUpdateAuth, res, err)
 }
 
@@ -72,7 +62,9 @@ func (s *RequestSocket) UpdateURL(_ *cio.NS, client *socket.Socket, message cio.
 		s.emitError(client, RequestUpdateUrl.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateURL(collectionID, requestID, payload.UpdateURLRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateURL(ctx, collectionID, requestID, payload.UpdateURLRequest)
 	s.emitResult(client, RequestUpdateUrl.Name(), res, err)
 }
 
@@ -86,7 +78,9 @@ func (s *RequestSocket) UpdateHeaders(_ *cio.NS, client *socket.Socket, message 
 		s.emitError(client, RequestUpdateHeaders.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateHeaders(collectionID, requestID, payload.UpdateHeadersRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateHeaders(ctx, collectionID, requestID, payload.UpdateHeadersRequest)
 	s.emitResult(client, RequestUpdateHeaders.Name(), res, err)
 }
 
@@ -100,7 +94,9 @@ func (s *RequestSocket) UpdateMethod(_ *cio.NS, client *socket.Socket, message c
 		s.emitError(client, RequestUpdateMethod.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateMethod(collectionID, requestID, payload.UpdateMethodRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateMethod(ctx, collectionID, requestID, payload.UpdateMethodRequest)
 	s.emitResult(client, RequestUpdateMethod.Name(), res, err)
 }
 
@@ -114,7 +110,9 @@ func (s *RequestSocket) UpdateName(_ *cio.NS, client *socket.Socket, message cio
 		s.emitError(client, RequestUpdateName.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateName(collectionID, requestID, payload.UpdateNameRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateName(ctx, collectionID, requestID, payload.UpdateNameRequest)
 	s.emitResult(client, RequestUpdateName.Name(), res, err)
 }
 
@@ -128,7 +126,9 @@ func (s *RequestSocket) UpdateQuery(_ *cio.NS, client *socket.Socket, message ci
 		s.emitError(client, RequestUpdateQuery.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateQuery(collectionID, requestID, payload.UpdateQueryRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateQuery(ctx, collectionID, requestID, payload.UpdateQueryRequest)
 	s.emitResult(client, RequestUpdateQuery.Name(), res, err)
 }
 
@@ -142,7 +142,9 @@ func (s *RequestSocket) UpdateJSONBody(_ *cio.NS, client *socket.Socket, message
 		s.emitError(client, RequestUpdateBodyJson.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateJSONBody(collectionID, requestID, payload.UpdateJSONBodyRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateJSONBody(ctx, collectionID, requestID, payload.UpdateJSONBodyRequest)
 	s.emitResult(client, RequestUpdateBodyJson.Name(), res, err)
 }
 
@@ -156,7 +158,9 @@ func (s *RequestSocket) UpdateFormDataBody(_ *cio.NS, client *socket.Socket, mes
 		s.emitError(client, RequestUpdateBodyFormdata.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateFormDataBody(collectionID, requestID, payload.UpdateFormDataBodyRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdateFormDataBody(ctx, collectionID, requestID, payload.UpdateFormDataBodyRequest)
 	s.emitResult(client, RequestUpdateBodyFormdata.Name(), res, err)
 }
 
@@ -170,7 +174,9 @@ func (s *RequestSocket) UpdateScript(_ *cio.NS, client *socket.Socket, message c
 		s.emitError(client, RequestUpdateScript.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdatePostRequestScript(collectionID, requestID, payload.UpdatePostRequestScriptRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.UpdatePostRequestScript(ctx, collectionID, requestID, payload.UpdatePostRequestScriptRequest)
 	s.emitResult(client, RequestUpdateScript.Name(), res, err)
 }
 
@@ -184,7 +190,9 @@ func (s *RequestSocket) Delete(_ *cio.NS, client *socket.Socket, message cio.Mes
 		s.emitError(client, RequestDelete.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.Delete(collectionID, requestID)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.Delete(ctx, collectionID, requestID)
 	s.emitResult(client, RequestDelete.Name(), res, err)
 }
 
@@ -198,7 +206,9 @@ func (s *RequestSocket) SaveResponse(_ *cio.NS, client *socket.Socket, message c
 		s.emitError(client, RequestSaveResponse.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.SaveResponse(collectionID, requestID, payload.SaveResponseRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.SaveResponse(ctx, collectionID, requestID, payload.SaveResponseRequest)
 	s.emitResult(client, RequestSaveResponse.Name(), res, err)
 }
 
@@ -212,7 +222,9 @@ func (s *RequestSocket) SavePostRequestScript(_ *cio.NS, client *socket.Socket, 
 		s.emitError(client, RequestSaveScript.Name(), "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.SavePostRequestScript(collectionID, requestID, payload.SavePostRequestScriptRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	res, err := s.usecase.SavePostRequestScript(ctx, collectionID, requestID, payload.SavePostRequestScriptRequest)
 	s.emitResult(client, RequestSaveScript.Name(), res, err)
 }
 
@@ -224,7 +236,6 @@ func (s *RequestSocket) OnSpace(ns cio.NSInitiate) {
 	ns("restrequest", nil).
 		Event(RequestUpdateUrl.Name(), &RequestUpdateURLPayload{}, s.UpdateURL).
 		Event(RequestUpdateHeaders.Name(), &RequestUpdateHeadersPayload{}, s.UpdateHeaders).
-		Event(RequestUpdateAuthorization.Name(), &RequestUpdateAuthorizationPayload{}, s.UpdateAuthorization).
 		Event(RequestUpdateAuth, &RequestUpdateAuthPayload{}, s.UpdateAuth).
 		Event(RequestUpdateMethod.Name(), &RequestUpdateMethodPayload{}, s.UpdateMethod).
 		Event(RequestUpdateName.Name(), &RequestUpdateNamePayload{}, s.UpdateName).

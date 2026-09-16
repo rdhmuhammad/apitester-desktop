@@ -1,6 +1,7 @@
 package restrequest
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -25,13 +26,13 @@ func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	}
 }
 
-func (u *Usecase) CreateRequest(collectionID string) (RequestResponse, error) {
+func (u *Usecase) CreateRequest(ctx context.Context, collectionID string) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	item := collectionService.CollectionItem{
@@ -50,63 +51,68 @@ func (u *Usecase) CreateRequest(collectionID string) (RequestResponse, error) {
 	}
 	docs.Item = append(docs.Item, item)
 
-	updated, err := u.saveCollection(collection, docs)
+	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
-	if err := u.RecordHistory(collection, item.ID, "create_request", "request", nil, item, content, updated); err != nil {
-		return RequestResponse{}, err
+
+	if err := u.RecordHistory(ctx, collection, item.ID, "create_request", "request", nil, item, content, updated); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	return requestResponse(collection, updated, &item), nil
 }
 
-func (u *Usecase) Get(collectionID, requestID string) (RequestResponse, error) {
-	collection, docs, content, err := u.loadCollection(collectionID)
+func (u *Usecase) Get(ctx context.Context, collectionID, requestID string) (RequestResponse, error) {
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	item := findRequest(docs.Item, requestID, docs.Auth)
 	if item == nil || item.Request == nil {
 		return RequestResponse{}, localerror.InvalidData("Request not found")
 	}
+
 	return requestResponse(collection, content, item), nil
 }
 
-func (u *Usecase) UpdateURL(collectionID, requestID string, req UpdateURLRequest) (RequestResponse, error) {
+func (u *Usecase) UpdateURL(ctx context.Context, collectionID, requestID string, req UpdateURLRequest) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
 	item := findRequest(docs.Item, requestID)
 	if item == nil || item.Request == nil {
 		return RequestResponse{}, localerror.InvalidData("Request not found")
 	}
+
 	oldValue := item.Request.URL
 	item.Request.URL = req.URL
 
-	updated, err := u.saveCollection(collection, docs)
+	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	if err := u.RecordHistory(collection, requestID, "update_url", "request.url", oldValue, req.URL, content, updated); err != nil {
-		return RequestResponse{}, err
+	if err := u.RecordHistory(ctx, collection, requestID, "update_url", "request.url", oldValue, req.URL, content, updated); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
 	return requestResponse(collection, updated, item), nil
 }
 
-func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeadersRequest) (RequestResponse, error) {
+func (u *Usecase) UpdateHeaders(ctx context.Context, collectionID, requestID string, req UpdateHeadersRequest) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	item := findRequest(docs.Item, requestID)
@@ -116,50 +122,20 @@ func (u *Usecase) UpdateHeaders(collectionID, requestID string, req UpdateHeader
 
 	oldValue := append([]collectionService.Header(nil), item.Request.Header...)
 	item.Request.Header = req.Headers
-	updated, err := u.saveCollection(collection, docs)
+
+	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
-	if err := u.RecordHistory(collection, requestID, "update_headers", "request.headers", oldValue, req.Headers, content, updated); err != nil {
-		return RequestResponse{}, err
+
+	if err := u.RecordHistory(ctx, collection, requestID, "update_headers", "request.headers", oldValue, req.Headers, content, updated); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	return requestResponse(collection, updated, item), nil
 }
 
-func (u *Usecase) UpdateAuthorization(collectionID, requestID string, req UpdateAuthorizationRequest) (RequestResponse, error) {
-	u.WriteMu.Lock()
-	defer u.WriteMu.Unlock()
-
-	collection, docs, content, err := u.loadCollection(collectionID)
-	if err != nil {
-		return RequestResponse{}, err
-	}
-
-	item := findRequest(docs.Item, requestID)
-	if item == nil || item.Request == nil {
-		return RequestResponse{}, localerror.InvalidData("Request not found")
-	}
-
-	oldValue := append([]collectionService.Header(nil), item.Request.Header...)
-	token := strings.TrimSpace(req.Token)
-	if strings.EqualFold(strings.TrimSpace(req.Type), "inherit") {
-		token = bearerToken(docs.Auth)
-	}
-
-	item.Request.Header = setAuthorizationHeader(item.Request.Header, token, strings.EqualFold(strings.TrimSpace(req.Type), "none"))
-	updated, err := u.saveCollection(collection, docs)
-	if err != nil {
-		return RequestResponse{}, err
-	}
-	if err := u.RecordHistory(collection, requestID, "update_authorization", "request.headers", oldValue, item.Request.Header, content, updated); err != nil {
-		return RequestResponse{}, err
-	}
-
-	return requestResponse(collection, updated, item), nil
-}
-
-func (u *Usecase) UpdateAuth(collectionID, requestID string, req UpdateAuthRequest) (RequestResponse, error) {
+func buildReqAuth(req UpdateAuthRequest) *collectionService.ReqAuth {
 	authSource := strings.TrimSpace(req.AuthSource)
 	if strings.EqualFold(authSource, "inherit") {
 		authSource = "inherit"
@@ -171,7 +147,7 @@ func (u *Usecase) UpdateAuth(collectionID, requestID string, req UpdateAuthReque
 		AuthSource: authSource,
 	}
 
-	if authSource == "onrequest" || authSource == "inherit" {
+	if authSource == "onrequest" {
 		auth.SetType(req.Type)
 		if req.Bearer != nil {
 			bearer := make([]collectionService.Property, len(req.Bearer))
@@ -190,103 +166,115 @@ func (u *Usecase) UpdateAuth(collectionID, requestID string, req UpdateAuthReque
 		auth.Bearer = nil
 	}
 
-	return u.update(collectionID, requestID, "update_auth", "request.auth", auth,
-		func(item *collectionService.CollectionItem) any {
+	return auth
+}
+
+func (u *Usecase) UpdateAuth(ctx context.Context, collectionID, requestID string, req UpdateAuthRequest) (RequestResponse, error) {
+	auth := buildReqAuth(req)
+
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_auth",
+		Field:        "request.auth",
+		NewValue:     auth,
+		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.Auth
 			item.Request.Auth = auth
 			return old
-		})
+		},
+	})
 }
 
-func (u *Usecase) UpdateMethod(collectionID, requestID string, req UpdateMethodRequest) (RequestResponse, error) {
-	return u.update(collectionID, requestID, "update_method", "request.method", req.Method,
-		func(item *collectionService.CollectionItem) any {
+func (u *Usecase) UpdateMethod(ctx context.Context, collectionID, requestID string, req UpdateMethodRequest) (RequestResponse, error) {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_method",
+		Field:        "request.method",
+		NewValue:     req.Method,
+		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.Method
 			item.Request.Method = req.Method
 			return old
-		})
+		},
+	})
 }
 
-func (u *Usecase) UpdateName(collectionID, requestID string, req UpdateNameRequest) (RequestResponse, error) {
-	return u.update(collectionID, requestID, "update_name", "name", req.Name,
-		func(item *collectionService.CollectionItem) any {
+func (u *Usecase) UpdateName(ctx context.Context, collectionID, requestID string, req UpdateNameRequest) (RequestResponse, error) {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_name",
+		Field:        "name",
+		NewValue:     req.Name,
+		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Name
 			item.Name = req.Name
 			return old
-		})
+		},
+	})
 }
 
-func bearerToken(auth *collectionService.CollectionAuth) string {
-	if auth == nil || !strings.EqualFold(strings.TrimSpace(auth.Type), "bearer") {
-		return ""
-	}
-	for _, property := range auth.Bearer {
-		if strings.EqualFold(strings.TrimSpace(property.Key), "token") {
-			return strings.TrimSpace(property.Value)
-		}
-	}
-	return ""
-}
-
-func setAuthorizationHeader(headers []collectionService.Header, token string, remove bool) []collectionService.Header {
-	updated := make([]collectionService.Header, 0, len(headers)+1)
-	for _, header := range headers {
-		if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
-			if !remove && token != "" {
-				header.Value = "Bearer " + token
-				updated = append(updated, header)
-			}
-			continue
-		}
-		updated = append(updated, header)
-	}
-	if !remove && token != "" {
-		for _, header := range headers {
-			if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
-				return updated
-			}
-		}
-		updated = append(updated, collectionService.Header{Key: "Authorization", Value: "Bearer " + token})
-	}
-	return updated
-}
-
-func (u *Usecase) UpdateQuery(collectionID, requestID string, req UpdateQueryRequest) (RequestResponse, error) {
-	return u.update(collectionID, requestID, "update_query", "request.url.query", req.Query,
-		func(item *collectionService.CollectionItem) any {
+func (u *Usecase) UpdateQuery(ctx context.Context, collectionID, requestID string, req UpdateQueryRequest) (RequestResponse, error) {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_query",
+		Field:        "request.url.query",
+		NewValue:     req.Query,
+		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.URL.Query
 			item.Request.URL.Query = req.Query
 			return old
-		})
+		},
+	})
 }
 
-func (u *Usecase) UpdateJSONBody(collectionID, requestID string, req UpdateJSONBodyRequest) (RequestResponse, error) {
+func (u *Usecase) UpdateJSONBody(ctx context.Context, collectionID, requestID string, req UpdateJSONBodyRequest) (RequestResponse, error) {
 	body := &collectionService.RequestBody{Mode: "raw", Raw: req.Raw}
-	return u.update(collectionID, requestID, "update_body_json", "request.body", body,
-		func(item *collectionService.CollectionItem) any {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_body_json",
+		Field:        "request.body",
+		NewValue:     body,
+		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.Body
 			item.Request.Body = body
 			return old
-		})
+		},
+	})
 }
 
-func (u *Usecase) UpdateFormDataBody(collectionID, requestID string, req UpdateFormDataBodyRequest) (RequestResponse, error) {
+func (u *Usecase) UpdateFormDataBody(ctx context.Context, collectionID, requestID string, req UpdateFormDataBodyRequest) (RequestResponse, error) {
 	body := &collectionService.RequestBody{Mode: "formdata", FormData: req.FormData}
-	return u.update(collectionID, requestID, "update_body_formdata", "request.body", body,
-		func(item *collectionService.CollectionItem) any {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_body_formdata",
+		Field:        "request.body",
+		NewValue:     body,
+		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.Body
 			item.Request.Body = body
 			return old
-		})
+		},
+	})
 }
 
-func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req UpdatePostRequestScriptRequest) (RequestResponse, error) {
+func (u *Usecase) UpdatePostRequestScript(ctx context.Context, collectionID, requestID string, req UpdatePostRequestScriptRequest) (RequestResponse, error) {
 	script := collectionService.EventScript{Exec: req.Exec, Type: req.Type}
 	if script.Type == "" {
 		script.Type = "text/javascript"
 	}
-	return u.update(collectionID, requestID, "update_post_request_script", "event.script", script,
-		func(item *collectionService.CollectionItem) any {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_post_request_script",
+		Field:        "event.script",
+		NewValue:     script,
+		Apply: func(item *collectionService.CollectionItem) any {
 			for i := range item.Event {
 				if strings.EqualFold(item.Event[i].Listen, "test") || strings.EqualFold(item.Event[i].Listen, "post-request") {
 					old := item.Event[i].Script
@@ -296,10 +284,11 @@ func (u *Usecase) UpdatePostRequestScript(collectionID, requestID string, req Up
 			}
 			item.Event = append(item.Event, collectionService.CollectionEvent{Listen: "test", Script: script})
 			return nil
-		})
+		},
+	})
 }
 
-func (u *Usecase) SavePostRequestScript(collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
+func buildEventScript(req SavePostRequestScriptRequest) collectionService.EventScript {
 	exec := req.Exec
 	if len(exec) == 0 && req.Script != "" {
 		exec = strings.Split(req.Script, "\n")
@@ -311,9 +300,18 @@ func (u *Usecase) SavePostRequestScript(collectionID, requestID string, req Save
 	if scriptType == "" {
 		scriptType = "text/javascript"
 	}
-	script := collectionService.EventScript{Exec: exec, Type: scriptType}
-	return u.update(collectionID, requestID, "save_post_request_script", "event.script", script,
-		func(item *collectionService.CollectionItem) any {
+	return collectionService.EventScript{Exec: exec, Type: scriptType}
+}
+
+func (u *Usecase) SavePostRequestScript(ctx context.Context, collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
+	script := buildEventScript(req)
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "save_post_request_script",
+		Field:        "event.script",
+		NewValue:     script,
+		Apply: func(item *collectionService.CollectionItem) any {
 			for i := range item.Event {
 				if strings.EqualFold(item.Event[i].Listen, "test") || strings.EqualFold(item.Event[i].Listen, "post-request") {
 					old := item.Event[i].Script
@@ -324,20 +322,21 @@ func (u *Usecase) SavePostRequestScript(collectionID, requestID string, req Save
 			}
 			item.Event = append(item.Event, collectionService.CollectionEvent{Listen: "test", Script: script})
 			return nil
-		})
+		},
+	})
 }
 
-func (u *Usecase) SaveScript(collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
-	return u.SavePostRequestScript(collectionID, requestID, req)
+func (u *Usecase) SaveScript(ctx context.Context, collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
+	return u.SavePostRequestScript(ctx, collectionID, requestID, req)
 }
 
-func (u *Usecase) SaveResponse(collectionID, requestID string, req SaveResponseRequest) (RequestResponse, error) {
+func (u *Usecase) SaveResponse(ctx context.Context, collectionID, requestID string, req SaveResponseRequest) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	item := findRequest(docs.Item, requestID)
@@ -349,25 +348,25 @@ func (u *Usecase) SaveResponse(collectionID, requestID string, req SaveResponseR
 	oldValue := append([]collectionService.CollectionResponse(nil), item.Response...)
 	item.Response = append(item.Response, newResponse)
 
-	updated, err := u.saveCollection(collection, docs)
+	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	if err := u.RecordHistory(collection, requestID, "save_response", "response", oldValue, newResponse, content, updated); err != nil {
-		return RequestResponse{}, err
+	if err := u.RecordHistory(ctx, collection, requestID, "save_response", "response", oldValue, newResponse, content, updated); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	return requestResponse(collection, updated, item), nil
 }
 
-func (u *Usecase) Delete(collectionID, requestID string) (RequestResponse, error) {
+func (u *Usecase) Delete(ctx context.Context, collectionID, requestID string) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
 	var deleted *collectionService.CollectionItem
@@ -377,47 +376,59 @@ func (u *Usecase) Delete(collectionID, requestID string) (RequestResponse, error
 	}
 	deletedResponse := requestResponse(collection, content, deleted)
 
-	updated, err := u.saveCollection(collection, docs)
+	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
-	if err := u.RecordHistory(collection, requestID, "delete_request", "request", *deleted, nil, content, updated); err != nil {
-		return RequestResponse{}, err
+
+	if err := u.RecordHistory(ctx, collection, requestID, "delete_request", "request", *deleted, nil, content, updated); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
 	deletedResponse.Version = u.Version(updated)
+
 	return deletedResponse, nil
 }
 
-func (u *Usecase) update(collectionID, requestID, operation, field string, newValue any, apply func(*collectionService.CollectionItem) any) (RequestResponse, error) {
+type updateReq struct {
+	CollectionID string
+	RequestID    string
+	Operation    string
+	Field        string
+	NewValue     any
+	Apply        func(*collectionService.CollectionItem) any
+}
+
+func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, req.CollectionID)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	item := findRequest(docs.Item, requestID)
+	item := findRequest(docs.Item, req.RequestID)
 	if item == nil || item.Request == nil {
 		return RequestResponse{}, localerror.InvalidData("Request not found")
 	}
-	oldValue := apply(item)
-	updated, err := u.saveCollection(collection, docs)
+
+	oldValue := req.Apply(item)
+
+	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
-		return RequestResponse{}, err
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
-	if err := u.RecordHistory(collection, requestID, operation, field, oldValue, newValue, content, updated); err != nil {
-		return RequestResponse{}, err
+
+	if err := u.RecordHistory(ctx, collection, req.RequestID, req.Operation, req.Field, oldValue, req.NewValue, content, updated); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
 	return requestResponse(collection, updated, item), nil
 }
 
-func (u *Usecase) recordHistory(collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
-	return u.Port.RecordHistory(collection, requestID, operation, field, oldValue, newValue, oldContent, newContent)
-}
-
-func (u *Usecase) loadCollection(id string) (*domain.Collection, *collectionService.DocsContent, []byte, error) {
-	collection, content, err := u.Port.LoadCollection(id)
+func (u *Usecase) loadCollection(ctx context.Context, id string) (*domain.Collection, *collectionService.DocsContent, []byte, error) {
+	collection, content, err := u.Port.LoadCollection(ctx, id)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -430,12 +441,16 @@ func (u *Usecase) loadCollection(id string) (*domain.Collection, *collectionServ
 	return collection, &docs, content, nil
 }
 
-func (u *Usecase) saveCollection(collection *domain.Collection, docs *collectionService.DocsContent) ([]byte, error) {
+func (u *Usecase) saveCollection(ctx context.Context, collection *domain.Collection, docs *collectionService.DocsContent) ([]byte, error) {
 	content, err := json.MarshalIndent(docs, "", "  ")
 	if err != nil {
-		return nil, u.ErrHandler.ErrorReturn(err)
+		return nil, err
 	}
-	return u.Port.SaveCollection(collection, content)
+	return u.Port.SaveCollection(ctx, collection, content)
+}
+
+func (u *Usecase) RecordHistory(ctx context.Context, collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
+	return u.Port.RecordHistory(ctx, collection, requestID, operation, field, oldValue, newValue, oldContent, newContent)
 }
 
 func findRequest(items []collectionService.CollectionItem, id string, auth ...*collectionService.CollectionAuth) *collectionService.CollectionItem {
@@ -480,7 +495,9 @@ func resolveAuth(item *collectionService.CollectionItem, collectionAuth *collect
 			break
 		}
 	}
-	if authHeader != nil {
+
+	switch {
+	case authHeader != nil:
 		token := strings.TrimSpace(authHeader.Value)
 		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
 			token = strings.TrimSpace(token[7:])
@@ -501,9 +518,9 @@ func resolveAuth(item *collectionService.CollectionItem, collectionAuth *collect
 			},
 			AuthSource: "onrequest",
 		}
-	} else if item.Request.Auth != nil && item.Request.Auth.AuthSource == "onrequest" && len(item.Request.Auth.Bearer) > 0 {
+	case item.Request.Auth != nil && item.Request.Auth.AuthSource == "onrequest" && len(item.Request.Auth.Bearer) > 0:
 		// Preserve explicit onrequest auth if already configured
-	} else if item.Request.Auth != nil && item.Request.Auth.AuthSource == "none" && authHeader == nil {
+	case item.Request.Auth != nil && item.Request.Auth.AuthSource == "none" && authHeader == nil:
 		// Preserve explicit none auth if already configured
 	}
 
@@ -539,11 +556,6 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 			break
 		}
 	}
-	// version is computed via base's Version; to keep function pure we compute via same logic
-	// but we can't access Port here, so compute inline hash directly
-	// callers that need version after save will override Version field
-	// For consistency, compute hash here without Port dependency
-	// We'll use a local helper that mirrors base.Port.Version
 	return RequestResponse{
 		ID:        item.ID,
 		Name:      item.Name,
@@ -562,22 +574,4 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 func version(content []byte) string {
 	hash := sha256.Sum256(content)
 	return hex.EncodeToString(hash[:])
-}
-
-func mutationLine(content []byte, requestID, field string) int {
-	lines := strings.Split(string(content), "\n")
-	quotedID, _ := json.Marshal(requestID)
-	requestLine := 1
-	for i, line := range lines {
-		if strings.Contains(line, `"id": `+string(quotedID)) {
-			requestLine = i + 1
-			for j := i; j < len(lines); j++ {
-				if strings.Contains(lines[j], `"`+field[strings.LastIndex(field, ".")+1:]+`":`) {
-					return j + 1
-				}
-			}
-			return requestLine
-		}
-	}
-	return requestLine
 }

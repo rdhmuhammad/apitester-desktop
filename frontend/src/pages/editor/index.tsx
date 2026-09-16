@@ -37,10 +37,10 @@ import type {GetCollectionResponse} from "@/pages/editor/types/api.ts";
 import {
     requestConfigQueryKey,
     RequestConfigServices,
-} from "@/pages/editor/components/RequestConfig/services/requestConfig.ts";
+} from "@/pages/editor/services/requestConfig.ts";
 import {useQueryClient} from "@tanstack/react-query";
 import CustomToast from "@/components/common/toast";
-import {useRequestConfig} from "@/pages/editor/components/RequestConfig/hooks/useRequestConfig.ts";
+import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
