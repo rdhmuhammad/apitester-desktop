@@ -1,8 +1,8 @@
 import {Sidebar, SidebarContent} from "@/components/ui/sidebar.tsx";
 import {type ReactNode, useCallback, useEffect, useRef, useState} from "react";
 import {FileCode2, Folder, FolderGit2, Search} from "lucide-react";
-import TestScenarioSidebar from "@/layout/components/TestScenarioSidebar.tsx";
-import AutomationSidebar from "@/layout/components/AutomationSidebar.tsx";
+import TestScenarioSidebar from "@/layout/components/sidebar/TestScenarioSidebar.tsx";
+import AutomationSidebar from "@/layout/components/sidebar/AutomationSidebar.tsx";
 import DragNode, {type DropPosition} from "@/layout/components/sidebar/DragNode.tsx";
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
 import type {RequestTree} from "@/layout/services/collection.ts";
@@ -245,7 +245,7 @@ const SidebarLayout: React.FC = () => {
 
     return (
         <Sidebar
-            className="fixed left-0 top-[60px] z-30 h-[calc(100dvh-60px)] w-64 flex-col border-r border-sidebar-border bg-sidebar"
+            className="fixed left-0 top-[90px] z-30 h-[calc(100dvh-90px)] w-64 flex-col border-r border-sidebar-border bg-sidebar"
             collapsible={"none"}
         >
             <SidebarContent className="flex flex-col overflow-y-auto px-3 py-2 bg-sidebar">

@@ -148,6 +148,17 @@
   scrollbar-color: oklch(0.7 0 0 / 30%) transparent;
 }
 
+/* Electron custom titlebar — drag & no-drag regions */
+.drag-region {
+  -webkit-app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
 /* CodeMirror Autocomplete and Tooltip Dark/Light Themes */
 .cm-tooltip {
   border-radius: 6px !important;

@@ -151,8 +151,8 @@ const RequestConfigTabs: React.FC = () => {
                 (item) => item.key.trim().toLowerCase() === "authorization"
             )
 
-            const authHeaderValue = parsedType === "bearer" 
-                ? (parsedToken.trim() ? `Bearer ${parsedToken.trim()}` : "Bearer ") 
+            const authHeaderValue = parsedType === "bearer"
+                ? (parsedToken.trim() ? `Bearer ${parsedToken.trim()}` : "Bearer ")
                 : parsedToken
 
             const updatedHeaders = hasAuthHeader
@@ -288,23 +288,25 @@ const RequestConfigTabs: React.FC = () => {
                 <TabsContent value="params" className="p-4">
                     <div className="overflow-hidden rounded-lg border border-border">
                         <div
-                            className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            <span className="col-span-3">Key</span><span className="col-span-3">Value</span>
-                            <span className="col-span-4">Description</span><span className="col-span-2"/>
+                            className="grid grid-cols-12 gap-x-2 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            <span className="col-span-3">Key</span>
+                            <span className="col-span-3">Value</span>
+                            <span className="col-span-4">Description</span>
+                            <span className="col-span-2"/>
                         </div>
                         {query.map((item) => (
                             <div key={item.id ?? item.key}
-                                 className={cn("grid grid-cols-12 border-t border-border px-3 py-2 items-center", item.disabled && "opacity-50")}>
+                                 className={cn("grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center", item.disabled && "opacity-50")}>
                                 <Input value={item.key} readOnly className="col-span-3 h-8"
                                        disabled={item.disabled}/>
                                 <Input value={item.value}
                                        onChange={(event) => updateQueryItem({...item, value: event.target.value})}
-                                       className="col-span-3 ml-3 h-8" disabled={item.disabled}/>
+                                       className="col-span-3 h-8" disabled={item.disabled}/>
                                 <Input value={item.description ?? ""}
                                        onChange={(event) => updateQueryItem({...item, description: event.target.value})}
-                                       className="col-span-4 ml-3 h-8 text-xs" disabled={item.disabled}
+                                       className="col-span-4 h-8 text-xs" disabled={item.disabled}
                                        placeholder="description"/>
-                                <div className="col-span-2 ml-3 flex justify-end gap-1">
+                                <div className="col-span-2 flex justify-end gap-1">
                                     <Button type="button" variant="outline" size="sm"
                                             onClick={() => updateQueryItem({...item, disabled: !item.disabled})}
                                             className="h-8 w-8 p-0">
@@ -321,13 +323,13 @@ const RequestConfigTabs: React.FC = () => {
                                 </div>
                             </div>
                         ))}
-                        <div className="grid grid-cols-12 border-t border-border px-3 py-2 items-center">
+                        <div className="grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center">
                             <Input value={newParamKey} onChange={(event) => setNewParamKey(event.target.value)}
                                    className="col-span-3 h-8" placeholder="key"/>
                             <Input value={newParamValue} onChange={(event) => setNewParamValue(event.target.value)}
-                                   className="col-span-3 ml-3 h-8" placeholder="value"/>
+                                   className="col-span-3 h-8" placeholder="value"/>
                             <Input value={newParamDesc} onChange={(event) => setNewParamDesc(event.target.value)}
-                                   className="col-span-4 ml-3 h-8 text-xs" placeholder="description"/>
+                                   className="col-span-4 h-8 text-xs" placeholder="description"/>
                             <div className="col-span-2 flex justify-end">
                                 <Button type="button" variant="outline" size="sm" onClick={() => {
                                     if (!newParamKey.trim()) return
@@ -382,36 +384,39 @@ const RequestConfigTabs: React.FC = () => {
                     <div className="overflow-hidden rounded-lg border border-border">
                         <div
                             className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            <span className="col-span-5">Header</span><span className="col-span-5">Value</span><span
-                            className="col-span-2"/></div>
-                        {headerShow.map((item) => <div key={item.id ?? item.key}
-                                                       className={cn("grid grid-cols-12 border-t border-border px-3 py-2 items-center", item.disabled && "opacity-50")}>
-                            <Input value={item.key} readOnly className="col-span-5 h-8"
-                                   disabled={item.disabled}/>
-                            <Input value={item.value}
-                                   onChange={(event) => updateHeaderItem({...item, value: event.target.value})}
-                                   className="col-span-5 ml-3 h-8" disabled={item.disabled}/>
-                            <div className="col-span-2 ml-3 flex justify-end gap-1">
-                                <Button type="button"
-                                        variant="outline" size="sm"
-                                        onClick={() => updateHeaderItem({
-                                            ...item,
-                                            disabled: !item.disabled
-                                        })}
-                                        className="h-8 w-8 p-0">
-                                    {item.disabled ?
-                                        <ToggleLeft className="h-4 w-4 text-slate-400"/> :
-                                        <ToggleRight className="h-4 w-4 text-emerald-600"/>
-                                    }</Button>
-                                <Button type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => updateHeaders(headers.filter((entry) => entry.id !== item.id))}
-                                        className="h-8 w-8 p-0 text-red-500">
-                                    <Trash2 className="h-4 w-4"/>
-                                </Button>
-                            </div>
-                        </div>)}
+                            <span className="col-span-5">Header</span>
+                            <span className="col-span-5">Value</span>
+                            <span className="col-span-5"/></div>
+                        {headerShow.map((item) =>
+                            <div key={item.id ?? item.key}
+                                 className={cn("grid grid-cols-12 border-t border-border px-3 py-2 items-center", item.disabled && "opacity-50")}>
+                                <Input value={item.key} readOnly className="col-span-5 h-8"
+                                       disabled={item.disabled}/>
+                                <Input value={item.value}
+                                       onChange={(event) => updateHeaderItem({...item, value: event.target.value})}
+                                       className="col-span-5 ml-3 h-8" disabled={item.disabled}/>
+                                <div className="col-span-2 ml-3 flex justify-end gap-1">
+                                    <Button type="button"
+                                            variant="outline" size="sm"
+                                            onClick={() => updateHeaderItem({
+                                                ...item,
+                                                disabled: !item.disabled
+                                            })}
+                                            className="h-8 w-8 p-0">
+                                        {item.disabled ?
+                                            <ToggleLeft className="h-4 w-4 text-slate-400"/> :
+                                            <ToggleRight className="h-4 w-4 text-emerald-600"/>
+                                        }
+                                    </Button>
+                                    <Button type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => updateHeaders(headers.filter((entry) => entry.id !== item.id))}
+                                            className="h-8 w-8 p-0 text-red-500">
+                                        <Trash2 className="h-4 w-4"/>
+                                    </Button>
+                                </div>
+                            </div>)}
                         <div className="grid grid-cols-12 border-t border-border px-3 py-2 items-center">
                             <Input
                                 value={newHeaderKey} onChange={(event) => setNewHeaderKey(event.target.value)}

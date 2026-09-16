@@ -1,4 +1,4 @@
-import {forwardRef, useEffect, useImperativeHandle, useState} from "react";
+import {useEffect, useState} from "react";
 import {cn, getContentType} from "@/lib/utils.ts";
 import {isTestTab} from "@/lib/tabUtils.ts";
 
@@ -20,7 +20,6 @@ import {LoaderCircle, Plus, Send, Trash2} from "lucide-react";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {removeEditorTab, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
-import type {HeaderAction} from "@/layout/types/headerContext.ts";
 import {
     buildRawRequest,
     type ISendRequest,
@@ -31,12 +30,11 @@ import {runScript} from "@/layout/hooks/useScriptRunner.ts";
 import CustomToast from "@/components/common/toast";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
-import type {RequestHeaderHandle} from "../types/HeaderSync";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 
-const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(({onSend}, ref) => {
+const RequestHeader: React.FC = () => {
     const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
     const {activeCollection, variables} = useCollection()
@@ -146,7 +144,6 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
 
     const handleSendRequest = () => {
         if (!currRequest?.id || isSending) return
-        if (onSend) onSend()
         setIsSending(true)
         const sendRequestConfig: ISendRequest = {
             baseUrl: selectedBaseUrl,
@@ -244,10 +241,20 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
         }).finally(() => setIsSending(false))
     };
 
-    useImperativeHandle(ref, () => ({
-        sendRequest: handleSendRequest,
-        isSending,
-    }))
+    // Handle Ctrl+Enter keyboard shortcut to send request
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!collectionData) return
+            if (!event.ctrlKey && !event.metaKey) return
+            if (event.key === "Enter") {
+                if (isSending) return
+                event.preventDefault()
+                handleSendRequest()
+            }
+        }
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    })
 
     const handleAddBaseUrl = () => {
         const trimmed = newBaseUrl.trim()
@@ -403,8 +410,6 @@ const RequestHeader = forwardRef<RequestHeaderHandle, { onSend: HeaderAction }>(
             </AlertDialog>
         </div>
     )
-})
-
-RequestHeader.displayName = "RequestHeader"
+}
 
 export default RequestHeader

@@ -243,7 +243,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                     " focus-within:ring-[3px] focus-within:ring-gray-300",
                                 )}>
                                     {item.type === "file" ? (
-                                        <div className="ml-2">
+                                        <div className="flex-1 min-w-0 ml-2">
                                             <input
                                                 id={`file-${item.id}`}
                                                 type="file"
@@ -259,7 +259,8 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                             />
                                             <label
                                                 htmlFor={`file-${item.id}`}
-                                                className="cursor-pointer rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                                className="block cursor-pointer truncate rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                                title={item.src || "Choose File"}
                                             >
                                                 {item.src ? item.src : "Choose File"}
                                             </label>
@@ -345,7 +346,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                     " focus-within:ring-[3px] focus-within:ring-gray-300",
                                 )}>
                                     {newFdValueType === "file" ? (
-                                        <div className="ml-2">
+                                        <div className="flex-1 min-w-0 ml-2">
                                             <input
                                                 id="file-new-fd"
                                                 type="file"
@@ -361,7 +362,8 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                             />
                                             <label
                                                 htmlFor={`file-new-fd`}
-                                                className="cursor-pointer rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                                className="block cursor-pointer truncate rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+                                                title={newFdValue || "Choose File"}
                                             >
                                                 {newFdValue ? newFdValue : "Choose File"}
                                             </label>

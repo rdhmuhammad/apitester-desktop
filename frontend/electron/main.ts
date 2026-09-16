@@ -16,6 +16,9 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
+        minWidth: 1000,
+        minHeight: 700,
+        frame: false,
         icon: isDev
             ? path.join(__dirname, "../public/app.ico")
             : path.join(__dirname, "../dist/app.ico"),
@@ -46,6 +49,26 @@ ipcMain.handle("open-file-dialog", async () => {
         filters: [{name: "JSON", extensions: ["json"]}],
     })
     return result
+})
+
+ipcMain.on("window-minimize", () => {
+    mainWindow?.minimize()
+})
+
+ipcMain.on("window-maximize", () => {
+    if (mainWindow?.isMaximized()) {
+        mainWindow.unmaximize()
+    } else {
+        mainWindow?.maximize()
+    }
+})
+
+ipcMain.on("window-close", () => {
+    mainWindow?.close()
+})
+
+ipcMain.handle("window-is-maximized", () => {
+    return mainWindow?.isMaximized() ?? false
 })
 
 app.whenReady().then(async () => {
