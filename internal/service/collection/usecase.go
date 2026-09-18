@@ -105,7 +105,7 @@ func (u *Usecase) Read(ctx context.Context, id string) (ReadResponse, error) {
 }
 
 func (u *Usecase) CreateCollection(ctx context.Context, req CreateCollectionRequest) (domain.Collection, error) {
-	if strings.TrimSpace(req.Path) != "" {
+	if strings.TrimSpace(req.Path) == "" {
 		return domain.Collection{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Local path is empty"))
 	}
 
