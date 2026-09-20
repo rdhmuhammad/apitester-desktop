@@ -20,7 +20,7 @@ type Usecase interface {
 	UpdateCollectionByID(ctx context.Context, id string, req service.UpdateCollectionRequest) (domain.Collection, error)
 	DeleteCollection(ctx context.Context, id string) error
 	SelectCollection(ctx context.Context, id string) (domain.Collection, error)
-	GetActiveCollection(ctx context.Context) (domain.Collection, error)
+	GetActiveCollection(ctx context.Context) (service.ActiveCollectionResponse, error)
 	GetVariables(ctx context.Context) ([]service.CollectionVar, error)
 	GetPreScript(ctx context.Context) (string, error)
 	UpdatePreScript(ctx context.Context, req service.UpdatePreScriptRequest) (service.UpdatePreScriptResponse, error)
@@ -160,7 +160,6 @@ func (ctrl Controller) DeleteVariable(c *gin.Context) {
 
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection := rg.Group("/collection")
-	collection.GET("/read/:id", ctrl.Read)
 	collection.GET("/list", ctrl.ListCollections)
 	collection.GET("/variables", ctrl.GetVariables)
 	collection.GET("/pre-script", ctrl.GetPreScript)

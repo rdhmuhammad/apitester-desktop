@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {Button} from "@/components/ui/button.tsx";
 import {cn} from "@/lib/utils.ts";
 import {Maximize2, Minimize2, Play, Save, Trash2} from "lucide-react";
@@ -6,6 +6,10 @@ import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {runScript} from "@/layout/hooks/useScriptRunner.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import type {ScriptLog, SendResponse} from "@/types/response.ts";
+import {pmCompletionSource, resCompletionSource} from "@/lib/pmCompletions.ts";
+import {jsCompletionSource} from "@/lib/jsCompletions.ts";
+import {linter} from "@codemirror/lint";
+import {getJavaScriptDiagnostic} from "@/pages/editor/components/RequestConfig/ScriptEditor.tsx";
 
 interface ScriptManageProps {
     isExpanded: boolean
@@ -24,6 +28,17 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
     const [showOutput, setShowOutput] = useState(false)
 
     useEffect(() => setScript(preScript), [preScript])
+
+    const completionSources = useMemo(() => [pmCompletionSource, resCompletionSource, jsCompletionSource], [])
+
+    const scriptDiagnostic = useMemo(() => getJavaScriptDiagnostic(script), [script])
+
+    const scriptLinter = useMemo(() => linter((view) => {
+        const diagnostic = getJavaScriptDiagnostic(view.state.doc.toString())
+        return diagnostic ? [diagnostic] : []
+    }, {delay: 200}), [])
+
+    const scriptExtensions = useMemo(() => [scriptLinter], [scriptLinter])
 
     const handleSave = () => {
         if (!collection?.version) return
@@ -75,8 +90,21 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
             </Button>}
         </div>
         <div className={cn("min-h-0 rounded-lg border border-border overflow-hidden", isExpanded ? "flex-1" : "flex-[1_0_280px]")}>
-            <SandpackScriptEditor value={script} onChange={setScript}/>
+            <SandpackScriptEditor
+                value={script}
+                onChange={setScript}
+                fileName="script.js"
+                theme="dark"
+                autoComplete={completionSources}
+                extensions={scriptExtensions}
+                className="h-full"
+            />
         </div>
+        {scriptDiagnostic && (
+            <p role="alert" className="mt-2 shrink-0 rounded-md border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                Invalid JavaScript: {scriptDiagnostic.message}
+            </p>
+        )}
         {showOutput && <div className={cn("shrink-0 overflow-auto rounded-lg border border-border mt-2", isExpanded ? "flex-[0_0_200px]" : "flex-[0_0_180px]")}>
             <div className="px-3 py-1.5 bg-muted text-xs font-medium text-muted-foreground flex items-center justify-between">
                 <span>Output</span>

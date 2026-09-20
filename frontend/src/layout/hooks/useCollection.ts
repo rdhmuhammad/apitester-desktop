@@ -9,7 +9,7 @@ import {
     type UpdateCollectionAuthRequest,
     type RequestTree,
 } from "../services/collection"
-import type {CollectionAuth, CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api"
+import type {CollectionAuth, CollectionVar} from "@/pages/editor/types/api"
 import CustomToast from "@/components/common/toast"
 import type {AxiosError} from "axios"
 import type {Response} from "@/types/response"
@@ -38,14 +38,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     })
 
     const collectionId = selectedCollectionId ?? activeCollectionQuery.data?.id ?? null
-
-    const collectionQuery = useQuery<GetCollectionResponse>({
-        queryKey: ["collection", "detail", collectionId],
-        queryFn: () => CollectionServices.getCollection(collectionId as string),
-        enabled: Boolean(collectionId),
-        gcTime: 0,
-        refetchOnWindowFocus: false,
-    })
 
     const treeQuery = useQuery<RequestTree[]>({
         queryKey: ["collection", "tree", selectedCollectionId],
@@ -186,28 +178,28 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     return {
         collections: collectionsQuery.data ?? EMPTY_COLLECTIONS,
         activeCollection: activeCollectionQuery.data ?? null,
-        collection: collectionQuery.data ?? null,
+        collection: activeCollectionQuery.data ?? null,
         requestTree: treeQuery.data ?? EMPTY_TREE,
         variables: variablesQuery.data ?? EMPTY_VARIABLES,
         preScript: preScriptQuery.data ?? EMPTY_PRE_SCRIPT,
         auth: authQuery.data ?? null,
         isLoadingCollections: collectionsQuery.isLoading || collectionsQuery.isFetching,
         isLoadingActiveCollection: activeCollectionQuery.isLoading || activeCollectionQuery.isFetching,
-        isLoadingCollection: collectionQuery.isLoading || collectionQuery.isFetching,
+        isLoadingCollection: activeCollectionQuery.isLoading || activeCollectionQuery.isFetching,
         isLoadingTree: treeQuery.isLoading || treeQuery.isFetching,
         isLoadingVariables: variablesQuery.isLoading || variablesQuery.isFetching,
         isLoadingPreScript: preScriptQuery.isLoading || preScriptQuery.isFetching,
         isLoadingAuth: authQuery.isLoading || authQuery.isFetching,
         refetchCollections: collectionsQuery.refetch,
         refetchActiveCollection: activeCollectionQuery.refetch,
-        refetchCollection: collectionQuery.refetch,
+        refetchCollection: activeCollectionQuery.refetch,
         refetchTree: treeQuery.refetch,
         refetchVariables: variablesQuery.refetch,
         refetchPreScript: preScriptQuery.refetch,
         refetchAuth: authQuery.refetch,
         collectionsQuery,
         activeCollectionQuery,
-        collectionQuery,
+        collectionQuery: activeCollectionQuery,
         treeQuery,
         variablesQuery,
         preScriptQuery,

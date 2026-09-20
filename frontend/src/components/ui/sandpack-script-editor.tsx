@@ -6,9 +6,9 @@ import {
     type CodeEditorRef,
     type SandpackThemeProp,
 } from "@codesandbox/sandpack-react"
-import { autocompletion, completionKeymap, type CompletionSource } from "@codemirror/autocomplete"
+import { autocompletion, completionKeymap, acceptCompletion, type CompletionSource } from "@codemirror/autocomplete"
 import type { Extension } from "@codemirror/state"
-import { EditorView } from "@codemirror/view"
+import { EditorView, tooltips, keymap } from "@codemirror/view"
 import { yaml } from "@codemirror/lang-yaml"
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 
@@ -35,6 +35,8 @@ const darkAutocompleteTheme = EditorView.theme({
         color: "#f4f4f5 !important",
         borderRadius: "6px",
         boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)",
+        zIndex: "9999 !important",
+        pointerEvents: "auto !important",
     },
     ".cm-tooltip.cm-tooltip-autocomplete": {
         borderRadius: "6px",
@@ -140,6 +142,8 @@ const lightAutocompleteTheme = EditorView.theme({
         color: "#0f172a !important",
         borderRadius: "6px",
         boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+        zIndex: "9999 !important",
+        pointerEvents: "auto !important",
     },
     ".cm-tooltip.cm-tooltip-autocomplete": {
         borderRadius: "6px",
@@ -302,31 +306,43 @@ const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
     const isDark = effectiveTheme !== "light"
     const themeExtension = useMemo(() => isDark ? darkAutocompleteTheme : lightAutocompleteTheme, [isDark])
 
+    const tooltipExtension = useMemo(() => {
+        if (typeof document === "undefined") return []
+        return tooltips({ parent: document.body })
+    }, [])
+
     const languageExtensions = useMemo(() => {
-        const result: Extension[] = [themeExtension, ...extensions]
+        const result: Extension[] = [themeExtension, tooltipExtension, ...extensions]
         if (yamlLanguage) {
             if (completionSources.length > 0) {
                 result.unshift(yamlLanguage.language.data.of({autocomplete: completionSources}))
             }
         }
         return result
-    }, [completionSources, extensions, themeExtension, yamlLanguage])
+    }, [completionSources, extensions, themeExtension, tooltipExtension, yamlLanguage])
+
+    const customCompletionKeymap = useMemo(() => {
+        return keymap.of([
+            { key: "Tab", run: acceptCompletion },
+            ...completionKeymap.filter((binding) => binding.key !== "Enter"),
+        ])
+    }, [])
 
     const editorExtensions = useMemo(() => {
         if (!autoComplete) return undefined
-        // If autoComplete is an array of CompletionSource[], use them as overrides
-        if (Array.isArray(autoComplete)) {
-            return {
-                extensions: [autocompletion({ override: autoComplete }), ...languageExtensions],
-                extensionsKeymap: completionKeymap.slice(),
-            }
+        const autocompletionConfig = {
+            defaultKeymap: false,
+            ...(Array.isArray(autoComplete) ? { override: autoComplete } : {}),
         }
-        // autoComplete === true: enable autocompletion with no custom overrides
         return {
-            extensions: [autocompletion(), ...languageExtensions],
-            extensionsKeymap: completionKeymap.slice(),
+            extensions: [
+                autocompletion(autocompletionConfig),
+                customCompletionKeymap,
+                ...languageExtensions,
+            ],
+            extensionsKeymap: [],
         }
-    }, [autoComplete, languageExtensions])
+    }, [autoComplete, customCompletionKeymap, languageExtensions])
 
     const handleContextMenu = (event: ReactMouseEvent) => {
         if (!onSelectionContextMenu) return

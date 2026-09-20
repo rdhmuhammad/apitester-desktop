@@ -9,6 +9,19 @@ type ReadResponse struct {
 	Version   string      `json:"version"`
 }
 
+type ActiveCollectionResponse struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	Version      string    `json:"version"`
+	Path         string    `json:"path"`
+	IsSelected   bool      `json:"is_selected"`
+	TestSuiteID  string    `json:"testsuite_id"`
+	AutomationID string    `json:"automation_id"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 type DocsContent struct {
 	Info     CollectionInfo    `json:"info"`
 	Item     []CollectionItem  `json:"item"`

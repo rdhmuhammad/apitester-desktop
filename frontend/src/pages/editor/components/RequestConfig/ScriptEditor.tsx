@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react"
 import { SandpackScriptEditor } from "@/components/ui/sandpack-script-editor"
 import { pmCompletionSource, resCompletionSource } from "@/lib/pmCompletions"
+import { jsCompletionSource } from "@/lib/jsCompletions"
 import { useDebouncedCallback } from "use-debounce"
 import { useAppSelector } from "@/app/store/hooks.ts"
 import { selectEditorActiveTabId, selectCollectionId } from "@/app/slices/editorTabsSlice.ts"
@@ -12,7 +13,7 @@ interface ScriptEditorProps {
     onChange?: (value: string) => void
 }
 
-const getJavaScriptDiagnostic = (value: string): Diagnostic | null => {
+export const getJavaScriptDiagnostic = (value: string): Diagnostic | null => {
     if (!value.trim()) return null
 
     try {
@@ -68,7 +69,7 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({value: propValue, onC
     const collectionId = useAppSelector(selectCollectionId)
     const { request, saveScript } = useRequestConfig(collectionId ?? "", activeTabId)
 
-    const completionSources = useMemo(() => [pmCompletionSource, resCompletionSource], [])
+    const completionSources = useMemo(() => [pmCompletionSource, resCompletionSource, jsCompletionSource], [])
 
     const currentValue = propValue !== undefined ? propValue : (request?.script ?? "")
     const saveTrigger = propOnChange ?? saveScript

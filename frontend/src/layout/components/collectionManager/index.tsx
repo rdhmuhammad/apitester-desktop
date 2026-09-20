@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -23,11 +23,22 @@ interface CollectionManagerDialogProps {
 
 const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpenChange}) => {
     const [isScriptExpanded, setIsScriptExpanded] = useState(false)
+    const [activeTab, setActiveTab] = useState("collection")
+
+    useEffect(() => {
+        if (!open) {
+            setIsScriptExpanded(false)
+            setActiveTab("collection")
+        }
+    }, [open])
 
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent
-                className={cn("flex flex-col h-[80vh] pt-6 pb-4 px-4 transition-[max-width] duration-300 ease-in-out", isScriptExpanded ? "max-w-5xl" : "max-w-3xl")}>
+                className={cn(
+                    "flex flex-col h-[80vh] pt-6 pb-4 px-4 transition-all duration-300 ease-in-out",
+                    isScriptExpanded ? "sm:max-w-5xl max-w-5xl" : "sm:max-w-3xl max-w-3xl"
+                )}>
                 {!isScriptExpanded && (
                     <AlertDialogHeader className="shrink-0 mb-3">
                         <AlertDialogTitle>Collection Manager</AlertDialogTitle>
@@ -37,7 +48,7 @@ const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpen
                     </AlertDialogHeader>
                 )}
 
-                <Tabs orientation="vertical" defaultValue="collection" className="flex-row gap-0 flex-1 min-h-0">
+                <Tabs orientation="vertical" value={activeTab} onValueChange={setActiveTab} className="flex-row gap-0 flex-1 min-h-0">
                     {!isScriptExpanded && (
                         <TabsList className="flex-col h-full w-12 shrink-0 rounded-lg">
                             <TabsTrigger value="environment" title="Variables"><Globe className="h-4 w-4 m-0"/></TabsTrigger>
@@ -48,16 +59,12 @@ const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpen
                     )}
 
                     <div className={cn("flex-1 min-w-0", !isScriptExpanded && "pl-4")}>
-                        {!isScriptExpanded && (
-                            <TabsContent value="collection" className="flex flex-col h-full min-h-0">
-                                <CollectionManage onOpenChange={onOpenChange}/>
-                            </TabsContent>
-                        )}
-                        {!isScriptExpanded && (
-                            <TabsContent value="environment" className="flex flex-col h-full min-h-0">
-                                <VariableManage />
-                            </TabsContent>
-                        )}
+                        <TabsContent value="collection" className="flex flex-col h-full min-h-0">
+                            <CollectionManage onOpenChange={onOpenChange}/>
+                        </TabsContent>
+                        <TabsContent value="environment" className="flex flex-col h-full min-h-0">
+                            <VariableManage />
+                        </TabsContent>
                         <TabsContent value="scripts" className="flex flex-col h-full min-h-0">
                             <ScriptManage
                                 isExpanded={isScriptExpanded}
@@ -65,11 +72,9 @@ const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpen
                                 onCollapse={() => setIsScriptExpanded(false)}
                             />
                         </TabsContent>
-                        {!isScriptExpanded && (
-                            <TabsContent value="auth" className="flex flex-col h-full min-h-0">
-                                <AuthManage />
-                            </TabsContent>
-                        )}
+                        <TabsContent value="auth" className="flex flex-col h-full min-h-0">
+                            <AuthManage />
+                        </TabsContent>
                     </div>
                 </Tabs>
 

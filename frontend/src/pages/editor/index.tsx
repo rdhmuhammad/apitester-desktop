@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 
 // React & Utils Imports
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useRef, useState} from "react";
 import {cn} from "@/lib/utils.ts";
 import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
 
@@ -32,8 +32,7 @@ import {
     selectEditorTabs,
     setEditorActiveTab,
 } from "@/app/slices/editorTabsSlice.ts";
-import {CollectionServices} from "@/layout/services/collection.ts";
-import type {GetCollectionResponse} from "@/pages/editor/types/api.ts";
+import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {
     requestConfigQueryKey,
     RequestConfigServices,
@@ -59,6 +58,7 @@ const Editor: React.FC = () => {
     const allTabs = useAppSelector(selectEditorTabs)
     const effectiveActiveTabId = useAppSelector(selectEditorActiveTabId)
     const collectionId = useAppSelector(selectCollectionId)
+    const {activeCollection} = useCollection(collectionId)
 
 
     const activeTab = allTabs.find(t => t.id === effectiveActiveTabId)
@@ -134,19 +134,6 @@ const Editor: React.FC = () => {
         dispatch(removeEditorTab(tab.id))
     }
 
-    const [collectionInfo, setCollectionInfo] = useState<GetCollectionResponse | null>(null)
-    useEffect(() => {
-        let cancelled = false
-        setCollectionInfo(null)
-        if (!collectionId) return () => { cancelled = true }
-
-        void CollectionServices.getCollection(collectionId)
-            .then((res) => {
-                if (!cancelled) setCollectionInfo(res)
-            })
-        return () => { cancelled = true }
-    }, [collectionId]);
-
     return (
         <div className="h-full overflow-auto bg-[linear-gradient(180deg,#eef4ff_0%,#f8fafc_22%,#f8fafc_100%)] dark:bg-[linear-gradient(180deg,#0b1120_0%,#090d16_22%,#020617_100%)]">
             <div className={cn(
@@ -158,9 +145,9 @@ const Editor: React.FC = () => {
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                             Workspace
                         </p>
-                        <h3 className="mt-1 text-3xl font-semibold text-slate-900 dark:text-foreground">{collectionInfo ? collectionInfo.content.info.name : 'Collection'}</h3>
+                        <h3 className="mt-1 text-3xl font-semibold text-slate-900 dark:text-foreground">{activeCollection ? activeCollection.name : 'Collection'}</h3>
                         <p className="mt-1 line-clamp-2 text-sm font-normal text-slate-500 group-hover:line-clamp-none">
-                            {collectionInfo?.content.info.description ?? ''}
+                            {activeCollection?.description ?? ''}
                         </p>
                     </div>
 

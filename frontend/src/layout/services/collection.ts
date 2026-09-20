@@ -1,4 +1,4 @@
-import type {CollectionAuth, CollectionVar, GetCollectionResponse} from "@/pages/editor/types/api.ts";
+import type {CollectionAuth, CollectionVar} from "@/pages/editor/types/api.ts";
 import axios from "@/config/axios.ts";
 import type {Response} from "@/types/response.ts";
 
@@ -6,7 +6,8 @@ export interface Collection {
     id: string
     name: string
     is_selected: boolean
-    description: string,
+    description: string
+    version: string
     path: string
     testsuite_id: string
     automation_id: string
@@ -66,11 +67,6 @@ export interface UpdateCollectionAuthRequest {
 }
 
 export const CollectionServices = {
-    getCollection: async (id: string): Promise<GetCollectionResponse> => {
-        const response = await axios.get<Response<GetCollectionResponse>>(`/collection/read/${id}`)
-        return response.data.data
-    },
-
     listCollections: async (): Promise<Collection[]> => {
         const response = await axios.get<Response<Collection[]>>('/collection/list')
         return response.data.data

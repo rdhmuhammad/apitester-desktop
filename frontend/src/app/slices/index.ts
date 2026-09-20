@@ -1,7 +1,5 @@
 import type {CollectionItem, CollectionResponse, CollectionVar, DocsContent, Request} from "@/pages/editor/types/api.ts";
 import type {ScriptLog, SendResponse} from "@/types/response.ts";
-import {createAppAsyncThunk} from "@/app/store/withTypes.ts";
-import {CollectionServices} from "@/layout/services/collection.ts";
 
 export type ColtReqMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 export type ColtStatusLoad = 'idle' | 'pending' | 'succeeded' | 'rejected'
@@ -47,13 +45,6 @@ export interface ActiveItem{
     scriptLogs?: ScriptLog[]
     scriptMutations?: Record<string, string | null>
 }
-
-export const fetchCollections = createAppAsyncThunk(
-    'collections/fetchCollections',
-    async (collectionId: string) => {
-        return await CollectionServices.getCollection(collectionId)
-    }
-)
 
 export const initialState: CollectionState = {
     data: null,

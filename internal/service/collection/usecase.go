@@ -195,12 +195,35 @@ func (u *Usecase) SelectCollection(ctx context.Context, id string) (domain.Colle
 	return *selected, nil
 }
 
-func (u *Usecase) GetActiveCollection(ctx context.Context) (domain.Collection, error) {
+func (u *Usecase) GetActiveCollection(ctx context.Context) (ActiveCollectionResponse, error) {
 	selected := findSelectedCollection(ctx, u.CollectionRepo)
 	if selected == nil {
-		return domain.Collection{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
+		return ActiveCollectionResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
-	return *selected, nil
+
+	fileBytes, err := os.ReadFile(selected.Path)
+	if err != nil {
+		return ActiveCollectionResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
+	var docsContent DocsContent
+	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
+		return ActiveCollectionResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	return ActiveCollectionResponse{
+		ID:           selected.ID,
+		Name:         selected.Name,
+		Description:  docsContent.Info.Description,
+		Version:      u.Version([]byte(content)),
+		Path:         selected.Path,
+		IsSelected:   selected.IsSelected,
+		TestSuiteID:  selected.TestSuiteID,
+		AutomationID: selected.AutomationID,
+		UpdatedAt:    selected.UpdatedAt,
+		CreatedAt:    selected.CreatedAt,
+	}, nil
 }
 
 func (u *Usecase) GetVariables(ctx context.Context) ([]CollectionVar, error) {

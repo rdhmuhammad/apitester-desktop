@@ -39,8 +39,8 @@ func (s *collectionUsecaseStub) DeleteCollection(ctx context.Context, id string)
 func (s *collectionUsecaseStub) SelectCollection(ctx context.Context, id string) (domain.Collection, error) {
 	return domain.Collection{}, nil
 }
-func (s *collectionUsecaseStub) GetActiveCollection(ctx context.Context) (domain.Collection, error) {
-	return domain.Collection{}, nil
+func (s *collectionUsecaseStub) GetActiveCollection(ctx context.Context) (service.ActiveCollectionResponse, error) {
+	return service.ActiveCollectionResponse{}, nil
 }
 func (s *collectionUsecaseStub) GetVariables(ctx context.Context) ([]service.CollectionVar, error) {
 	return nil, nil
