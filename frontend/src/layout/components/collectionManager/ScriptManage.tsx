@@ -94,6 +94,7 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
                 value={script}
                 onChange={setScript}
                 fileName="script.js"
+                showSearch={true}
                 theme="dark"
                 autoComplete={completionSources}
                 extensions={scriptExtensions}

@@ -6,7 +6,7 @@ import type React from "react";
 import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import axios from "@/config/axios.ts";
 import type {SendResponse} from "@/types/response.ts";
-import type {AxiosResponse} from "axios";
+import {type AxiosResponse, isCancel} from "axios";
 import {getFile} from "@/lib/fileStore.ts";
 import CustomToast from "@/components/common/toast";
 
@@ -162,7 +162,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             headers: responseHeaders,
         }
     } catch (err: unknown) {
-        if (axios.isCancel(err)) {
+        if (isCancel(err)) {
             CustomToast.error("Request canceled");
             return {
                 rawRequest: buildRawRequest(request),
