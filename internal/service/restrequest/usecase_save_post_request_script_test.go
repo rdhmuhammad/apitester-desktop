@@ -59,7 +59,7 @@ func TestSavePostRequestScript(t *testing.T) {
 		Type: "text/javascript",
 	}
 
-	res, err := usecase.SavePostRequestScript(collection.ID, "request-id", req1)
+	res, err := usecase.SavePostRequestScript(context.Background(), collection.ID, "request-id", req1)
 	if err != nil {
 		t.Fatalf("SavePostRequestScript() error = %v", err)
 	}
@@ -108,7 +108,7 @@ func TestSavePostRequestScript(t *testing.T) {
 		Script: "pm.test('Status is 200', () => {});\npm.expect(pm.response.code).to.eql(200);",
 	}
 
-	res2, err := usecase.SaveScript(collection.ID, "request-id", req2)
+	res2, err := usecase.SaveScript(context.Background(), collection.ID, "request-id", req2)
 	if err != nil {
 		t.Fatalf("SaveScript() error = %v", err)
 	}

@@ -70,7 +70,7 @@ func TestSaveResponseAppendsResponseAndRecordsHistory(t *testing.T) {
 		},
 	}
 
-	res, err := usecase.SaveResponse(collection.ID, "request-id", req1)
+	res, err := usecase.SaveResponse(context.Background(), collection.ID, "request-id", req1)
 	if err != nil {
 		t.Fatalf("SaveResponse() error = %v", err)
 	}
@@ -94,7 +94,7 @@ func TestSaveResponseAppendsResponseAndRecordsHistory(t *testing.T) {
 		},
 	}
 
-	res2, err := usecase.SaveResponse(collection.ID, "request-id", req2)
+	res2, err := usecase.SaveResponse(context.Background(), collection.ID, "request-id", req2)
 	if err != nil {
 		t.Fatalf("SaveResponse() error = %v", err)
 	}
@@ -169,7 +169,7 @@ func TestSaveResponseReturnsErrorWhenRequestNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = usecase.SaveResponse(collection.ID, "non-existent-id", SaveResponseRequest{Code: 200})
+	_, err = usecase.SaveResponse(context.Background(), collection.ID, "non-existent-id", SaveResponseRequest{Code: 200})
 	if err == nil {
 		t.Fatal("expected error when request not found, got nil")
 	}

@@ -16,6 +16,7 @@ type Usecase interface {
 	CreateRequest(ctx context.Context, collectionID string) (service.RequestResponse, error)
 	Get(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
 	Delete(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
+	UpdateTree(ctx context.Context, collectionID string, req []service.UpdateTreeItem) (service.UpdateTreeResponse, error)
 }
 
 type Controller struct {
@@ -42,11 +43,22 @@ func (ctrl Controller) Delete(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request deleted"), err)
 }
 
+func (ctrl Controller) UpdateTree(c *gin.Context) {
+	var req []service.UpdateTreeItem
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage("Invalid request body"))
+		return
+	}
+	res, err := ctrl.usecase.UpdateTree(c.Request.Context(), c.Param("collectionId"), req)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection tree updated"), err)
+}
+
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest := rg.Group("/restrequest")
 	restRequest.POST("/create-request/:collectionId", ctrl.CreateRequest)
 	restRequest.GET("/:collectionId/:requestId", ctrl.Get)
 	restRequest.DELETE("/:collectionId/:requestId", ctrl.Delete)
+	restRequest.PUT("/tree/:collectionId", ctrl.UpdateTree)
 }
 
 func (ctrl Controller) respond(c *gin.Context, res *payload.Response, err error) {

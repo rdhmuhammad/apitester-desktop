@@ -390,6 +390,83 @@ func (u *Usecase) Delete(ctx context.Context, collectionID, requestID string) (R
 	return deletedResponse, nil
 }
 
+func (u *Usecase) UpdateTree(ctx context.Context, collectionID string, req []UpdateTreeItem) (UpdateTreeResponse, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
+	if err != nil {
+		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	existingItems := make([]collectionService.CollectionItem, len(docs.Item))
+	copy(existingItems, docs.Item)
+
+	existingMap := make(map[string]collectionService.CollectionItem)
+	var indexItems func([]collectionService.CollectionItem)
+	indexItems = func(items []collectionService.CollectionItem) {
+		for _, item := range items {
+			if item.ID != "" {
+				existingMap[item.ID] = item
+			}
+			if len(item.Item) > 0 {
+				indexItems(item.Item)
+			}
+		}
+	}
+	indexItems(existingItems)
+
+	var buildTree func([]UpdateTreeItem) ([]collectionService.CollectionItem, error)
+	buildTree = func(treeItems []UpdateTreeItem) ([]collectionService.CollectionItem, error) {
+		result := make([]collectionService.CollectionItem, 0, len(treeItems))
+		for _, reqItem := range treeItems {
+			existingItem, exists := existingMap[reqItem.ID]
+			if !exists {
+				return nil, localerror.InvalidData("Item not found: " + reqItem.ID)
+			}
+
+			itemCopy := existingItem
+			if len(reqItem.Item) > 0 {
+				children, err := buildTree(reqItem.Item)
+				if err != nil {
+					return nil, err
+				}
+				itemCopy.Item = children
+			} else {
+				if existingItem.Request == nil {
+					itemCopy.Item = []collectionService.CollectionItem{}
+				} else {
+					itemCopy.Item = nil
+				}
+			}
+			result = append(result, itemCopy)
+		}
+		return result, nil
+	}
+
+	newItems, err := buildTree(req)
+	if err != nil {
+		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	oldItems := docs.Item
+	docs.Item = newItems
+
+	updated, err := u.saveCollection(ctx, collection, docs)
+	if err != nil {
+		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	if err := u.RecordHistory(ctx, collection, "", "update_tree", "item", oldItems, newItems, content, updated); err != nil {
+		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	return UpdateTreeResponse{
+		Item:    docs.Item,
+		Version: u.Version(updated),
+	}, nil
+}
+
 type updateReq struct {
 	CollectionID string
 	RequestID    string

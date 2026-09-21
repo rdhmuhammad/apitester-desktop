@@ -16,6 +16,16 @@ type RequestResponse struct {
 	Version   string                                 `json:"version"`
 }
 
+type UpdateTreeItem struct {
+	ID   string           `json:"id"`
+	Item []UpdateTreeItem `json:"item,omitempty"`
+}
+
+type UpdateTreeResponse struct {
+	Item    []collectionService.CollectionItem `json:"item"`
+	Version string                             `json:"version"`
+}
+
 type UpdateAuthRequest struct {
 	Type       string                       `json:"type"`
 	Bearer     []collectionService.Property `json:"bearer,omitempty"`

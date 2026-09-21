@@ -49,7 +49,7 @@ func TestUpdateNamePersistsNestedRequestAndRecordsHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	updated, err := usecase.UpdateName(collection.ID, "request-id", UpdateNameRequest{
+	updated, err := usecase.UpdateName(context.Background(), collection.ID, "request-id", UpdateNameRequest{
 		Name: "New name",
 	})
 	if err != nil {

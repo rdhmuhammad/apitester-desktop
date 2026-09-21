@@ -51,7 +51,7 @@ func TestCreateRequestAppendsEmptyRequestAtTopLevel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	created, err := usecase.CreateRequest(collection.ID)
+	created, err := usecase.CreateRequest(context.Background(), collection.ID)
 	if err != nil {
 		t.Fatalf("CreateRequest() error = %v", err)
 	}

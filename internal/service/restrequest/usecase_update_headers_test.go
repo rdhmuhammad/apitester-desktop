@@ -60,7 +60,7 @@ func TestUpdateHeadersAndGetPreservesDisabledField(t *testing.T) {
 	}
 
 	// 1. Verify Get returns Disabled = false
-	got, err := usecase.Get(collection.ID, "request-id")
+	got, err := usecase.Get(context.Background(), collection.ID, "request-id")
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
@@ -72,7 +72,7 @@ func TestUpdateHeadersAndGetPreservesDisabledField(t *testing.T) {
 	}
 
 	// 2. UpdateHeaders with Disabled = true
-	updated, err := usecase.UpdateHeaders(collection.ID, "request-id", UpdateHeadersRequest{
+	updated, err := usecase.UpdateHeaders(context.Background(), collection.ID, "request-id", UpdateHeadersRequest{
 		Headers: []collectionService.Header{
 			{
 				Id:       "h-1",
@@ -102,7 +102,7 @@ func TestUpdateHeadersAndGetPreservesDisabledField(t *testing.T) {
 	}
 
 	// 3. Verify Get after update returns Disabled = true
-	gotAfterUpdate, err := usecase.Get(collection.ID, "request-id")
+	gotAfterUpdate, err := usecase.Get(context.Background(), collection.ID, "request-id")
 	if err != nil {
 		t.Fatalf("Get() after update error = %v", err)
 	}

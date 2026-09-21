@@ -74,7 +74,7 @@ func TestUpdateAuthOnRequest(t *testing.T) {
 		AuthSource: "onrequest",
 	}
 
-	res, err := usecase.UpdateAuth(collection.ID, "request-1", req)
+	res, err := usecase.UpdateAuth(context.Background(), collection.ID, "request-1", req)
 	if err != nil {
 		t.Fatalf("UpdateAuth() error = %v", err)
 	}
@@ -159,7 +159,7 @@ func TestUpdateAuthOnRequestGeneratesIDWhenEmpty(t *testing.T) {
 		AuthSource: "onrequest",
 	}
 
-	res, err := usecase.UpdateAuth(collection.ID, "request-1", req)
+	res, err := usecase.UpdateAuth(context.Background(), collection.ID, "request-1", req)
 	if err != nil {
 		t.Fatalf("UpdateAuth() error = %v", err)
 	}
@@ -197,7 +197,7 @@ func TestUpdateAuthInheret(t *testing.T) {
 		AuthSource: "inherit",
 	}
 
-	res, err := usecase.UpdateAuth(collection.ID, "request-1", req)
+	res, err := usecase.UpdateAuth(context.Background(), collection.ID, "request-1", req)
 	if err != nil {
 		t.Fatalf("UpdateAuth() error = %v", err)
 	}
@@ -246,7 +246,7 @@ func TestUpdateAuthInheritNormalizedToInheret(t *testing.T) {
 		AuthSource: "inherit",
 	}
 
-	res, err := usecase.UpdateAuth(collection.ID, "request-1", req)
+	res, err := usecase.UpdateAuth(context.Background(), collection.ID, "request-1", req)
 	if err != nil {
 		t.Fatalf("UpdateAuth() error = %v", err)
 	}
@@ -282,7 +282,7 @@ func TestUpdateAuthNone(t *testing.T) {
 		AuthSource: "none",
 	}
 
-	res, err := usecase.UpdateAuth(collection.ID, "request-1", req)
+	res, err := usecase.UpdateAuth(context.Background(), collection.ID, "request-1", req)
 	if err != nil {
 		t.Fatalf("UpdateAuth() error = %v", err)
 	}
@@ -316,7 +316,7 @@ func TestUpdateAuthRequestNotFound(t *testing.T) {
 
 	usecase, collection, _ := setupTestUsecase(t, docs)
 
-	_, err := usecase.UpdateAuth(collection.ID, "non-existent", UpdateAuthRequest{
+	_, err := usecase.UpdateAuth(context.Background(), collection.ID, "non-existent", UpdateAuthRequest{
 		AuthSource: "none",
 	})
 	if err == nil {
@@ -345,7 +345,7 @@ func TestGetResolvesAuthFromDocsContent(t *testing.T) {
 
 	usecase, collection, _ := setupTestUsecase(t, docs)
 
-	res, err := usecase.Get(collection.ID, "req-1")
+	res, err := usecase.Get(context.Background(), collection.ID, "req-1")
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
@@ -386,7 +386,7 @@ func TestGetResolvesAuthFromHeader(t *testing.T) {
 
 	usecase, collection, _ := setupTestUsecase(t, docs)
 
-	res, err := usecase.Get(collection.ID, "req-1")
+	res, err := usecase.Get(context.Background(), collection.ID, "req-1")
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
@@ -433,7 +433,7 @@ func TestGetResolvesAuthHeaderPrecedenceOverDocsContent(t *testing.T) {
 
 	usecase, collection, _ := setupTestUsecase(t, docs)
 
-	res, err := usecase.Get(collection.ID, "req-1")
+	res, err := usecase.Get(context.Background(), collection.ID, "req-1")
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
@@ -464,7 +464,7 @@ func TestGetResolvesAuthNoneWhenNeitherSatisfied(t *testing.T) {
 
 	usecase, collection, _ := setupTestUsecase(t, docs)
 
-	res, err := usecase.Get(collection.ID, "req-1")
+	res, err := usecase.Get(context.Background(), collection.ID, "req-1")
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
@@ -510,7 +510,7 @@ func TestGetResolvesAuthNestedRequest(t *testing.T) {
 
 	usecase, collection, _ := setupTestUsecase(t, docs)
 
-	res, err := usecase.Get(collection.ID, "nested-req-1")
+	res, err := usecase.Get(context.Background(), collection.ID, "nested-req-1")
 	if err != nil {
 		t.Fatalf("Get() error = %v", err)
 	}
