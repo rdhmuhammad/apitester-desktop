@@ -35,13 +35,20 @@ export interface CollectionState {
     dirtyRequestIds: string[]
 }
 
+export type ScriptType = "prerequest" | "postrequest"
+
+export interface ScriptResultDto {
+    type: ScriptType
+    data?: unknown
+}
+
 export interface ActiveItem{
     id: string
     request: Request | null
     response: SendResponse | null
     exampleResponse?: CollectionResponse[]
     authType?: "none" | "inherit" | "bearer"
-    scriptResult?: unknown
+    scriptResult?: ScriptResultDto | ScriptResultDto[]
     scriptLogs?: ScriptLog[]
     scriptMutations?: Record<string, string | null>
 }

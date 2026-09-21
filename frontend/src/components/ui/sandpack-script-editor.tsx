@@ -43,6 +43,9 @@ export interface SandpackScriptEditorProps {
     theme?: SandpackThemeProp
     onSelectionContextMenu?: (selectedText: string, position: { x: number; y: number }) => void
     showSearch?: boolean
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+    extraFiles?: Record<string, string | { code: string; hidden?: boolean; active?: boolean }>
 }
 
 const darkAutocompleteTheme = EditorView.theme({
@@ -531,19 +534,22 @@ function SyncScript({ value, onChange, fileName }: {
 const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
                                                                                value,
                                                                                onChange,
-                                                                                readOnly,
-                                                                                showReadOnly,
-                                                                                showLineNumbers = true,
-                                                                                editorKey,
-                                                                                autoComplete = false,
-                                                                                completionSources = [],
-                                                                                fileName = "index.js",
-                                                                                extensions = [],
-                                                                                className,
-                                                                                theme,
-                                                                                onSelectionContextMenu,
-                                                                                showSearch = true,
-                                                                            }) => {
+                                                                               readOnly,
+                                                                               showReadOnly,
+                                                                               showLineNumbers = true,
+                                                                               editorKey,
+                                                                               autoComplete = false,
+                                                                               completionSources = [],
+                                                                               fileName = "index.js",
+                                                                               extensions = [],
+                                                                               className,
+                                                                               theme,
+                                                                               onSelectionContextMenu,
+                                                                               showSearch = true,
+                                                                               dependencies,
+                                                                               devDependencies,
+                                                                               extraFiles,
+                                                                           }) => {
     const entryFile = "/__apitester_entry__.js"
     const editorRef = useRef<CodeEditorRef | null>(null)
     const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -551,8 +557,13 @@ const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
     const [files] = useState(() => ({
         [`/${fileName}`]: { code: value, active: true },
         [entryFile]: { code: "export default {};", hidden: true },
+        ...(extraFiles ?? {}),
     }))
-    const customSetup = useMemo(() => ({entry: entryFile}), [entryFile])
+    const customSetup = useMemo(() => ({
+        entry: entryFile,
+        ...(dependencies ? { dependencies } : {}),
+        ...(devDependencies ? { devDependencies } : {}),
+    }), [entryFile, dependencies, devDependencies])
     const providerOptions = useMemo(() => ({
         autorun: false,
         activeFile: `/${fileName}`,
@@ -726,10 +737,20 @@ const SandpackScriptEditorInstance: React.FC<SandpackScriptEditorProps> = ({
     )
 }
 
-export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({ theme = "dark", ...props }) => (
-    <SandpackScriptEditorInstance
-        key={`${props.editorKey ?? ""}:${props.fileName ?? "index.js"}:${theme}`}
-        theme={theme}
-        {...props}
-    />
-)
+export const SandpackScriptEditor: React.FC<SandpackScriptEditorProps> = ({ theme = "dark", ...props }) => {
+    const depsKey = useMemo(() => {
+        if (!props.dependencies && !props.devDependencies) return ""
+        const deps = Object.entries(props.dependencies ?? {}).sort().map(([k, v]) => `${k}@${v}`).join(",")
+        const devDeps = Object.entries(props.devDependencies ?? {}).sort().map(([k, v]) => `${k}@${v}`).join(",")
+        return `:${deps}:${devDeps}`
+    }, [props.dependencies, props.devDependencies])
+
+    return (
+        <SandpackScriptEditorInstance
+            key={`${props.editorKey ?? ""}:${props.fileName ?? "index.js"}:${theme}${depsKey}`}
+            theme={theme}
+            {...props}
+        />
+    )
+}
+

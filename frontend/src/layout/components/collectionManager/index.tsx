@@ -37,7 +37,7 @@ const CollectionManager: React.FC<CollectionManagerDialogProps> = ({open, onOpen
             <AlertDialogContent
                 className={cn(
                     "flex flex-col h-[80vh] pt-6 pb-4 px-4 transition-all duration-300 ease-in-out",
-                    isScriptExpanded ? "sm:max-w-5xl max-w-5xl" : "sm:max-w-3xl max-w-3xl"
+                    isScriptExpanded || activeTab === "scripts" ? "sm:max-w-5xl max-w-5xl" : "sm:max-w-3xl max-w-3xl"
                 )}>
                 {!isScriptExpanded && (
                     <AlertDialogHeader className="shrink-0 mb-3">

@@ -26,7 +26,7 @@ import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 const RequestHeader: React.FC = () => {
     const activeTabId = useAppSelector(selectEditorActiveTabId)
-    const {activeCollection, variables} = useCollection()
+    const {activeCollection, variables, preScript} = useCollection()
     const baseUrls = variables
         .filter((item) => item.category === "BASE_URL" || item.key.toLowerCase().includes("base_url"))
         .map((item) => item.value)
@@ -77,11 +77,26 @@ const RequestHeader: React.FC = () => {
     const [isHoveringButton, setIsHoveringButton] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    const resolveVariableValue = (value: string): string => {
-        return value.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
+    const resolveVariableValue = (value: unknown): string => {
+        if (value === null || value === undefined) return ""
+        let str: string
+        if (typeof value === "string") {
+            str = value
+        } else if (typeof value === "object") {
+            if (value && typeof (value as any).toString === "function" && (value as any).toString !== Object.prototype.toString) {
+                str = (value as any).toString()
+            } else {
+                str = JSON.stringify(value)
+            }
+        } else {
+            str = String(value)
+        }
+        return str.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
             const k = key.trim()
             const matchedVar = runtimeVariables.find((item) => item.key === k)
-            return envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
+            const resolved = envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
+            if (resolved === undefined || resolved === null) return `{{${key}}}`
+            return typeof resolved === "object" ? JSON.stringify(resolved) : String(resolved)
         })
     }
 
@@ -104,8 +119,10 @@ const RequestHeader: React.FC = () => {
         return {cleanUrl: beforeQuery + hash, params}
     }
 
-    const formatEndpoint = (endpoint: string): string => {
-        const sanitizedEndpoint = endpoint.replace(/\{\{[^{}]+\}\}/g, "").trim()
+    const formatEndpoint = (endpoint: unknown): string => {
+        if (endpoint === null || endpoint === undefined) return ""
+        const str = typeof endpoint === "string" ? endpoint : String(endpoint)
+        const sanitizedEndpoint = str.replace(/\{\{[^{}]+\}\}/g, "").trim()
 
         if (/^https?:\/\//i.test(sanitizedEndpoint)) {
             try {
@@ -146,6 +163,8 @@ const RequestHeader: React.FC = () => {
         }
         sendRequestAction(sendRequestConfig, {
             requestId: request.id,
+            request,
+            preScriptValue: preScript,
             scriptValue,
             runtimeVariables,
             setRuntimeVariables

@@ -21,6 +21,7 @@ import {selectResponseByRequestId} from "@/app/slices/restApiSlice.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 import CustomToast from "@/components/common/toast";
 import type {ScriptLog} from "@/types/response.ts";
+import {cn} from "@/lib/utils.ts";
 
 const EMPTY_LOGS: ScriptLog[] = []
 const EMPTY_MUTATIONS: Record<string, string | null> = {}
@@ -58,6 +59,14 @@ const LogEntry: React.FC<{ log: ScriptLog }> = ({ log }) => {
     return (
         <div className="flex items-start gap-2 py-0.5 font-mono text-xs">
             <span className="text-slate-500 shrink-0">{time}</span>
+            {log.scriptType && (
+                <span className={cn(
+                    "px-1 py-0.2 rounded text-[10px] uppercase shrink-0 font-medium",
+                    log.scriptType === "prerequest" ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                )}>
+                    {log.scriptType === "prerequest" ? "pre" : "post"}
+                </span>
+            )}
             <span className={colors[log.type] ?? "text-slate-200"}>[{log.type}]</span>
             <span className="text-slate-300 break-all">{log.message}</span>
         </div>
@@ -109,21 +118,34 @@ const ResponseView: React.FC = () => {
         }
     }, [responseBody])
 
-    const prettyResult = useMemo(() => {
-        if (scriptResult === null || scriptResult === undefined) return ""
-        try {
-            return typeof scriptResult === "string"
-                ? scriptResult
-                : JSON.stringify(scriptResult, null, 2)
-        } catch {
-            return String(scriptResult)
-        }
+    const normalizedScriptResults = useMemo((): Array<{ type?: string; display: string }> => {
+        if (scriptResult === null || scriptResult === undefined) return []
+        const list = Array.isArray(scriptResult) ? scriptResult : [scriptResult]
+        return list.map((item: any) => {
+            if (item && typeof item === "object" && "type" in item) {
+                const data = item.data
+                let display = ""
+                try {
+                    display = typeof data === "string" ? data : JSON.stringify(data, null, 2)
+                } catch {
+                    display = String(data)
+                }
+                return { type: item.type, display: display || "(empty)" }
+            }
+            let display = ""
+            try {
+                display = typeof item === "string" ? item : JSON.stringify(item, null, 2)
+            } catch {
+                display = String(item)
+            }
+            return { display: display || "(empty)" }
+        }).filter(item => item.display !== "(empty)" || item.type)
     }, [scriptResult])
 
     const mutationKeys = Object.keys(scriptMutations)
     const hasLogs = scriptLogs.length > 0
     const hasMutations = mutationKeys.length > 0
-    const hasResult = prettyResult.length > 0
+    const hasResult = normalizedScriptResults.length > 0
     const [responseOpen, setResponseOpen] = useState(true)
     const [resultOpen, setResultOpen] = useState(true)
     const [mutationsOpen, setMutationsOpen] = useState(true)
@@ -358,13 +380,30 @@ const ResponseView: React.FC = () => {
                                     className="rounded-lg border border-border">
                                     <SectionHeader
                                         label="Script Result"
+                                        count={normalizedScriptResults.length > 1 ? normalizedScriptResults.length : undefined}
                                         open={resultOpen}
                                         onToggle={() => setResultOpen(!resultOpen)}
                                     />
-                                    <CollapsibleContent className="px-3 pb-3">
-                                        <pre className="font-mono text-xs text-slate-300 bg-[#272822] rounded-md p-3 overflow-auto max-h-[200px]">
-                                            {prettyResult}
-                                        </pre>
+                                    <CollapsibleContent className="px-3 pb-3 space-y-2">
+                                        {normalizedScriptResults.map((res, idx) => (
+                                            <div key={idx} className="rounded-md border border-border/50 bg-[#272822] p-3">
+                                                {res.type && (
+                                                    <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-700/50">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase",
+                                                            res.type === "prerequest"
+                                                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                                        )}>
+                                                            {res.type === "prerequest" ? "Pre-request Script" : "Post-request Script"}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <pre className="font-mono text-xs text-slate-300 overflow-auto max-h-[200px] whitespace-pre-wrap">
+                                                    {res.display}
+                                                </pre>
+                                            </div>
+                                        ))}
                                     </CollapsibleContent>
                                 </Collapsible>
                             )}

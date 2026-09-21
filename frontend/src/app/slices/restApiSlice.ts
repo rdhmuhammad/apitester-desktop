@@ -1,9 +1,10 @@
 import {createSlice, type PayloadAction} from "@reduxjs/toolkit";
 import type {RootState} from "@/app/store/store.ts";
 import type {ScriptLog, SendResponse} from "@/types/response.ts";
+import type {ScriptResultDto} from "@/app/slices/index.ts";
 
 export interface ResponseData extends SendResponse {
-    result?: unknown;
+    result?: ScriptResultDto | ScriptResultDto[];
     mutations?: Record<string, string | null>;
     logs?: ScriptLog[];
 }
@@ -27,7 +28,7 @@ const restApiSlice = createSlice({
             state,
             action: PayloadAction<{
                 requestId: string;
-                result?: unknown;
+                result?: ScriptResultDto | ScriptResultDto[];
                 mutations?: Record<string, string | null>;
                 logs?: ScriptLog[];
             }>

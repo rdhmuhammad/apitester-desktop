@@ -225,8 +225,8 @@ export function jsCompletionSource(context: CompletionContext): CompletionResult
     if (dotMatch) {
         const textBeforePos = context.state.sliceDoc(Math.max(0, context.pos - 50), context.pos)
 
-        // Ignore pm. and response. expressions
-        if (/(?<!\w)(?:pm|response)(?:\.[\w$]*)*\.[\w$]*$/.test(textBeforePos)) {
+        // Ignore pm., response., and CryptoJS expressions
+        if (/(?<!\w)(?:pm|response|CryptoJS)(?:\.[\w$]*)*\.[\w$]*$/.test(textBeforePos)) {
             return null
         }
 

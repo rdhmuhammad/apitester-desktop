@@ -1,10 +1,16 @@
-import {app, BrowserWindow, dialog, ipcMain, Menu} from "electron"
+import {app, BrowserWindow, dialog, ipcMain, Menu, session} from "electron"
 import path from "path"
 import {fileURLToPath} from "url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged
+
+// Disable web security and CORS restrictions for API testing
+app.commandLine.appendSwitch("disable-web-security")
+app.commandLine.appendSwitch("disable-features", "OutOfBlinkCors")
+app.commandLine.appendSwitch("allow-insecure-localhost", "true")
+app.commandLine.appendSwitch("ignore-certificate-errors", "true")
 
 let mainWindow: BrowserWindow | null = null
 
@@ -26,6 +32,8 @@ function createWindow() {
             preload: path.join(__dirname, "preload.cjs"),
             contextIsolation: true,
             nodeIntegration: false,
+            webSecurity: false,
+            allowRunningInsecureContent: true,
         },
     })
 
@@ -72,7 +80,45 @@ ipcMain.handle("window-is-maximized", () => {
 })
 
 app.whenReady().then(async () => {
+    // Intercept all HTTP/HTTPS responses to inject permissive CORS headers
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        const responseHeaders = { ...(details.responseHeaders || {}) }
+
+        // Remove any existing restrictive CORS headers
+        for (const key of Object.keys(responseHeaders)) {
+            if (/^access-control-/i.test(key)) {
+                delete responseHeaders[key]
+            }
+        }
+
+        responseHeaders["Access-Control-Allow-Origin"] = ["*"]
+        responseHeaders["Access-Control-Allow-Headers"] = ["*"]
+        responseHeaders["Access-Control-Allow-Methods"] = [
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD",
+        ]
+        responseHeaders["Access-Control-Allow-Credentials"] = ["true"]
+        responseHeaders["Access-Control-Expose-Headers"] = ["*"]
+
+        callback({ responseHeaders })
+    })
+
+    // Remove origin header for external requests so remote servers don't reject preflight
+    session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+        const requestHeaders = { ...(details.requestHeaders || {}) }
+        if (details.url && !details.url.startsWith("http://localhost:5173") && !details.url.startsWith("file://")) {
+            delete requestHeaders["Origin"]
+            delete requestHeaders["origin"]
+        }
+        callback({ requestHeaders })
+    })
+
     createWindow()
+})
+
+app.on("certificate-error", (event, webContents, url, error, certificate, callback) => {
+    // Bypass self-signed SSL certificate errors when testing local or development APIs
+    event.preventDefault()
+    callback(true)
 })
 
 app.on("window-all-closed", () => {
