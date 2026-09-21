@@ -131,7 +131,7 @@ func runService(elog *eventlog.Log, name string, isDebug bool) {
 		log.Println("Running Production: ", name)
 		err := svc.Run(name, svcInst)
 		if err != nil {
-			log.Fatalln("Error running service in Service Control mode.")
+			log.Fatalln("Error running service in Service Control mode.: " + err.Error())
 		}
 	}
 }

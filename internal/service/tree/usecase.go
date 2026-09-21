@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
 	"github.com/rdhmuhammad/apitester/pkg/db"
@@ -143,13 +142,8 @@ func buildFileTree(path, category string, supported func(string) bool, errHandle
 func buildRequestTree(items []collectionService.CollectionItem) []RequestTree {
 	tree := make([]RequestTree, 0, len(items))
 	for _, item := range items {
-		id := item.ID
-		if id == "" {
-			id = uuid.NewString()
-		}
-
 		node := RequestTree{
-			ID:       id,
+			ID:       item.ID,
 			Name:     item.Name,
 			IsActive: false,
 			Category: "REQ",

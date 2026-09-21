@@ -471,12 +471,16 @@ func (u *Usecase) DeleteVariable(ctx context.Context, variableID string) (Create
 
 func setId(item []CollectionItem) []CollectionItem {
 	for i := range item {
-		item[i].ID = uuid.NewString()
+		if item[i].ID == "" {
+			item[i].ID = uuid.NewString()
+		}
 
 		setRequestIDs(item[i].Request)
 		for j := range item[i].Response {
 			for k := range item[i].Response[j].Header {
-				item[i].Response[j].Header[k].Id = uuid.NewString()
+				if item[i].Response[j].Header[k].Id == "" {
+					item[i].Response[j].Header[k].Id = uuid.NewString()
+				}
 			}
 			setRequestIDs(item[i].Response[j].OriginalRequest)
 		}
@@ -495,14 +499,20 @@ func setRequestIDs(request *Request) {
 	}
 
 	for i := range request.Header {
-		request.Header[i].Id = uuid.NewString()
+		if request.Header[i].Id == "" {
+			request.Header[i].Id = uuid.NewString()
+		}
 	}
 	for i := range request.URL.Query {
-		request.URL.Query[i].Id = uuid.NewString()
+		if request.URL.Query[i].Id == "" {
+			request.URL.Query[i].Id = uuid.NewString()
+		}
 	}
 	if request.Body != nil {
 		for i := range request.Body.FormData {
-			request.Body.FormData[i].Id = uuid.NewString()
+			if request.Body.FormData[i].Id == "" {
+				request.Body.FormData[i].Id = uuid.NewString()
+			}
 		}
 	}
 }
@@ -700,13 +710,14 @@ func (d *DocsContent) PrepareRead() {
 	d.PrepareVariables()
 	d.Item = setContentType(d.Item)
 	d.Item = setBearerAuthorization(d.Item, d.Auth)
-	d.Item = setId(d.Item)
 }
 
 func (d *DocsContent) PrepareCreate() {
 	d.Item = setId(d.Item)
 	for i := range d.Variable {
-		d.Variable[i].ID = uuid.NewString()
+		if d.Variable[i].ID == "" {
+			d.Variable[i].ID = uuid.NewString()
+		}
 	}
 }
 
