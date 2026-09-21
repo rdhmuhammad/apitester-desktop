@@ -2,7 +2,7 @@
 
 **Summary**: Request definitions remain canonical in the collection file on the filesystem. Backend mutations are currently serialized and written directly without optimistic version checks, while SHA-256 hashes remain available for responses and history.
 **Sources**: `resource/document/raw/concepts/backend/IDE Like File Editor Design.md`, `shared/base/port.go`, `internal/service/restrequest/usecase.go`, `internal/service/collection/usecase.go`
-**Last updated**: 2026-09-12
+**Last updated**: 2026-09-21
 
 ---
 
@@ -21,6 +21,7 @@ The initial endpoints are:
 - `PUT /restrequest/:collectionId/:requestId/body/formdata`
 - `PUT /restrequest/:collectionId/:requestId/script/post-request`
 - `DELETE /restrequest/:collectionId/:requestId`
+- `PUT /restrequest/tree/:collectionId`
 
 The initial implementation required `baseVersion` and rejected stale updates. This check was temporarily removed on 2026-09-12: backend mutation DTOs no longer accept a version token, and stale clients are not rejected. SHA-256 versions remain in read and mutation responses and in [[decisions/collection-history-for-restrequest-mutations]].
 
