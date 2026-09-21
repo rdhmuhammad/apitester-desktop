@@ -37,3 +37,4 @@
 - 2026-09-16: Updated [[patterns/usecase/usecase-rules-of-engagement]] to include exceptions for localerror in Rule 1 and simple branching in Rule 3 based on raw source changes.
 - 2026-09-21: Added UpdateTree usecase and PUT /restrequest/tree/:collectionId endpoint for reordering and pruning collection items while preserving item metadata and recording collection history; updated [[decisions/file-backed-restrequest-editing]].
 - 2026-09-21: Added [[concepts/backend/postman-prerequest-script-dto]] documenting Postman pre-request script data transfer objects across the collection schema specification (v2.1.0 JSON) and sandbox execution runtime (`pm.*` context), along with local Go DTO mappings.
+- 2026-09-21: Added [[decisions/desktop-production-build]] documenting the complete production build and packaging pipeline for Apitester Desktop (Windows service backend compilation, portable Electron frontend packaging, and Inno Setup installer generation).

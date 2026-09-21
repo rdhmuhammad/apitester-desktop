@@ -42,6 +42,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 ## Decisions
 
 - [[decisions/index]] - Technical decisions recorded for the codebase.
+- [[decisions/desktop-production-build]] - Production packaging pipeline for Windows service backend, portable Electron frontend, and Inno Setup installer.
 - [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with serialized direct writes and no current version check.
 - [[decisions/collection-history-for-restrequest-mutations]] - `collection_history` audit records preserving old and new content hashes for successful mutations.
 - [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.
