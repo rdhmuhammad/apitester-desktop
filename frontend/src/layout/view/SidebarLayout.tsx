@@ -12,7 +12,6 @@ import {
     openEditorTab,
     selectCollectionId,
     selectEditorActiveTabId,
-    setCollectionId
 } from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import {
@@ -25,9 +24,11 @@ import {
     useSensor,
     useSensors,
 } from "@dnd-kit/core";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SidebarLayout: React.FC = () => {
     const dispatch = useAppDispatch()
+    const queryClient = useQueryClient();
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
     const [searchQuery, setSearchQuery] = useState('')
     const expandedBeforeSearch = useRef<Record<string, boolean>>({})
@@ -37,7 +38,7 @@ const SidebarLayout: React.FC = () => {
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
     const collectionId = useAppSelector(selectCollectionId)
-    const {activeCollection, requestTree: tree} = useCollection(collectionId)
+    const {requestTree: tree, activeCollection} = useCollection(collectionId)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {activationConstraint: {distance: 5}})
@@ -82,16 +83,16 @@ const SidebarLayout: React.FC = () => {
         }
     }, [searchQuery, tree])
 
-    useEffect(() => {
-        if (!collectionId && activeCollection) dispatch(setCollectionId(activeCollection.id))
-    }, [activeCollection, collectionId, dispatch])
-
     const toggleFolder = (folderId: string) => {
         setExpandedFolders((prevState => ({
             ...prevState,
             [folderId]: !prevState[folderId]
         })));
     };
+
+    useEffect(() => {
+        queryClient.removeQueries({queryKey: ["collection", "tree"]})
+    }, [activeCollection]);
 
     useEffect(() => {
         const record: Record<string, boolean> = {}

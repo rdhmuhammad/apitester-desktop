@@ -118,7 +118,7 @@ func (u *Usecase) CreateCollection(ctx context.Context, req CreateCollectionRequ
 	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
 	var docsContent DocsContent
 	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
-		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+		return domain.Collection{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Collection content is not valid, " + err.Error()))
 	}
 
 	docsContent.PrepareCreate()
@@ -719,12 +719,15 @@ func (d *DocsContent) PrepareCreate() {
 		if d.Variable[i].ID == "" {
 			d.Variable[i].ID = uuid.NewString()
 		}
+		if isBaseURLVar(d.Variable[i].Key) {
+			d.Variable[i].Category = "BASE_URL"
+		}
 	}
 }
 
 func (d *DocsContent) PrepareVariables() {
 	for i := range d.Variable {
-		if isBaseURLVar(d.Variable[i].Key) && d.Variable[i].ID == "" {
+		if isBaseURLVar(d.Variable[i].Key) && d.Variable[i].Category == "" {
 			d.Variable[i].Category = "BASE_URL"
 		}
 	}

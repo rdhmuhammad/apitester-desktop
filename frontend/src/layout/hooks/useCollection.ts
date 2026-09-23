@@ -40,9 +40,9 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     const collectionId = selectedCollectionId ?? activeCollectionQuery.data?.id ?? null
 
     const treeQuery = useQuery<RequestTree[]>({
-        queryKey: ["collection", "tree", selectedCollectionId],
-        queryFn: () => CollectionServices.getRequestTree(selectedCollectionId as string),
-        enabled: Boolean(selectedCollectionId),
+        queryKey: ["collection", "tree"],
+        queryFn: () => CollectionServices.getRequestTree(collectionId as string),
+        enabled: Boolean(collectionId),
         gcTime: 0,
         refetchOnWindowFocus: false,
     })

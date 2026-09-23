@@ -66,6 +66,11 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
         queryClient.setQueryData<Collection[]>(["collection", "list"], (collections = []) => updater(collections))
     }
 
+    const deleteActiveCollection = ()=>{
+        queryClient.removeQueries({queryKey: ["collection", "active"]})
+    }
+
+
     const handleBrowseFile = async () => {
         const path = await pickFilePath()
         if (path) setNewFilePath(path)
@@ -86,6 +91,7 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
     const handleDelete = async (id: string) => {
         try {
             await deleteCollectionMutation.mutateAsync(id)
+            deleteActiveCollection()
             updateCollectionList((items) => items.filter((item) => item.id !== id))
             if (selectedId === id) setSelectedId(null)
         } catch (error) {

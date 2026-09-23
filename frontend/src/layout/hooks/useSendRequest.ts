@@ -1,9 +1,8 @@
 import {useAppDispatch} from "@/app/store/hooks.ts";
 import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
 import {runPreRequestScript, runScript} from "@/layout/hooks/useScriptRunner.ts";
-import type {CollectionVar} from "@/pages/editor/types/api.ts";
+import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
 import type React from "react";
-import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts";
 import type {ScriptResultDto} from "@/app/slices/index.ts";
 import axios from "@/config/axios.ts";
@@ -103,21 +102,21 @@ export const parseBlobResponse = async (blob: Blob, contentType: string): Promis
 
     if (isBinary) {
         const dataUrl = await blobToDataUrl(blob)
-        return { data: dataUrl, size: (blob.size / 1024).toFixed(2), isBinary }
+        return {data: dataUrl, size: (blob.size / 1024).toFixed(2), isBinary}
     }
 
     const text = await blob.text()
     try {
-        return { data: JSON.parse(text), size: (new Blob([text]).size / 1024).toFixed(2), isBinary }
+        return {data: JSON.parse(text), size: (new Blob([text]).size / 1024).toFixed(2), isBinary}
     } catch {
-        return { data: text, size: (new Blob([text]).size / 1024).toFixed(2), isBinary }
+        return {data: text, size: (new Blob([text]).size / 1024).toFixed(2), isBinary}
     }
 }
 
 export const sendApiRequest = async (request: ISendRequest): Promise<SendResponse | null> => {
     const isFormData = request.contentType === "multipart/form-data"
     const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI)
-
+    console.log(request.baseUrl)
     let baseURL = request.baseUrl
     let url = request.endpoint
 
@@ -155,7 +154,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
         }) as AxiosResponseWithDuration<Blob>
 
         const contentType = (response.headers["content-type"] as string)?.toLowerCase() ?? ""
-        const { data, size: responseSize, isBinary } = await parseBlobResponse(response.data as Blob, contentType)
+        const {data, size: responseSize, isBinary} = await parseBlobResponse(response.data as Blob, contentType)
 
         const responseHeaders: Record<string, string> = {}
         if (response.headers) {
@@ -192,7 +191,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
                 headers: {},
             }
         }
-        
+
         const error = err as {
             message?: string
             duration?: number
@@ -209,7 +208,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
         const {data, size, isBinary} = blob
             ? await parseBlobResponse(blob, contentType)
             : {data: null, size: "0", isBinary: false}
-            
+
         CustomToast.error(error.message ?? "Request failed");
         return {
             rawRequest: buildRawRequest(request),
@@ -287,7 +286,7 @@ const applyVariableMutations = (
             }
         } else if (existing) {
             setRuntimeVariables((current) =>
-                current.map((item) => (item.id === existing.id ? { ...item, value } : item))
+                current.map((item) => (item.id === existing.id ? {...item, value} : item))
             )
         } else {
             setRuntimeVariables((current) => [
@@ -307,7 +306,8 @@ const applyVariableMutations = (
 const applyMutatedRequestToSendConfig = (
     baseConfig: ISendRequest,
     mutatedRequest: RestRequestResponse,
-    vars: Record<string, string>
+    vars: Record<string, string>,
+    initialUrl?: string
 ): ISendRequest => {
     const method = String(mutatedRequest.method || baseConfig.method).toUpperCase()
 
@@ -400,7 +400,7 @@ const applyMutatedRequestToSendConfig = (
         }
     }
 
-    if (rawUrlString !== undefined && rawUrlString !== "") {
+    if (rawUrlString !== undefined && rawUrlString !== "" && rawUrlString !== initialUrl) {
         const rawUrl = resolveVariables(rawUrlString, vars)
         if (/^https?:\/\//i.test(rawUrl)) {
             try {
@@ -447,7 +447,7 @@ const applyMutatedRequestToSendConfig = (
 
 export const useRequestSender = () => {
     const dispatch = useAppDispatch();
-    
+
     return async (
         config: ISendRequest,
         context: {
@@ -463,6 +463,14 @@ export const useRequestSender = () => {
         context.runtimeVariables.forEach(v => {
             varsObj[v.key] = v.value
         })
+        if (config.baseUrl) {
+            varsObj["BASE_URL"] = config.baseUrl
+            context.runtimeVariables
+                .filter(v => v.category === "BASE_URL")
+                .forEach(v => {
+                    varsObj[v.key] = config.baseUrl
+                })
+        }
 
         let finalConfig = config
         const collectedResults: ScriptResultDto[] = []
@@ -472,9 +480,24 @@ export const useRequestSender = () => {
         // 1. Pre-request script phase (mutates request payload before sending)
         if (context.preScriptValue?.trim() && context.request) {
             try {
+                const cleanBase = (config.baseUrl ?? "").replace(/\/+$/, "")
+                const cleanEndpoint = (config.endpoint ?? "").replace(/^\/+/, "")
+                const initialFullUrl = cleanBase
+                    ? (cleanEndpoint ? `${cleanBase}/${cleanEndpoint}` : cleanBase)
+                    : cleanEndpoint
+
+                const initialRequest: RestRequestResponse = {
+                    ...context.request,
+                    method: config.method,
+                    url: {
+                        ...(typeof context.request.url === "object" ? context.request.url : {}),
+                        raw: initialFullUrl,
+                    } as any,
+                }
+
                 const preOutput = await runPreRequestScript({
                     script: context.preScriptValue,
-                    request: context.request,
+                    request: initialRequest,
                     variables: varsObj,
                 })
 
@@ -486,6 +509,16 @@ export const useRequestSender = () => {
                         context.runtimeVariables,
                         context.setRuntimeVariables
                     )
+                    if (preOutput.mutations["BASE_URL"]) {
+                        config.baseUrl = String(preOutput.mutations["BASE_URL"])
+                    }
+                    context.runtimeVariables
+                        .filter(v => v.category === "BASE_URL")
+                        .forEach(v => {
+                            if (preOutput.mutations[v.key]) {
+                                config.baseUrl = String(preOutput.mutations[v.key])
+                            }
+                        })
                 }
 
                 if (preOutput.logs?.length) {
@@ -499,7 +532,7 @@ export const useRequestSender = () => {
                     })
                 }
 
-                finalConfig = applyMutatedRequestToSendConfig(config, preOutput.request, varsObj)
+                finalConfig = applyMutatedRequestToSendConfig(config, preOutput.request, varsObj, initialFullUrl)
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err)
                 CustomToast.error(`Pre-request script error: ${msg}`)

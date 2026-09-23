@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {cn} from "@/lib/utils.ts";
 import {isTestTab} from "@/lib/tabUtils.ts";
 
@@ -8,6 +8,7 @@ import {
     Select,
     SelectContent,
     SelectItem,
+    SelectSeparator,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select.tsx";
@@ -26,15 +27,19 @@ import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 const RequestHeader: React.FC = () => {
     const activeTabId = useAppSelector(selectEditorActiveTabId)
-    const {activeCollection, variables, preScript} = useCollection()
-    const baseUrls = variables
-        .filter((item) => item.category === "BASE_URL" || item.key.toLowerCase().includes("base_url"))
-        .map((item) => item.value)
-        .filter(Boolean)
+    const {activeCollection, variables, preScript, createVariableMutation} = useCollection()
+    const baseUrlOptions = useMemo(() => {
+        return Array.from(
+            new Set(
+                variables
+                    .filter((item) => item.category === "BASE_URL")
+                    .map((item) => item.value)
+                    .filter(Boolean)
+            )
+        )
+    }, [variables])
     const {request, updateMethod, updateUrl, updateQuery} = useRequestConfig(activeCollection?.id ?? "", activeTabId)
     const sendRequestAction = useRequestSender()
-
-    const baseUrlOptions = baseUrls
     const scriptValue = request?.script ?? ""
     const collectionData = activeCollection
     const envVars: Record<string, string> = {}
@@ -73,9 +78,22 @@ const RequestHeader: React.FC = () => {
 
     const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
     const [newBaseUrl, setNewBaseUrl] = useState("");
+    const [selectOpen, setSelectOpen] = useState(false);
+    const [isAddingBaseUrl, setIsAddingBaseUrl] = useState(false);
+    const [isAddingLoading, setIsAddingLoading] = useState(false);
+    const newBaseUrlInputRef = useRef<HTMLInputElement | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [isHoveringButton, setIsHoveringButton] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    useEffect(() => {
+        if (isAddingBaseUrl) {
+            const timer = setTimeout(() => {
+                newBaseUrlInputRef.current?.focus()
+            }, 50)
+            return () => clearTimeout(timer)
+        }
+    }, [isAddingBaseUrl]);
 
     const resolveVariableValue = (value: unknown): string => {
         if (value === null || value === undefined) return ""
@@ -94,6 +112,9 @@ const RequestHeader: React.FC = () => {
         return str.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
             const k = key.trim()
             const matchedVar = runtimeVariables.find((item) => item.key === k)
+            if (matchedVar?.category === "BASE_URL" && selectedBaseUrl) {
+                return selectedBaseUrl
+            }
             const resolved = envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
             if (resolved === undefined || resolved === null) return `{{${key}}}`
             return typeof resolved === "object" ? JSON.stringify(resolved) : String(resolved)
@@ -121,19 +142,29 @@ const RequestHeader: React.FC = () => {
 
     const formatEndpoint = (endpoint: unknown): string => {
         if (endpoint === null || endpoint === undefined) return ""
-        const str = typeof endpoint === "string" ? endpoint : String(endpoint)
-        const sanitizedEndpoint = str.replace(/\{\{[^{}]+\}\}/g, "").trim()
+        let str = typeof endpoint === "string" ? endpoint : String(endpoint)
+        const baseUrlVarKeys = new Set(
+            runtimeVariables
+                .filter((item) => item.category === "BASE_URL")
+                .map((item) => item.key)
+        )
+        str = str.replace(/^\{\{([^{}]+)\}\}/, (match, key: string) => {
+            if (baseUrlVarKeys.has(key.trim())) {
+                return ""
+            }
+            return match
+        }).trim()
 
-        if (/^https?:\/\//i.test(sanitizedEndpoint)) {
+        if (/^https?:\/\//i.test(str)) {
             try {
-                const parsedUrl = new URL(sanitizedEndpoint)
+                const parsedUrl = new URL(str)
                 return `${parsedUrl.pathname}${parsedUrl.hash}`
             } catch {
-                return sanitizedEndpoint.split('?')[0]
+                return str.split('?')[0]
             }
         }
 
-        return sanitizedEndpoint.split('?')[0]
+        return str.split('?')[0]
     }
 
     const handleSendRequest = () => {
@@ -142,7 +173,7 @@ const RequestHeader: React.FC = () => {
         
         abortControllerRef.current = new AbortController();
         const headerValue = request.headers?.find(h => h?.key.toLowerCase() === 'content-type' && !h.disabled)?.value ?? '';
-        
+        console.log(selectedBaseUrl)
         const sendRequestConfig: ISendRequest = {
             baseUrl: selectedBaseUrl,
             endpoint: formatEndpoint(currentEndpoint),
@@ -161,12 +192,16 @@ const RequestHeader: React.FC = () => {
             formData: request.body?.formdata,
             signal: abortControllerRef.current.signal
         }
+        const effectiveRuntimeVariables = runtimeVariables.map(v => 
+            v.category === 'BASE_URL' ? { ...v, value: selectedBaseUrl } : v
+        )
+
         sendRequestAction(sendRequestConfig, {
             requestId: request.id,
             request,
             preScriptValue: preScript,
             scriptValue,
-            runtimeVariables,
+            runtimeVariables: effectiveRuntimeVariables,
             setRuntimeVariables
         }).finally(() => {
             setIsSending(false)
@@ -197,19 +232,41 @@ const RequestHeader: React.FC = () => {
         return () => window.removeEventListener("keydown", handleKeyDown)
     })
 
-    const handleAddBaseUrl = () => {
+    const getNextBaseUrlKey = (vars: CollectionVar[]): string => {
+        const existingKeys = new Set(vars.map((v) => v.key.toLowerCase()))
+        if (!existingKeys.has("base_url")) {
+            return "base_url"
+        }
+        let index = 1
+        while (existingKeys.has(`base_url_${index}`)) {
+            index++
+        }
+        return `base_url_${index}`
+    }
+
+    const handleAddBaseUrl = async () => {
         const trimmed = newBaseUrl.trim()
         if (!trimmed) return
-        const newVar: CollectionVar = {
-            id: crypto.randomUUID(),
-            key: 'base_url',
-            value: trimmed,
-            category: 'BASE_URL',
-            type: 'string'
+        if (!collectionData?.version) return
+
+        setIsAddingLoading(true)
+        try {
+            const nextKey = getNextBaseUrlKey(variables)
+            await createVariableMutation.mutateAsync({
+                baseVersion: collectionData.version,
+                key: nextKey,
+                value: trimmed,
+                type: 'string'
+            })
+            setSelectedBaseUrl(trimmed)
+            setNewBaseUrl('')
+            setIsAddingBaseUrl(false)
+            setSelectOpen(false)
+        } catch {
+            // Error is handled by createVariableMutation onError
+        } finally {
+            setIsAddingLoading(false)
         }
-        void newVar
-        setSelectedBaseUrl(trimmed)
-        setNewBaseUrl('')
     }
 
     return (
@@ -235,45 +292,92 @@ const RequestHeader: React.FC = () => {
                 </SelectContent>
             </Select>
             <div className="flex w-full items-center rounded-md border border-input bg-transparent shadow-xs">
-                {(baseUrlOptions.length > 0) ? (
-                    <Select
-                        value={selectedBaseUrl}
-                        disabled={!collectionData}
-                        onValueChange={setSelectedBaseUrl}
-                    >
-                        <SelectTrigger
-                            className="w-[240px] rounded-none border-0 border-r border-input shadow-none focus-visible:ring-0">
-                            <SelectValue placeholder="Select Base URL"/>
-                        </SelectTrigger>
-                        <SelectContent>
-                            {baseUrlOptions.map((baseUrl) => (
+                <Select
+                    open={selectOpen}
+                    onOpenChange={(open) => {
+                        setSelectOpen(open)
+                        if (!open) {
+                            setIsAddingBaseUrl(false)
+                            setNewBaseUrl("")
+                        }
+                    }}
+                    value={selectedBaseUrl}
+                    disabled={!collectionData}
+                    onValueChange={setSelectedBaseUrl}
+                >
+                    <SelectTrigger
+                        className="w-[240px] rounded-none border-0 border-r border-input shadow-none focus-visible:ring-0">
+                        <SelectValue placeholder="Select Base URL"/>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {baseUrlOptions.length === 0 ? (
+                            <div className="px-2 py-2 text-xs text-muted-foreground text-center">
+                                No base URL configured
+                            </div>
+                        ) : (
+                            baseUrlOptions.map((baseUrl) => (
                                 <SelectItem key={baseUrl} value={baseUrl}>
                                     {baseUrl}
                                 </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                ) : (
-                    <div className="flex w-full items-center">
-                        <Input
-                            value={newBaseUrl}
-                            disabled={!collectionData}
-                            onChange={(e) => setNewBaseUrl(e.target.value)}
-                            className="border-0 rounded-none shadow-none focus-visible:ring-0"
-                            placeholder="https://api.example.com"
-                            aria-label="Add base URL"
-                        />
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={!collectionData || !newBaseUrl.trim()}
-                            className="h-full rounded-none border-l border-input px-2 shrink-0"
-                            onClick={handleAddBaseUrl}
+                            ))
+                        )}
+                        <SelectSeparator />
+                        <div
+                            className="p-1"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <Plus className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                )}
+                            {!isAddingBaseUrl ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddingBaseUrl(true)}
+                                    className="flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200 cursor-pointer"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    <span>Add New</span>
+                                </button>
+                            ) : (
+                                <div className="flex w-full items-center gap-1.5 animate-in fade-in-0 duration-200">
+                                    <Input
+                                        ref={newBaseUrlInputRef}
+                                        value={newBaseUrl}
+                                        disabled={isAddingLoading}
+                                        onChange={(e) => setNewBaseUrl(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            e.stopPropagation()
+                                            if (e.key === "Enter") {
+                                                e.preventDefault()
+                                                void handleAddBaseUrl()
+                                            } else if (e.key === "Escape") {
+                                                e.preventDefault()
+                                                setIsAddingBaseUrl(false)
+                                                setNewBaseUrl("")
+                                            }
+                                        }}
+                                        className="flex-[4] basis-4/5 min-w-0 h-8 text-xs shadow-none focus-visible:ring-1"
+                                        placeholder="https://api.example.com"
+                                        aria-label="New Base URL"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="default"
+                                        size="sm"
+                                        disabled={isAddingLoading || !newBaseUrl.trim()}
+                                        onClick={() => void handleAddBaseUrl()}
+                                        className="flex-[1] basis-1/5 min-w-0 h-8 p-0 flex items-center justify-center shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                        title="Add Base URL"
+                                    >
+                                        {isAddingLoading ? (
+                                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                            <Plus className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </SelectContent>
+                </Select>
                 <Input
                     value={formatEndpoint(currentEndpoint)}
                     disabled={!collectionData}

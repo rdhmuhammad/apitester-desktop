@@ -163,8 +163,14 @@ func TestCreateCollection_OnlySetIDIfEmpty(t *testing.T) {
 	if savedDocs.Variable[0].ID != "existing-var-1" {
 		t.Errorf("expected variable[0].ID to be 'existing-var-1', got '%s'", savedDocs.Variable[0].ID)
 	}
+	if savedDocs.Variable[0].Category != "BASE_URL" {
+		t.Errorf("expected variable[0].Category to be 'BASE_URL', got '%s'", savedDocs.Variable[0].Category)
+	}
 	if savedDocs.Variable[1].ID == "" {
 		t.Errorf("expected variable[1].ID to be generated, got empty")
+	}
+	if savedDocs.Variable[1].Category != "" {
+		t.Errorf("expected variable[1].Category to be empty, got '%s'", savedDocs.Variable[1].Category)
 	}
 
 	// 8. Test Read does not mutate or regenerate IDs
