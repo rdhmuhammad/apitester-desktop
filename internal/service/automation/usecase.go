@@ -10,6 +10,7 @@ import (
 
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"go.etcd.io/bbolt"
@@ -23,7 +24,7 @@ type Usecase struct {
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	automationRepo, err := db.NewRepository[domain.Automation](database, db.WithBucketName("Automation"))
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for automation usecase: %v", err)
 	}
 
 	return &Usecase{

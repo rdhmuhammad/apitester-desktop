@@ -10,6 +10,7 @@ import (
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
 	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"go.etcd.io/bbolt"
@@ -25,16 +26,16 @@ type Usecase struct {
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	collectionRepo, err := db.NewRepository[domain.Collection](database)
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize collection repo for tree usecase: %v", err)
 	}
 	automationRepo, err := db.NewRepository[domain.Automation](database)
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for tree usecase: %v", err)
 	}
 
 	testRepo, err := db.NewRepository[domain.TestSuite](database)
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for tree usecase: %v", err)
 	}
 
 	return &Usecase{

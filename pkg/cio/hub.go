@@ -1,12 +1,13 @@
 package cio
 
 import (
-	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
+	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/zishang520/socket.io/servers/socket/v3"
 	"github.com/zishang520/socket.io/v3/pkg/types"
 )
@@ -45,7 +46,7 @@ func (io *IO) NewSpace(name string, middleware types.EventListener) *NS {
 	ns := newNS(io, of)
 
 	if _, ok := io.ns[name]; ok {
-		panic("duplicate namespace: " + name)
+		elog.Panicf(elog.EIDInvalidParameter, "duplicate namespace: %s", name)
 	}
 	io.ns[name] = ns
 	return ns

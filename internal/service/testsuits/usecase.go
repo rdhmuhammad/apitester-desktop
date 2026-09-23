@@ -8,6 +8,7 @@ import (
 
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"go.etcd.io/bbolt"
@@ -21,7 +22,7 @@ type Usecase struct {
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	testSuiteRepo, err := db.NewRepository[domain.TestSuite](database, db.WithBucketName("TestSuite"))
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for testsuits usecase: %v", err)
 	}
 
 	return &Usecase{

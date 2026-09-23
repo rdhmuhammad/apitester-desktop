@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rdhmuhammad/apitester/pkg/cio"
 	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"github.com/rdhmuhammad/apitester/pkg/middleware"
 )
@@ -22,7 +23,7 @@ func Default() *Api {
 	lg := builder.Build()
 	boltDB, err := db.NewBoltDB(collectionDBPath())
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDFileNotFound, "failed to initialize BoltDB at '%s': %v", collectionDBPath(), err)
 	}
 
 	api := Api{

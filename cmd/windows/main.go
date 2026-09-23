@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/collection"
@@ -17,40 +18,22 @@ import (
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/testsuits"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/tree"
 	requestSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/restrequest"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/shared/api"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
-	"golang.org/x/sys/windows/svc/eventlog"
 )
 
 type WinService struct {
-	api  *api.Api
-	elog *eventlog.Log
-}
-
-func (w *WinService) logEvent(eid uint32, msg, level string) {
-	if w.elog == nil {
-		return
-	}
-	var err error
-	switch level {
-	case "info":
-		err = w.elog.Info(eid, msg)
-	case "error":
-		err = w.elog.Error(eid, msg)
-	case "warning":
-		err = w.elog.Warning(eid, msg)
-	}
-	if err != nil {
-		log.Printf("eventlog write failed: %v", err)
-	}
+	api *api.Api
 }
 
 func (w *WinService) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (bool, uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 
 	status <- svc.Status{State: svc.StartPending}
+	elog.Info(elog.EIDSuccess, "Service worker initializing API server...")
 
 	w.api = api.Default()
 	w.api.Register(func(conn api.Conns) []api.Router {
@@ -68,13 +51,14 @@ func (w *WinService) Execute(args []string, r <-chan svc.ChangeRequest, status c
 			requestSocket.NewRestRequestSocket(conn.Logger, conn.DB),
 		}
 	})
+
 	g, gctx := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		return w.api.Start()
 	})
 
 	status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	w.logEvent(1, "Service started, HTTP on port "+os.Getenv("APP_PORT"), "info")
+	elog.Infof(elog.EIDSuccess, "Service started, HTTP on port %s", os.Getenv("APP_PORT"))
 
 loop:
 	for {
@@ -86,21 +70,21 @@ loop:
 			case svc.Interrogate:
 				status <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				log.Print("Shutting service...!")
-				w.logEvent(3, "Service shutting down", "info")
+				elog.Info(elog.EIDServiceNotStarted, "Service received stop/shutdown request")
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				if err := w.api.Shutdown(ctx); err != nil {
-					log.Printf("API shutdown error: %v", err)
-					w.logEvent(4, "API shutdown error: "+err.Error(), "warning")
+					elog.Errorf(elog.EIDGenericError, "API shutdown error: %v", err)
 				}
 				break loop
 			case svc.Pause:
 				status <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
+				elog.Info(elog.EIDSuccess, "Service paused")
 			case svc.Continue:
 				status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+				elog.Info(elog.EIDSuccess, "Service continued")
 			default:
-				log.Printf("Unexpected service control request #%d", c)
+				elog.Warningf(elog.EIDInvalidParameter, "Unexpected service control request #%d", c.Cmd)
 			}
 		}
 	}
@@ -109,29 +93,28 @@ loop:
 
 	exitCode := uint32(0)
 	if err := g.Wait(); err != nil {
-		log.Printf("API server error: %v", err)
-		w.logEvent(2, "API server stopped unexpectedly: "+err.Error(), "error")
+		elog.Errorf(elog.EIDGenericError, "API server stopped unexpectedly: %v", err)
 		exitCode = 1
 	} else {
-		w.logEvent(5, "Service stopped", "info")
+		elog.Info(elog.EIDServiceNotStarted, "Service stopped gracefully")
 	}
 
 	return false, exitCode
 }
 
-func runService(elog *eventlog.Log, name string, isDebug bool) {
-	svcInst := &WinService{elog: elog}
+func runService(name string, isDebug bool) {
+	svcInst := &WinService{}
 	if isDebug {
+		elog.Infof(elog.EIDSuccess, "Starting service '%s' in debug/console mode", name)
 		err := debug.Run(name, svcInst)
-		log.Println("Running Debug")
 		if err != nil {
-			log.Fatalln("Error running service in debug mode.")
+			elog.Errorf(elog.EIDGenericError, "Error running service in debug mode: %v", err)
 		}
 	} else {
-		log.Println("Running Production: ", name)
+		elog.Infof(elog.EIDSuccess, "Starting service '%s' in Service Control Manager mode", name)
 		err := svc.Run(name, svcInst)
 		if err != nil {
-			log.Fatalln("Error running service in Service Control mode.: " + err.Error())
+			elog.Errorf(elog.EIDGenericError, "Error running service in Service Control mode: %v", err)
 		}
 	}
 }
@@ -148,6 +131,31 @@ func getLogPath() string {
 	return filepath.Join(configDir, "apitester", "debug.log")
 }
 
+func setupFileLogging(isDebug bool) *os.File {
+	if isDebug {
+		return nil
+	}
+	logPath := getLogPath()
+	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		log.SetOutput(io.Discard)
+		return nil
+	}
+
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(f)
+		os.Stdout = f
+		os.Stderr = f
+		gin.DefaultWriter = f
+		gin.DefaultErrorWriter = f
+		gin.SetMode(gin.ReleaseMode)
+		return f
+	}
+
+	log.SetOutput(io.Discard)
+	return nil
+}
+
 func main() {
 	var envFile string
 	var isDebug bool
@@ -155,38 +163,37 @@ func main() {
 	flag.BoolVar(&isDebug, "debug", false, "Run in debug/console mode")
 	flag.Parse()
 
-	elog, err := eventlog.Open("Apitester-backend")
-	if err != nil {
-		log.Printf("eventlog.Open failed: %v (service may not be installed)", err)
+	// 1. In Windows service mode, prevent "The handle is invalid" on stdout/stderr
+	if !isDebug {
+		log.SetOutput(io.Discard)
+	}
+
+	// 2. Open Windows Event Log globally
+	if err := elog.Init("Apitester-backend"); err != nil {
+		log.Printf("elog.Init failed: %v (service may not be installed)", err)
 	} else {
 		defer elog.Close()
 	}
 
-	err = godotenv.Load(envFile)
+	elog.Info(elog.EIDSuccess, "Apitester backend service initializing...")
+
+	// 3. Load environment file
+	err := godotenv.Load(envFile)
 	if err != nil {
-		if elog != nil {
-			elog.Error(1, "Failed to load env file: "+err.Error())
-		}
-		log.Println(err)
-		panic(err)
+		elog.Panicf(elog.EIDFileNotFound, "Failed to load env file '%s': %v", envFile, err)
+		return
+	}
+	elog.Infof(elog.EIDSuccess, "Loaded environment configuration from '%s'", envFile)
+
+	// 4. Safely set up file logging (redirecting stdout/stderr and Gin writers)
+	logFile := setupFileLogging(isDebug)
+	if logFile != nil {
+		defer logFile.Close()
+		elog.Infof(elog.EIDSuccess, "Log file opened: %s", getLogPath())
+	} else if !isDebug {
+		elog.Warningf(elog.EIDAccessDenied, "Failed to open log file %s, logging only to Windows Event Log", getLogPath())
 	}
 
-	logPath := getLogPath()
-	os.MkdirAll(filepath.Dir(logPath), 0755)
-
-	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		if elog != nil {
-			elog.Error(2, "Failed to open log file: "+err.Error())
-		}
-		log.Fatalln(fmt.Errorf("error opening file: %v", err))
-	}
-	defer f.Close()
-
-	log.SetOutput(f)
-	if elog != nil {
-		elog.Info(6, "Log file opened: "+logPath)
-	}
-
-	runService(elog, "Apitester-backend", isDebug)
+	// 5. Run service
+	runService("Apitester-backend", isDebug)
 }

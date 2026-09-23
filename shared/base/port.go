@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"go.etcd.io/bbolt"
@@ -36,11 +37,11 @@ type Port struct {
 func NewPort(lg logger.Logger, database *bbolt.DB) *Port {
 	collectionRepo, err := db.NewRepository[domain.Collection](database)
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize collection repository: %v", err)
 	}
 	historyRepo, err := db.NewRepository[domain.CollectionHistory](database, db.WithBucketName("collection_history"))
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize collection history repository: %v", err)
 	}
 	return &Port{
 		CollectionRepo: collectionRepo,

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
 	"github.com/rdhmuhammad/apitester/pkg/db"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"github.com/rdhmuhammad/apitester/pkg/watcher"
@@ -36,11 +37,11 @@ func NewUsecase(
 
 	testSuiteRepo, err := db.NewRepository[domain.TestSuite](database, db.WithBucketName("TestSuite"))
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for collection usecase: %v", err)
 	}
 	automationRepo, err := db.NewRepository[domain.Automation](database, db.WithBucketName("Automation"))
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for collection usecase: %v", err)
 	}
 
 	fw := watcher.New(lg)

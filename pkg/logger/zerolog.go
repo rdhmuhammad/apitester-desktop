@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rs/zerolog"
 )
 
@@ -75,12 +77,12 @@ func (b *LoggerBuilder) Build() ReZero {
 
 	var output io.Writer = consoleWriter
 	if b.logPath != "" {
-		if err := os.MkdirAll(b.logPath, 0755); err != nil {
-			panic(err)
+		if err := os.MkdirAll(filepath.Dir(b.logPath), 0755); err != nil {
+			elog.Panicf(elog.EIDPathNotFound, "failed to create log directory for '%s': %v", b.logPath, err)
 		}
 		f, err := os.OpenFile(b.logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
-			panic(err)
+			elog.Panicf(elog.EIDAccessDenied, "failed to open log file '%s': %v", b.logPath, err)
 		}
 		output = io.MultiWriter(consoleWriter, f)
 	}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 
 	"github.com/joho/godotenv"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
@@ -12,6 +11,7 @@ import (
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/testsuits"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/tree"
 	requestSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/restrequest"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/shared/api"
 )
 
@@ -19,11 +19,13 @@ func main() {
 	var envFile string
 	flag.StringVar(&envFile, "env", ".env.stag", "Provide env file path")
 	flag.Parse()
+
+	_ = elog.Init("Apitester-backend")
+	defer elog.Close()
+
 	err := godotenv.Load(envFile)
 	if err != nil {
-		log.Println(err)
-		panic(err)
-
+		elog.Panicf(elog.EIDFileNotFound, "failed to load env file '%s': %v", envFile, err)
 	}
 
 	start := api.Default()
@@ -45,6 +47,6 @@ func main() {
 
 	err = start.Start()
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "API start failed: %v", err)
 	}
 }

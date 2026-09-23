@@ -9,6 +9,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 )
 
 type Sentry struct {
@@ -38,7 +39,7 @@ func Default() Catcher {
 		TracesSampleRate: traceSampleRate,
 	})
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize sentry: %v", err)
 	}
 
 	defer sentry.Flush(2 * time.Second)

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 )
 
 func NewEnvironment() ENV {
@@ -15,8 +17,13 @@ func NewEnvironment() ENV {
 type ENV struct{}
 
 func (e ENV) GetFloat(key string, defaultValue float64) float64 {
-	//TODO implement me
-	panic("implement me")
+	str := os.Getenv(key)
+	value, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		elog.Warningf(elog.EIDInvalidParameter, "environment.ENV.GetFloat parse error: %v, using default %f", err, defaultValue)
+		return defaultValue
+	}
+	return value
 }
 
 func (e ENV) GetBranchID() uint {

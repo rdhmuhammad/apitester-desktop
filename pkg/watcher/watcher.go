@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 )
 
@@ -21,7 +22,7 @@ type FileWatcher struct {
 func New(lg logger.Logger) *FileWatcher {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
-		panic(err)
+		elog.Panicf(elog.EIDGenericError, "failed to initialize fsnotify watcher: %v", err)
 	}
 
 	fw := &FileWatcher{
