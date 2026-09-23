@@ -51,6 +51,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 ## Concepts
 
 - [[concepts/index]] - Reusable domain and codebase concepts.
+- [[concepts/base-url-lifecycle]] - End-to-end lifecycle, variable categorization, template resolution, and dispatch mechanism of baseUrl.
 - [[concepts/backend/file-backed-editor-sync]] - Target design for filesystem-backed editor coordination, versioning, hashing, and conflict handling.
 - [[concepts/backend/postman-prerequest-script-dto]] - Postman pre-request script data transfer object specification across collection schema and sandbox runtime.
 - [[concepts/backend/usecase-design-rules]] - Reusable structural standards for usecase orchestration, error boundaries, parameter encapsulation, and execution lifecycles.
