@@ -12,17 +12,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select.tsx";
-import { LoaderCircle, Plus, Send, X } from "lucide-react";
+import {LoaderCircle, Plus, Send, X} from "lucide-react";
 import DeleteRequestDialog from "./DeleteRequestDialog.tsx";
 import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
-import {
-    type ISendRequest, useRequestSender
-} from "@/layout/hooks/useSendRequest.ts";
+import {type ISendRequest, useRequestSender} from "@/layout/hooks/useSendRequest.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
+import {useDebouncedCallback} from "use-debounce";
 
 
 const RequestHeader: React.FC = () => {
@@ -70,56 +69,6 @@ const RequestHeader: React.FC = () => {
         PATCH: "bg-violet-600 dark:bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-700 text-white dark:text-white border-violet-600 dark:border-violet-600",
         DELETE: "bg-red-600 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700 text-white dark:text-white border-red-600 dark:border-red-600"
     };
-    
-    const currentMethod = (request?.method ?? "GET") as ColtReqMethod;
-    const rawUrl = request?.url?.raw ?? "";
-    const queryIndex = rawUrl.indexOf('?');
-    const currentEndpoint = queryIndex >= 0 ? rawUrl.slice(0, queryIndex) : rawUrl;
-
-    const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
-    const [newBaseUrl, setNewBaseUrl] = useState("");
-    const [selectOpen, setSelectOpen] = useState(false);
-    const [isAddingBaseUrl, setIsAddingBaseUrl] = useState(false);
-    const [isAddingLoading, setIsAddingLoading] = useState(false);
-    const newBaseUrlInputRef = useRef<HTMLInputElement | null>(null);
-    const [isSending, setIsSending] = useState(false);
-    const [isHoveringButton, setIsHoveringButton] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    useEffect(() => {
-        if (isAddingBaseUrl) {
-            const timer = setTimeout(() => {
-                newBaseUrlInputRef.current?.focus()
-            }, 50)
-            return () => clearTimeout(timer)
-        }
-    }, [isAddingBaseUrl]);
-
-    const resolveVariableValue = (value: unknown): string => {
-        if (value === null || value === undefined) return ""
-        let str: string
-        if (typeof value === "string") {
-            str = value
-        } else if (typeof value === "object") {
-            if (value && typeof (value as any).toString === "function" && (value as any).toString !== Object.prototype.toString) {
-                str = (value as any).toString()
-            } else {
-                str = JSON.stringify(value)
-            }
-        } else {
-            str = String(value)
-        }
-        return str.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
-            const k = key.trim()
-            const matchedVar = runtimeVariables.find((item) => item.key === k)
-            if (matchedVar?.category === "BASE_URL" && selectedBaseUrl) {
-                return selectedBaseUrl
-            }
-            const resolved = envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
-            if (resolved === undefined || resolved === null) return `{{${key}}}`
-            return typeof resolved === "object" ? JSON.stringify(resolved) : String(resolved)
-        })
-    }
 
     const parseQueryParamsFromUrl = (url: string): { cleanUrl: string; params: ItemUrl[] } => {
         const queryIndex = url.indexOf('?')
@@ -167,10 +116,82 @@ const RequestHeader: React.FC = () => {
         return str.split('?')[0]
     }
 
+    const debounceChangeEndpoint = useDebouncedCallback((value: string)=>{
+        const {cleanUrl, params} = parseQueryParamsFromUrl(value)
+
+        const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
+        updateUrl(nextUrl)
+        const currentParams = request?.url?.query ?? []
+        const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {
+            ...currentParams.find((item) => item.key === param.key)!,
+            value: param.value
+        } : param)
+        updateQuery(nextParams)
+    }, 300)
+
+    const handleChangeEndpoint = (value: string)=>{
+        setEditedEndpoint(value)
+        debounceChangeEndpoint(value)
+    }
+
+
+    const currentMethod = (request?.method ?? "GET") as ColtReqMethod;
+    const currentEndpoint = request?.url?.path?.length && request?.url?.path.map(e => String(e)).join("/")
+    const [editedEndpoint, setEditedEndpoint] = useState<string>(formatEndpoint(currentEndpoint))
+
+    useEffect(() => {
+        setEditedEndpoint(formatEndpoint(currentEndpoint))
+    }, [currentEndpoint]);
+
+    const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
+    const [newBaseUrl, setNewBaseUrl] = useState("");
+    const [selectOpen, setSelectOpen] = useState(false);
+    const [isAddingBaseUrl, setIsAddingBaseUrl] = useState(false);
+    const [isAddingLoading, setIsAddingLoading] = useState(false);
+    const newBaseUrlInputRef = useRef<HTMLInputElement | null>(null);
+    const [isSending, setIsSending] = useState(false);
+    const [isHoveringButton, setIsHoveringButton] = useState(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    useEffect(() => {
+        if (isAddingBaseUrl) {
+            const timer = setTimeout(() => {
+                newBaseUrlInputRef.current?.focus()
+            }, 50)
+            return () => clearTimeout(timer)
+        }
+    }, [isAddingBaseUrl]);
+
+    const resolveVariableValue = (value: unknown): string => {
+        if (value === null || value === undefined) return ""
+        let str: string
+        if (typeof value === "string") {
+            str = value
+        } else if (typeof value === "object") {
+            if (value && typeof (value as any).toString === "function" && (value as any).toString !== Object.prototype.toString) {
+                str = (value as any).toString()
+            } else {
+                str = JSON.stringify(value)
+            }
+        } else {
+            str = String(value)
+        }
+        return str.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
+            const k = key.trim()
+            const matchedVar = runtimeVariables.find((item) => item.key === k)
+            if (matchedVar?.category === "BASE_URL" && selectedBaseUrl) {
+                return selectedBaseUrl
+            }
+            const resolved = envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
+            if (resolved === undefined || resolved === null) return `{{${key}}}`
+            return typeof resolved === "object" ? JSON.stringify(resolved) : String(resolved)
+        })
+    }
+
     const handleSendRequest = () => {
         if (!request?.id || isSending) return
         setIsSending(true)
-        
+
         abortControllerRef.current = new AbortController();
         const headerValue = request.headers?.find(h => h?.key.toLowerCase() === 'content-type' && !h.disabled)?.value ?? '';
         console.log(selectedBaseUrl)
@@ -192,8 +213,8 @@ const RequestHeader: React.FC = () => {
             formData: request.body?.formdata,
             signal: abortControllerRef.current.signal
         }
-        const effectiveRuntimeVariables = runtimeVariables.map(v => 
-            v.category === 'BASE_URL' ? { ...v, value: selectedBaseUrl } : v
+        const effectiveRuntimeVariables = runtimeVariables.map(v =>
+            v.category === 'BASE_URL' ? {...v, value: selectedBaseUrl} : v
         )
 
         sendRequestAction(sendRequestConfig, {
@@ -321,7 +342,7 @@ const RequestHeader: React.FC = () => {
                                 </SelectItem>
                             ))
                         )}
-                        <SelectSeparator />
+                        <SelectSeparator/>
                         <div
                             className="p-1"
                             onPointerDown={(e) => e.stopPropagation()}
@@ -333,7 +354,7 @@ const RequestHeader: React.FC = () => {
                                     onClick={() => setIsAddingBaseUrl(true)}
                                     className="flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200 cursor-pointer"
                                 >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-4 w-4"/>
                                     <span>Add New</span>
                                 </button>
                             ) : (
@@ -368,9 +389,9 @@ const RequestHeader: React.FC = () => {
                                         title="Add Base URL"
                                     >
                                         {isAddingLoading ? (
-                                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                                            <LoaderCircle className="h-3.5 w-3.5 animate-spin"/>
                                         ) : (
-                                            <Plus className="h-4 w-4" />
+                                            <Plus className="h-4 w-4"/>
                                         )}
                                     </Button>
                                 </div>
@@ -379,20 +400,10 @@ const RequestHeader: React.FC = () => {
                     </SelectContent>
                 </Select>
                 <Input
-                    value={formatEndpoint(currentEndpoint)}
+                    value={editedEndpoint}
                     disabled={!collectionData}
-                    onChange={(event) => {
-                        const value = event.target.value
-                        const {cleanUrl, params} = parseQueryParamsFromUrl(value)
-                        
-                        const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
-                        updateUrl(nextUrl)
-                        const currentParams = request?.url?.query ?? []
-                        const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {
-                            ...currentParams.find((item) => item.key === param.key)!,
-                            value: param.value
-                        } : param)
-                        updateQuery(nextParams)
+                    onChange={(value)=>{
+                        handleChangeEndpoint(value.target.value)
                     }}
                     className="border-0 rounded-none shadow-none focus-visible:ring-0"
                     placeholder="/v1/users"
@@ -407,7 +418,7 @@ const RequestHeader: React.FC = () => {
                 className={cn(
                     "text-white whitespace-nowrap transition-colors",
                     (isSending && isHoveringButton)
-                        ? "bg-red-600 hover:bg-red-700 hover:text-white" 
+                        ? "bg-red-600 hover:bg-red-700 hover:text-white"
                         : "bg-indigo-600 hover:bg-indigo-700 hover:disabled:bg-indigo-600"
                 )}
             >
@@ -430,7 +441,7 @@ const RequestHeader: React.FC = () => {
                     </>
                 )}
             </Button>
-            <DeleteRequestDialog disabled={!collectionData || isSending} />
+            <DeleteRequestDialog disabled={!collectionData || isSending}/>
         </div>
     )
 }
