@@ -92,6 +92,7 @@ func (u *Usecase) UpdateURL(ctx context.Context, collectionID, requestID string,
 	}
 
 	oldValue := item.Request.URL
+	req.URL.FormatEndpoint()
 	item.Request.URL = req.URL
 
 	updated, err := u.saveCollection(ctx, collection, docs)
@@ -536,6 +537,7 @@ func findRequest(items []collectionService.CollectionItem, id string, auth ...*c
 			if len(auth) > 0 && items[i].Request != nil {
 				resolveAuth(&items[i], auth[0])
 			}
+			resolveURL(&items[i])
 			return &items[i]
 		}
 		if item := findRequest(items[i].Item, id, auth...); item != nil {
@@ -543,6 +545,14 @@ func findRequest(items []collectionService.CollectionItem, id string, auth ...*c
 		}
 	}
 	return nil
+}
+
+func resolveURL(item *collectionService.CollectionItem) {
+	if item == nil || item.Request == nil {
+		return
+	}
+
+	item.Request.URL.Raw = strings.Replace(item.Request.URL.Raw, item.Request.URL.GetSelectedHost(), "", -1)
 }
 
 func resolveAuth(item *collectionService.CollectionItem, collectionAuth *collectionService.CollectionAuth) {
