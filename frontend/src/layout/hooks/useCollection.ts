@@ -7,6 +7,7 @@ import {
     type UpdateCollectionVariableRequest,
     type UpdateCollectionPreScriptRequest,
     type UpdateCollectionAuthRequest,
+    type SelectBaseURLRequest,
     type RequestTree,
 } from "../services/collection"
 import type {CollectionAuth, CollectionVar} from "@/pages/editor/types/api"
@@ -175,6 +176,18 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         },
     })
 
+    const selectBaseUrlMutation = useMutation({
+        mutationFn: (data: SelectBaseURLRequest) =>
+            CollectionServices.selectBaseUrl(data),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "variables"]})
+            await queryClient.invalidateQueries({queryKey: ["collection", "detail", collectionId]})
+        },
+        onError: (error: AxiosError<Response<unknown>>) => {
+            CustomToast.error(error.response?.data.message || "Failed to update selected base URL")
+        },
+    })
+
     return {
         collections: collectionsQuery.data ?? EMPTY_COLLECTIONS,
         activeCollection: activeCollectionQuery.data ?? null,
@@ -211,6 +224,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         createVariableMutation,
         updateVariableMutation,
         deleteVariableMutation,
+        selectBaseUrlMutation,
         updatePreScriptMutation,
         updateAuthMutation,
     }

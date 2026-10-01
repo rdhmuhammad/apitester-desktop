@@ -29,6 +29,7 @@ type Usecase interface {
 	DeleteVariable(ctx context.Context, id string) (service.CreateVariableResponse, error)
 	GetAuth(ctx context.Context) (*service.CollectionAuth, error)
 	UpdateAuth(ctx context.Context, req service.UpdateCollectionAuthRequest) (*service.CollectionAuth, error)
+	SelectBaseURL(ctx context.Context, req service.SelectBaseURLRequest) (service.SelectBaseURLResponse, error)
 }
 
 type Controller struct {
@@ -158,6 +159,16 @@ func (ctrl Controller) DeleteVariable(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Variable deleted"), err)
 }
 
+func (ctrl Controller) SelectBaseURL(c *gin.Context) {
+	var req service.SelectBaseURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
+		return
+	}
+	res, err := ctrl.usecase.SelectBaseURL(c.Request.Context(), req)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Base URL selected"), err)
+}
+
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection := rg.Group("/collection")
 	collection.GET("/list", ctrl.ListCollections)
@@ -174,6 +185,8 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection.POST("/variable", ctrl.CreateVariable)
 	collection.PUT("/variable/:id", ctrl.UpdateVariable)
 	collection.DELETE("/variable/:id", ctrl.DeleteVariable)
+	collection.PUT("/select-base-url", ctrl.SelectBaseURL)
+	collection.PUT("/base-url/select", ctrl.SelectBaseURL)
 }
 
 func (ctrl Controller) respond(c *gin.Context, res *payload.Response, err error) {

@@ -66,6 +66,18 @@ export interface UpdateCollectionAuthRequest {
     }>
 }
 
+export interface SelectBaseURLRequest {
+    id?: string
+    key?: string
+    value?: string
+}
+
+export interface SelectBaseURLResponse {
+    variable: CollectionVar
+    version: string
+}
+
+
 export const CollectionServices = {
     listCollections: async (): Promise<Collection[]> => {
         const response = await axios.get<Response<Collection[]>>('/collection/list')
@@ -158,6 +170,16 @@ export const CollectionServices = {
         const response = await axios.delete<Response<CreateCollectionVariableResponse>>(
             `/collection/variable/${data.id}`,
             {data: {baseVersion: data.baseVersion}},
+        )
+        return response.data.data
+    },
+
+    selectBaseUrl: async (
+        data: SelectBaseURLRequest,
+    ): Promise<SelectBaseURLResponse> => {
+        const response = await axios.put<Response<SelectBaseURLResponse>>(
+            '/collection/select-base-url',
+            data,
         )
         return response.data.data
     },

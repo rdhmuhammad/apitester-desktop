@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"net/url"
 	"strings"
 
 	"github.com/google/uuid"
@@ -78,96 +79,36 @@ func (u *Usecase) Get(ctx context.Context, collectionID, requestID string) (Requ
 }
 
 func (u *Usecase) UpdateURL(ctx context.Context, collectionID, requestID string, req UpdateURLRequest) (RequestResponse, error) {
-	u.WriteMu.Lock()
-	defer u.WriteMu.Unlock()
-
-	collection, docs, content, err := u.loadCollection(ctx, collectionID)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	item := findRequest(docs.Item, requestID)
-	if item == nil || item.Request == nil {
-		return RequestResponse{}, localerror.InvalidData("Request not found")
-	}
-
-	oldValue := item.Request.URL
 	req.URL.FormatEndpoint()
-	item.Request.URL = req.URL
+	req.URL.Query = resolveQueryParams(req.URL.Raw)
 
-	updated, err := u.saveCollection(ctx, collection, docs)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	if err := u.RecordHistory(ctx, collection, requestID, "update_url", "request.url", oldValue, req.URL, content, updated); err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	return requestResponse(collection, updated, item), nil
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_url",
+		Field:        "request.url",
+		NewValue:     req.URL,
+		Apply: func(item *collectionService.CollectionItem) any {
+			old := item.Request.URL
+			item.Request.URL = req.URL
+			return old
+		},
+	})
 }
 
 func (u *Usecase) UpdateHeaders(ctx context.Context, collectionID, requestID string, req UpdateHeadersRequest) (RequestResponse, error) {
-	u.WriteMu.Lock()
-	defer u.WriteMu.Unlock()
-
-	collection, docs, content, err := u.loadCollection(ctx, collectionID)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	item := findRequest(docs.Item, requestID)
-	if item == nil || item.Request == nil {
-		return RequestResponse{}, localerror.InvalidData("Request not found")
-	}
-
-	oldValue := append([]collectionService.Header(nil), item.Request.Header...)
-	item.Request.Header = req.Headers
-
-	updated, err := u.saveCollection(ctx, collection, docs)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	if err := u.RecordHistory(ctx, collection, requestID, "update_headers", "request.headers", oldValue, req.Headers, content, updated); err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	return requestResponse(collection, updated, item), nil
-}
-
-func buildReqAuth(req UpdateAuthRequest) *collectionService.ReqAuth {
-	authSource := strings.TrimSpace(req.AuthSource)
-	if strings.EqualFold(authSource, "inherit") {
-		authSource = "inherit"
-	} else {
-		authSource = strings.ToLower(authSource)
-	}
-
-	auth := &collectionService.ReqAuth{
-		AuthSource: authSource,
-	}
-
-	if authSource == "onrequest" {
-		auth.SetType(req.Type)
-		if req.Bearer != nil {
-			bearer := make([]collectionService.Property, len(req.Bearer))
-			copy(bearer, req.Bearer)
-			for i := range bearer {
-				if bearer[i].Id == "" {
-					bearer[i].Id = uuid.NewString()
-				}
-			}
-			auth.Bearer = bearer
-		} else {
-			auth.Bearer = []collectionService.Property{}
-		}
-	} else {
-		auth.Type = ""
-		auth.Bearer = nil
-	}
-
-	return auth
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "update_headers",
+		Field:        "request.headers",
+		NewValue:     req.Headers,
+		Apply: func(item *collectionService.CollectionItem) any {
+			old := append([]collectionService.Header(nil), item.Request.Header...)
+			item.Request.Header = req.Headers
+			return old
+		},
+	})
 }
 
 func (u *Usecase) UpdateAuth(ctx context.Context, collectionID, requestID string, req UpdateAuthRequest) (RequestResponse, error) {
@@ -226,7 +167,13 @@ func (u *Usecase) UpdateQuery(ctx context.Context, collectionID, requestID strin
 		NewValue:     req.Query,
 		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.URL.Query
+			for i := range req.Query {
+				if req.Query[i].Id == "" {
+					req.Query[i].Id = uuid.NewString()
+				}
+			}
 			item.Request.URL.Query = req.Query
+			item.Request.URL.Raw = updateRawURLQuery(item.Request.URL.Raw, req.Query)
 			return old
 		},
 	})
@@ -289,21 +236,6 @@ func (u *Usecase) UpdatePostRequestScript(ctx context.Context, collectionID, req
 	})
 }
 
-func buildEventScript(req SavePostRequestScriptRequest) collectionService.EventScript {
-	exec := req.Exec
-	if len(exec) == 0 && req.Script != "" {
-		exec = strings.Split(req.Script, "\n")
-	}
-	if exec == nil {
-		exec = []string{}
-	}
-	scriptType := req.Type
-	if scriptType == "" {
-		scriptType = "text/javascript"
-	}
-	return collectionService.EventScript{Exec: exec, Type: scriptType}
-}
-
 func (u *Usecase) SavePostRequestScript(ctx context.Context, collectionID, requestID string, req SavePostRequestScriptRequest) (RequestResponse, error) {
 	script := buildEventScript(req)
 	return u.update(ctx, updateReq{
@@ -332,120 +264,116 @@ func (u *Usecase) SaveScript(ctx context.Context, collectionID, requestID string
 }
 
 func (u *Usecase) SaveResponse(ctx context.Context, collectionID, requestID string, req SaveResponseRequest) (RequestResponse, error) {
-	u.WriteMu.Lock()
-	defer u.WriteMu.Unlock()
-
-	collection, docs, content, err := u.loadCollection(ctx, collectionID)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	item := findRequest(docs.Item, requestID)
-	if item == nil || item.Request == nil {
-		return RequestResponse{}, localerror.InvalidData("Request not found")
-	}
-
-	newResponse := req.ToCollectionResponse(item.Request)
-	oldValue := append([]collectionService.CollectionResponse(nil), item.Response...)
-	item.Response = append(item.Response, newResponse)
-
-	updated, err := u.saveCollection(ctx, collection, docs)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	if err := u.RecordHistory(ctx, collection, requestID, "save_response", "response", oldValue, newResponse, content, updated); err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	return requestResponse(collection, updated, item), nil
+	var newResponse collectionService.CollectionResponse
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "save_response",
+		Field:        "response",
+		NewValue:     func() any { return newResponse },
+		Apply: func(item *collectionService.CollectionItem) any {
+			newResponse = req.ToCollectionResponse(item.Request)
+			old := append([]collectionService.CollectionResponse(nil), item.Response...)
+			item.Response = append(item.Response, newResponse)
+			return old
+		},
+	})
 }
 
 func (u *Usecase) Delete(ctx context.Context, collectionID, requestID string) (RequestResponse, error) {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "delete_request",
+		Field:        "request",
+		Remove:       true,
+	})
+}
+
+func (u *Usecase) UpdateTree(ctx context.Context, collectionID string, req []UpdateTreeItem) (UpdateTreeResponse, error) {
+	return u.updateTree(ctx, updateTreeReq{
+		CollectionID: collectionID,
+		Tree:         req,
+	})
+}
+
+func (u *Usecase) RecordHistory(ctx context.Context, collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
+	return u.Port.RecordHistory(ctx, collection, requestID, operation, field, oldValue, newValue, oldContent, newContent)
+}
+
+type updateReq struct {
+	CollectionID string
+	RequestID    string
+	Operation    string
+	Field        string
+	NewValue     any
+	Remove       bool
+	Apply        func(*collectionService.CollectionItem) any
+}
+
+func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(ctx, collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, req.CollectionID)
 	if err != nil {
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	var deleted *collectionService.CollectionItem
-	docs.Item, deleted = removeRequest(docs.Item, requestID)
-	if deleted == nil || deleted.Request == nil {
-		return RequestResponse{}, localerror.InvalidData("Request not found")
+	var item *collectionService.CollectionItem
+	var oldValue any
+	if req.Remove {
+		docs.Item, item = removeRequest(docs.Item, req.RequestID)
+		if item == nil || item.Request == nil {
+			return RequestResponse{}, localerror.InvalidData("Request not found")
+		}
+		oldValue = *item
+	} else {
+		item = findRequest(docs.Item, req.RequestID)
+		if item == nil || item.Request == nil {
+			return RequestResponse{}, localerror.InvalidData("Request not found")
+		}
+		if req.Apply != nil {
+			oldValue = req.Apply(item)
+		}
 	}
-	deletedResponse := requestResponse(collection, content, deleted)
 
 	updated, err := u.saveCollection(ctx, collection, docs)
 	if err != nil {
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	if err := u.RecordHistory(ctx, collection, requestID, "delete_request", "request", *deleted, nil, content, updated); err != nil {
+	newValue := req.NewValue
+	if fn, ok := newValue.(func() any); ok {
+		newValue = fn()
+	}
+
+	if err := u.RecordHistory(ctx, collection, req.RequestID, req.Operation, req.Field, oldValue, newValue, content, updated); err != nil {
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	deletedResponse.Version = u.Version(updated)
-
-	return deletedResponse, nil
+	res := requestResponse(collection, updated, item)
+	if req.Remove {
+		res.Version = u.Version(updated)
+	}
+	return res, nil
 }
 
-func (u *Usecase) UpdateTree(ctx context.Context, collectionID string, req []UpdateTreeItem) (UpdateTreeResponse, error) {
+type updateTreeReq struct {
+	CollectionID string
+	Tree         []UpdateTreeItem
+}
+
+func (u *Usecase) updateTree(ctx context.Context, req updateTreeReq) (UpdateTreeResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
-	collection, docs, content, err := u.loadCollection(ctx, collectionID)
+	collection, docs, content, err := u.loadCollection(ctx, req.CollectionID)
 	if err != nil {
 		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	existingItems := make([]collectionService.CollectionItem, len(docs.Item))
-	copy(existingItems, docs.Item)
-
-	existingMap := make(map[string]collectionService.CollectionItem)
-	var indexItems func([]collectionService.CollectionItem)
-	indexItems = func(items []collectionService.CollectionItem) {
-		for _, item := range items {
-			if item.ID != "" {
-				existingMap[item.ID] = item
-			}
-			if len(item.Item) > 0 {
-				indexItems(item.Item)
-			}
-		}
-	}
-	indexItems(existingItems)
-
-	var buildTree func([]UpdateTreeItem) ([]collectionService.CollectionItem, error)
-	buildTree = func(treeItems []UpdateTreeItem) ([]collectionService.CollectionItem, error) {
-		result := make([]collectionService.CollectionItem, 0, len(treeItems))
-		for _, reqItem := range treeItems {
-			existingItem, exists := existingMap[reqItem.ID]
-			if !exists {
-				return nil, localerror.InvalidData("Item not found: " + reqItem.ID)
-			}
-
-			itemCopy := existingItem
-			if len(reqItem.Item) > 0 {
-				children, err := buildTree(reqItem.Item)
-				if err != nil {
-					return nil, err
-				}
-				itemCopy.Item = children
-			} else {
-				if existingItem.Request == nil {
-					itemCopy.Item = []collectionService.CollectionItem{}
-				} else {
-					itemCopy.Item = nil
-				}
-			}
-			result = append(result, itemCopy)
-		}
-		return result, nil
-	}
-
-	newItems, err := buildTree(req)
+	newItems, err := buildCollectionTree(docs.Item, req.Tree)
 	if err != nil {
 		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
@@ -468,43 +396,6 @@ func (u *Usecase) UpdateTree(ctx context.Context, collectionID string, req []Upd
 	}, nil
 }
 
-type updateReq struct {
-	CollectionID string
-	RequestID    string
-	Operation    string
-	Field        string
-	NewValue     any
-	Apply        func(*collectionService.CollectionItem) any
-}
-
-func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, error) {
-	u.WriteMu.Lock()
-	defer u.WriteMu.Unlock()
-
-	collection, docs, content, err := u.loadCollection(ctx, req.CollectionID)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	item := findRequest(docs.Item, req.RequestID)
-	if item == nil || item.Request == nil {
-		return RequestResponse{}, localerror.InvalidData("Request not found")
-	}
-
-	oldValue := req.Apply(item)
-
-	updated, err := u.saveCollection(ctx, collection, docs)
-	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	if err := u.RecordHistory(ctx, collection, req.RequestID, req.Operation, req.Field, oldValue, req.NewValue, content, updated); err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	return requestResponse(collection, updated, item), nil
-}
-
 func (u *Usecase) loadCollection(ctx context.Context, id string) (*domain.Collection, *collectionService.DocsContent, []byte, error) {
 	collection, content, err := u.Port.LoadCollection(ctx, id)
 	if err != nil {
@@ -525,10 +416,6 @@ func (u *Usecase) saveCollection(ctx context.Context, collection *domain.Collect
 		return nil, err
 	}
 	return u.Port.SaveCollection(ctx, collection, content)
-}
-
-func (u *Usecase) RecordHistory(ctx context.Context, collection *domain.Collection, requestID, operation, field string, oldValue, newValue any, oldContent, newContent []byte) error {
-	return u.Port.RecordHistory(ctx, collection, requestID, operation, field, oldValue, newValue, oldContent, newContent)
 }
 
 func findRequest(items []collectionService.CollectionItem, id string, auth ...*collectionService.CollectionAuth) *collectionService.CollectionItem {
@@ -661,4 +548,178 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 func version(content []byte) string {
 	hash := sha256.Sum256(content)
 	return hex.EncodeToString(hash[:])
+}
+
+func resolveQueryParams(rawURL string) []collectionService.Property {
+	cleanURL := rawURL
+	if hashIdx := strings.Index(cleanURL, "#"); hashIdx != -1 {
+		cleanURL = cleanURL[:hashIdx]
+	}
+
+	queryIdx := strings.Index(cleanURL, "?")
+	if queryIdx == -1 {
+		return []collectionService.Property{}
+	}
+
+	queryString := cleanURL[queryIdx+1:]
+	if queryString == "" {
+		return []collectionService.Property{}
+	}
+
+	pairs := strings.Split(queryString, "&")
+	properties := make([]collectionService.Property, 0, len(pairs))
+	for _, pair := range pairs {
+		if pair == "" {
+			continue
+		}
+		key, value, _ := strings.Cut(pair, "=")
+		if key == "" && value == "" {
+			continue
+		}
+		if unescapedKey, err := url.QueryUnescape(key); err == nil {
+			key = unescapedKey
+		}
+		if unescapedValue, err := url.QueryUnescape(value); err == nil {
+			value = unescapedValue
+		}
+		properties = append(properties, collectionService.Property{
+			Id:    uuid.NewString(),
+			Key:   key,
+			Value: value,
+		})
+	}
+
+	return properties
+}
+
+func buildQueryString(properties []collectionService.Property) string {
+	var parts []string
+	for _, p := range properties {
+		if p.Disabled {
+			continue
+		}
+		if p.Key == "" && p.Value == "" {
+			continue
+		}
+		if p.Key == "" {
+			parts = append(parts, "="+p.Value)
+		} else if p.Value == "" {
+			parts = append(parts, p.Key)
+		} else {
+			parts = append(parts, p.Key+"="+p.Value)
+		}
+	}
+	return strings.Join(parts, "&")
+}
+
+func updateRawURLQuery(rawURL string, properties []collectionService.Property) string {
+	base := rawURL
+	fragment := ""
+	if hashIdx := strings.Index(rawURL, "#"); hashIdx != -1 {
+		base = rawURL[:hashIdx]
+		fragment = rawURL[hashIdx:]
+	}
+
+	if qIdx := strings.Index(base, "?"); qIdx != -1 {
+		base = base[:qIdx]
+	}
+
+	queryString := buildQueryString(properties)
+	if queryString != "" {
+		return base + "?" + queryString + fragment
+	}
+	return base + fragment
+}
+
+func buildReqAuth(req UpdateAuthRequest) *collectionService.ReqAuth {
+	authSource := strings.TrimSpace(req.AuthSource)
+	if strings.EqualFold(authSource, "inherit") {
+		authSource = "inherit"
+	} else {
+		authSource = strings.ToLower(authSource)
+	}
+
+	auth := &collectionService.ReqAuth{
+		AuthSource: authSource,
+	}
+
+	if authSource == "onrequest" {
+		auth.SetType(req.Type)
+		if req.Bearer != nil {
+			bearer := make([]collectionService.Property, len(req.Bearer))
+			copy(bearer, req.Bearer)
+			for i := range bearer {
+				if bearer[i].Id == "" {
+					bearer[i].Id = uuid.NewString()
+				}
+			}
+			auth.Bearer = bearer
+		} else {
+			auth.Bearer = []collectionService.Property{}
+		}
+	} else {
+		auth.Type = ""
+		auth.Bearer = nil
+	}
+
+	return auth
+}
+
+func buildEventScript(req SavePostRequestScriptRequest) collectionService.EventScript {
+	exec := req.Exec
+	if len(exec) == 0 && req.Script != "" {
+		exec = strings.Split(req.Script, "\n")
+	}
+	if exec == nil {
+		exec = []string{}
+	}
+	scriptType := req.Type
+	if scriptType == "" {
+		scriptType = "text/javascript"
+	}
+	return collectionService.EventScript{Exec: exec, Type: scriptType}
+}
+
+func buildCollectionTree(existingItems []collectionService.CollectionItem, treeItems []UpdateTreeItem) ([]collectionService.CollectionItem, error) {
+	existingMap := make(map[string]collectionService.CollectionItem)
+	indexItems(existingItems, existingMap)
+	return buildTreeRecursive(treeItems, existingMap)
+}
+
+func indexItems(items []collectionService.CollectionItem, existingMap map[string]collectionService.CollectionItem) {
+	for _, item := range items {
+		if item.ID != "" {
+			existingMap[item.ID] = item
+		}
+		if len(item.Item) > 0 {
+			indexItems(item.Item, existingMap)
+		}
+	}
+}
+
+func buildTreeRecursive(treeItems []UpdateTreeItem, existingMap map[string]collectionService.CollectionItem) ([]collectionService.CollectionItem, error) {
+	result := make([]collectionService.CollectionItem, 0, len(treeItems))
+	for _, reqItem := range treeItems {
+		existingItem, exists := existingMap[reqItem.ID]
+		if !exists {
+			return nil, localerror.InvalidData("Item not found: " + reqItem.ID)
+		}
+
+		itemCopy := existingItem
+		if len(reqItem.Item) > 0 {
+			children, err := buildTreeRecursive(reqItem.Item, existingMap)
+			if err != nil {
+				return nil, err
+			}
+			itemCopy.Item = children
+		} else {
+			if existingItem.Request == nil {
+				itemCopy.Item = []collectionService.CollectionItem{}
+			} else {
+				itemCopy.Item = nil
+			}
+		}
+		result = append(result, itemCopy)
+	}
+	return result, nil
 }

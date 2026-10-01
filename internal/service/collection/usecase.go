@@ -20,7 +20,10 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-var baseURLRegex = regexp.MustCompile(`(?i)(base.*url|url.*base)`)
+var (
+	baseURLRegex = regexp.MustCompile(`(?i)(base.*url|url.*base)`)
+	rawHostRegex = regexp.MustCompile(`^((?:https?://)?)\{\{([^}]+)\}\}`)
+)
 
 type Usecase struct {
 	*base.Port
@@ -95,7 +98,7 @@ func (u *Usecase) Read(ctx context.Context, id string) (ReadResponse, error) {
 		return ReadResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	docsContent.PrepareRead()
+	docsContent.PrepareVariables()
 
 	return ReadResponse{
 		Content:   docsContent,
@@ -468,6 +471,49 @@ func (u *Usecase) DeleteVariable(ctx context.Context, variableID string) (Create
 	return CreateVariableResponse{Variable: deleted, Version: u.Version(saved)}, nil
 }
 
+func (u *Usecase) SelectBaseURL(ctx context.Context, req SelectBaseURLRequest) (SelectBaseURLResponse, error) {
+	if strings.TrimSpace(req.ID) == "" && strings.TrimSpace(req.Key) == "" && strings.TrimSpace(req.Value) == "" {
+		return SelectBaseURLResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Base URL ID, key, or value is required"))
+	}
+
+	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	if selected == nil {
+		return SelectBaseURLResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
+	}
+
+	var selectedVar CollectionVar
+	saved, err := u.Update(ctx, selected.ID, "", "select_base_url", "variable", func(oldContent []byte) (any, any, []byte, error) {
+		var docs DocsContent
+		if err := json.Unmarshal(oldContent, &docs); err != nil {
+			return nil, nil, nil, localerror.InvalidData("Invalid collection.json file")
+		}
+
+		docs.PrepareVariables()
+
+		var errSelect error
+		selectedVar, errSelect = docs.SelectBaseURL(req)
+		if errSelect != nil {
+			return nil, nil, nil, errSelect
+		}
+
+		newContent, err := json.MarshalIndent(docs, "", "  ")
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return nil, selectedVar, newContent, nil
+	})
+	if err != nil {
+		return SelectBaseURLResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	u.notifyWatcher(selected.Path, saved)
+
+	return SelectBaseURLResponse{
+		Variable: selectedVar,
+		Version:  u.Version(saved),
+	}, nil
+}
+
 // ================================ Helper Function ================================
 
 func setId(item []CollectionItem) []CollectionItem {
@@ -606,6 +652,52 @@ func isBaseURLVar(s string) bool {
 	return baseURLRegex.MatchString(s)
 }
 
+func updateItemRequestHosts(items []CollectionItem, newHost string) []CollectionItem {
+	for i := range items {
+		if items[i].Request != nil {
+			updateRequestHostAndRaw(items[i].Request, newHost)
+		}
+		for j := range items[i].Response {
+			if items[i].Response[j].OriginalRequest != nil {
+				updateRequestHostAndRaw(items[i].Response[j].OriginalRequest, newHost)
+			}
+		}
+		if items[i].Item != nil {
+			items[i].Item = updateItemRequestHosts(items[i].Item, newHost)
+		}
+	}
+	return items
+}
+
+func updateRequestHostAndRaw(req *Request, newHost string) {
+	if req == nil {
+		return
+	}
+
+	var oldHost string
+	if len(req.URL.Host) == 1 {
+		oldHost = req.URL.Host[0]
+	} else if len(req.URL.Host) > 1 {
+		oldHost = strings.Join(req.URL.Host, ".")
+	}
+
+	if oldHost != "" {
+		oldKey := strings.TrimSuffix(strings.TrimPrefix(oldHost, "{{"), "}}")
+		oldTag := "{{" + oldKey + "}}"
+		if strings.Contains(req.URL.Raw, oldTag) {
+			req.URL.Raw = strings.Replace(req.URL.Raw, oldTag, newHost, 1)
+		} else if strings.Contains(req.URL.Raw, oldHost) {
+			req.URL.Raw = strings.Replace(req.URL.Raw, oldHost, newHost, 1)
+		} else if rawHostRegex.MatchString(req.URL.Raw) {
+			req.URL.Raw = rawHostRegex.ReplaceAllString(req.URL.Raw, "${1}"+newHost)
+		}
+	} else if rawHostRegex.MatchString(req.URL.Raw) {
+		req.URL.Raw = rawHostRegex.ReplaceAllString(req.URL.Raw, "${1}"+newHost)
+	}
+
+	req.URL.Host = []string{newHost}
+}
+
 func (u *Usecase) newCollectionEntity(req CreateCollectionRequest) domain.Collection {
 	now := time.Now()
 	return domain.Collection{
@@ -707,12 +799,6 @@ func (u *Usecase) notifyWatcher(path string, saved []byte) {
 
 // Struct methods for DocsContent
 
-func (d *DocsContent) PrepareRead() {
-	d.PrepareVariables()
-	d.Item = setContentType(d.Item)
-	d.Item = setBearerAuthorization(d.Item, d.Auth)
-}
-
 func (d *DocsContent) PrepareCreate() {
 	d.Item = setId(d.Item)
 	for i := range d.Variable {
@@ -723,13 +809,43 @@ func (d *DocsContent) PrepareCreate() {
 			d.Variable[i].Category = "BASE_URL"
 		}
 	}
+	d.PrepareVariables()
+	d.Item = setContentType(d.Item)
+	d.Item = setBearerAuthorization(d.Item, d.Auth)
 }
 
 func (d *DocsContent) PrepareVariables() {
+	hasSelectedBaseURL := false
+	var selectedBaseURL *CollectionVar
+
 	for i := range d.Variable {
 		if isBaseURLVar(d.Variable[i].Key) && d.Variable[i].Category == "" {
 			d.Variable[i].Category = "BASE_URL"
 		}
+		if d.Variable[i].Category == "BASE_URL" && d.Variable[i].IsSelected {
+			hasSelectedBaseURL = true
+			selectedBaseURL = &d.Variable[i]
+		}
+	}
+
+	if !hasSelectedBaseURL {
+		for i := range d.Variable {
+			if d.Variable[i].Category == "BASE_URL" {
+				d.Variable[i].IsSelected = true
+				selectedBaseURL = &d.Variable[i]
+				hasSelectedBaseURL = true
+				break
+			}
+		}
+		if !hasSelectedBaseURL {
+			return
+		}
+	}
+
+	if selectedBaseURL != nil && strings.TrimSpace(selectedBaseURL.Key) != "" {
+		key := strings.TrimSpace(selectedBaseURL.Key)
+		newHost := "{{" + strings.TrimSuffix(strings.TrimPrefix(key, "{{"), "}}") + "}}"
+		d.Item = updateItemRequestHosts(d.Item, newHost)
 	}
 }
 
@@ -871,4 +987,43 @@ func (d *DocsContent) RemoveVariable(variableID string) (CollectionVar, error) {
 	}
 	d.Variable = filtered
 	return deleted, nil
+}
+
+func (d *DocsContent) SelectBaseURL(req SelectBaseURLRequest) (CollectionVar, error) {
+	targetIdx := -1
+	for i := range d.Variable {
+		if req.ID != "" && d.Variable[i].ID == req.ID {
+			targetIdx = i
+			break
+		}
+		if req.Key != "" && d.Variable[i].Key == req.Key {
+			targetIdx = i
+			break
+		}
+		if req.Value != "" && (d.Variable[i].Value == req.Value || strings.TrimRight(d.Variable[i].Value, "/") == strings.TrimRight(req.Value, "/")) {
+			targetIdx = i
+			break
+		}
+	}
+
+	if targetIdx == -1 {
+		return CollectionVar{}, localerror.InvalidData("Base URL variable not found")
+	}
+
+	if d.Variable[targetIdx].Category == "" && isBaseURLVar(d.Variable[targetIdx].Key) {
+		d.Variable[targetIdx].Category = "BASE_URL"
+	}
+	if d.Variable[targetIdx].Category != "BASE_URL" {
+		return CollectionVar{}, localerror.InvalidData("Variable is not a base URL")
+	}
+
+	for i := range d.Variable {
+		if d.Variable[i].Category == "BASE_URL" {
+			d.Variable[i].IsSelected = (i == targetIdx)
+		}
+	}
+
+	d.PrepareVariables()
+
+	return d.Variable[targetIdx], nil
 }

@@ -1,6 +1,10 @@
 package collection
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 type ReadResponse struct {
 	Changed   bool        `json:"changed"`
@@ -100,6 +104,26 @@ type RequestURL struct {
 	Query []Property `json:"query"`
 }
 
+func (r *RequestURL) GetSelectedHost() string {
+	var host string
+	if len(r.Host) > 0 {
+		host = r.Host[0]
+	}
+
+	return host
+}
+
+func (r *RequestURL) FormatEndpoint() {
+	var host string
+	if len(r.Host) > 0 {
+		host = r.Host[0]
+	}
+
+	if !strings.Contains(r.Raw, host) {
+		r.Raw = fmt.Sprintf("%s%s", host, r.Raw)
+	}
+}
+
 type CollectionAuth struct {
 	Type   string     `json:"type"`
 	Bearer []Property `json:"bearer,omitempty"`
@@ -171,11 +195,12 @@ type WriteCollectionRequest struct {
 }
 
 type CollectionVar struct {
-	ID       string `json:"id"`
-	Key      string `json:"key"`
-	Category string `json:"category"`
-	Value    string `json:"value"`
-	Type     string `json:"type"`
+	ID         string `json:"id"`
+	Key        string `json:"key"`
+	Category   string `json:"category"`
+	Value      string `json:"value"`
+	Type       string `json:"type"`
+	IsSelected bool   `json:"isSelected"`
 }
 
 type CreateVariableRequest struct {
@@ -193,4 +218,15 @@ type UpdateVariableRequest struct {
 	Key   string `json:"key" binding:"required"`
 	Value string `json:"value"`
 	Type  string `json:"type"`
+}
+
+type SelectBaseURLRequest struct {
+	ID    string `json:"id,omitempty"`
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
+type SelectBaseURLResponse struct {
+	Variable CollectionVar `json:"variable"`
+	Version  string        `json:"version"`
 }

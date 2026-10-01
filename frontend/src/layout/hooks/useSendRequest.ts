@@ -1,8 +1,7 @@
 import {useAppDispatch} from "@/app/store/hooks.ts";
 import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
 import {runPreRequestScript, runScript} from "@/layout/hooks/useScriptRunner.ts";
-import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
-import type React from "react";
+import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts";
 import type {ScriptResultDto} from "@/app/slices/index.ts";
 import axios from "@/config/axios.ts";
@@ -10,6 +9,13 @@ import type {ScriptLog, SendResponse} from "@/types/response.ts";
 import {type AxiosResponse, isCancel} from "axios";
 import {getFile} from "@/lib/fileStore.ts";
 import CustomToast from "@/components/common/toast";
+import {useAppSelector} from "@/app/store/hooks.ts";
+import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {useCollection} from "@/layout/hooks/useCollection.ts";
+import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
+import {requestConfigQueryKey} from "@/pages/editor/services/requestConfig.ts";
+import {useQueryClient} from "@tanstack/react-query";
+import {useEnvResolve, resolveVars, buildEnvVarsRecord} from "@/layout/hooks/useEnvResolve.ts";
 
 export interface ISendRequest {
     baseUrl: string
@@ -116,7 +122,6 @@ export const parseBlobResponse = async (blob: Blob, contentType: string): Promis
 export const sendApiRequest = async (request: ISendRequest): Promise<SendResponse | null> => {
     const isFormData = request.contentType === "multipart/form-data"
     const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI)
-    console.log(request.baseUrl)
     let baseURL = request.baseUrl
     let url = request.endpoint
 
@@ -225,35 +230,6 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
     }
 }
 
-const resolveVariables = (value: unknown, vars: Record<string, unknown>): string => {
-    if (value === null || value === undefined) return ""
-    let str: string
-    if (typeof value === "string") {
-        str = value
-    } else if (typeof value === "object") {
-        if (value && typeof (value as any).toString === "function" && (value as any).toString !== Object.prototype.toString) {
-            str = (value as any).toString()
-        } else {
-            str = JSON.stringify(value)
-        }
-    } else {
-        str = String(value)
-    }
-
-    return str.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
-        const k = key.trim()
-        const resolved = vars[k]
-        if (resolved === undefined || resolved === null) return `{{${key}}}`
-        if (typeof resolved === "object") {
-            if (resolved && typeof (resolved as any).toString === "function" && (resolved as any).toString !== Object.prototype.toString) {
-                return (resolved as any).toString()
-            }
-            return JSON.stringify(resolved)
-        }
-        return String(resolved)
-    })
-}
-
 const formatVariableValue = (val: unknown): string | null => {
     if (val === null || val === undefined) return null
     if (typeof val === "string") return val
@@ -264,43 +240,6 @@ const formatVariableValue = (val: unknown): string | null => {
         return JSON.stringify(val)
     }
     return String(val)
-}
-
-const applyVariableMutations = (
-    mutations: Record<string, unknown>,
-    varsObj: Record<string, string>,
-    runtimeVariables: CollectionVar[],
-    setRuntimeVariables: React.Dispatch<React.SetStateAction<CollectionVar[]>>
-) => {
-    for (const [key, rawValue] of Object.entries(mutations)) {
-        const value = formatVariableValue(rawValue)
-        if (value === null) {
-            delete varsObj[key]
-        } else {
-            varsObj[key] = value
-        }
-        const existing = runtimeVariables.find((v) => v.key === key)
-        if (value === null) {
-            if (existing) {
-                setRuntimeVariables((current) => current.filter((item) => item.id !== existing.id))
-            }
-        } else if (existing) {
-            setRuntimeVariables((current) =>
-                current.map((item) => (item.id === existing.id ? {...item, value} : item))
-            )
-        } else {
-            setRuntimeVariables((current) => [
-                ...current,
-                {
-                    id: crypto.randomUUID(),
-                    key,
-                    value,
-                    type: "string",
-                    category: "",
-                },
-            ])
-        }
-    }
 }
 
 const applyMutatedRequestToSendConfig = (
@@ -322,7 +261,7 @@ const applyMutatedRequestToSendConfig = (
                 rawHeaders.push({
                     id: (item as any).id || crypto.randomUUID(),
                     key: String(k),
-                    value: resolveVariables(v, vars),
+                    value: resolveVars(v, vars),
                     disabled: Boolean((item as any).disabled),
                 })
             }
@@ -333,7 +272,7 @@ const applyMutatedRequestToSendConfig = (
             rawHeaders.push({
                 id: crypto.randomUUID(),
                 key: propKey,
-                value: resolveVariables(propVal, vars),
+                value: resolveVars(propVal, vars),
                 disabled: false,
             })
         }
@@ -343,7 +282,7 @@ const applyMutatedRequestToSendConfig = (
             rawHeaders.push({
                 id: crypto.randomUUID(),
                 key,
-                value: resolveVariables(value, vars),
+                value: resolveVars(value, vars),
                 disabled: false,
             })
         }
@@ -369,8 +308,8 @@ const applyMutatedRequestToSendConfig = (
             if (!q || (q as any).disabled) continue
             requestParams.push({
                 ...(q as any),
-                key: resolveVariables((q as any).key, vars),
-                value: resolveVariables((q as any).value, vars),
+                key: resolveVars((q as any).key, vars),
+                value: resolveVars((q as any).value, vars),
             })
         }
     } else if (rawParamsSource && typeof rawParamsSource === "object") {
@@ -378,8 +317,8 @@ const applyMutatedRequestToSendConfig = (
             if (typeof value === "function") continue
             requestParams.push({
                 id: crypto.randomUUID(),
-                key: resolveVariables(key, vars),
-                value: resolveVariables(value, vars),
+                key: resolveVars(key, vars),
+                value: resolveVars(value, vars),
                 disabled: false,
             })
         }
@@ -401,7 +340,7 @@ const applyMutatedRequestToSendConfig = (
     }
 
     if (rawUrlString !== undefined && rawUrlString !== "" && rawUrlString !== initialUrl) {
-        const rawUrl = resolveVariables(rawUrlString, vars)
+        const rawUrl = resolveVars(rawUrlString, vars)
         if (/^https?:\/\//i.test(rawUrl)) {
             try {
                 const parsed = new URL(rawUrl)
@@ -418,17 +357,17 @@ const applyMutatedRequestToSendConfig = (
     // 4. Body normalization
     let raw = baseConfig.raw
     if (typeof mutatedRequest.body === "string") {
-        raw = resolveVariables(mutatedRequest.body, vars)
+        raw = resolveVars(mutatedRequest.body, vars)
     } else if (mutatedRequest.body && typeof mutatedRequest.body === "object") {
         if ("raw" in mutatedRequest.body && (mutatedRequest.body as any).raw !== undefined) {
-            raw = resolveVariables((mutatedRequest.body as any).raw, vars)
+            raw = resolveVars((mutatedRequest.body as any).raw, vars)
         } else if (!("mode" in mutatedRequest.body) && !("formdata" in mutatedRequest.body)) {
             // User set request.body = { ... } directly
-            raw = resolveVariables(mutatedRequest.body, vars)
+            raw = resolveVars(mutatedRequest.body, vars)
         }
     }
 
-    const formData = (mutatedRequest.body && typeof mutatedRequest.body === "object" && "formdata" in mutatedRequest.body)
+    const formDataBody = (mutatedRequest.body && typeof mutatedRequest.body === "object" && "formdata" in mutatedRequest.body)
         ? (mutatedRequest.body as any).formdata
         : baseConfig.formData
 
@@ -440,85 +379,122 @@ const applyMutatedRequestToSendConfig = (
         requestParams,
         contentType,
         raw,
-        formData,
+        formData: formDataBody,
         signal: baseConfig.signal,
     }
 }
 
+// ---------------------------------------------------------------------------
+// useRequestSender — pure send logic, reads all context from hooks internally
+// ---------------------------------------------------------------------------
 export const useRequestSender = () => {
-    const dispatch = useAppDispatch();
+    const dispatch = useAppDispatch()
+    const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const {activeCollection, preScript, variables, updateVariableMutation} = useCollection()
+    const {request} = useRequestConfig(activeCollection?.id ?? "", activeTabId)
+    const queryClient = useQueryClient()
+    const {selectedBaseUrl} = useEnvResolve()
 
-    return async (
-        config: ISendRequest,
-        context: {
-            requestId: string;
-            request?: RestRequestResponse;
-            preScriptValue?: string;
-            scriptValue?: string;
-            runtimeVariables: CollectionVar[];
-            setRuntimeVariables: React.Dispatch<React.SetStateAction<CollectionVar[]>>;
-        }
-    ) => {
-        const varsObj: Record<string, string> = {}
-        context.runtimeVariables.forEach(v => {
-            varsObj[v.key] = v.value
-        })
-        if (config.baseUrl) {
-            varsObj["BASE_URL"] = config.baseUrl
-            context.runtimeVariables
-                .filter(v => v.category === "BASE_URL")
-                .forEach(v => {
-                    varsObj[v.key] = config.baseUrl
-                })
+    return async (signal?: AbortSignal) => {
+        const currentReq = queryClient.getQueryData<RestRequestResponse>(
+            requestConfigQueryKey(activeCollection?.id ?? "", activeTabId)
+        ) ?? request
+
+        if (!currentReq || !request?.id) return
+
+        // Build env vars record from collection variables (isSelected BASE_URL is resolved inside)
+        const varsObj = buildEnvVarsRecord(variables)
+
+        // endpoint = selectedBaseUrl + request.url.raw (backend keeps raw url with path+query)
+        const rawEndpoint = currentReq.url?.raw ?? ""
+        const endpoint = rawEndpoint
+
+        const contentType = currentReq.headers?.find(
+            h => h?.key.toLowerCase() === 'content-type' && !h.disabled
+        )?.value ?? ''
+
+        const config: ISendRequest = {
+            baseUrl: selectedBaseUrl,
+            endpoint,
+            method: (currentReq.method ?? "GET"),
+            headers: (currentReq.headers ?? [])
+                .filter(h => !h.disabled)
+                .filter(h => h.key.toLowerCase() !== 'content-type')
+                .map(h => ({...h, value: resolveVars(h.value ?? '', varsObj)})),
+            requestParams: (currentReq.url?.query ?? currentReq.query ?? [])
+                .filter(q => !q.disabled)
+                .map(q => ({...q, value: resolveVars(q.value ?? '', varsObj)})),
+            contentType,
+            raw: currentReq.body?.raw ? resolveVars(currentReq.body.raw, varsObj) : undefined,
+            formData: currentReq.body?.formdata,
+            signal,
         }
 
+        const scriptValue = request.script ?? ""
         let finalConfig = config
         const collectedResults: ScriptResultDto[] = []
         const collectedLogs: ScriptLog[] = []
         const mergedMutations: Record<string, string | null> = {}
 
+        // Helper: persist variable mutations via the backend UpdateVariable endpoint
+        const applyVariableMutations = async (mutations: Record<string, unknown>) => {
+            for (const [key, rawValue] of Object.entries(mutations)) {
+                const value = formatVariableValue(rawValue)
+
+                // Update local varsObj for subsequent resolves within this request
+                if (value === null) {
+                    delete varsObj[key]
+                } else {
+                    varsObj[key] = value
+                }
+
+                // Persist to backend (and invalidate react-query cache)
+                const existing = variables.find(v => v.key === key)
+                if (existing) {
+                    if (value === null) {
+                        // Deletion — no-op here; service has no delete-by-key, skip silently
+                    } else {
+                        await updateVariableMutation.mutateAsync({
+                            id: existing.id,
+                            baseVersion: activeCollection?.version ?? "",
+                            key: existing.key,
+                            value,
+                        }).catch(() => {/* Handled by onError in mutation */})
+                    }
+                }
+                // If the variable doesn't exist yet we skip creation here — pre-request scripts
+                // should only mutate existing env vars.
+            }
+        }
+
         // 1. Pre-request script phase (mutates request payload before sending)
-        if (context.preScriptValue?.trim() && context.request) {
+        if (preScript?.trim() && currentReq) {
             try {
-                const cleanBase = (config.baseUrl ?? "").replace(/\/+$/, "")
-                const cleanEndpoint = (config.endpoint ?? "").replace(/^\/+/, "")
-                const initialFullUrl = cleanBase
-                    ? (cleanEndpoint ? `${cleanBase}/${cleanEndpoint}` : cleanBase)
-                    : cleanEndpoint
+                const initialFullUrl = selectedBaseUrl
+                    ? (endpoint ? `${selectedBaseUrl.replace(/\/+$/, "")}/${endpoint.replace(/^\/+/, "")}` : selectedBaseUrl)
+                    : endpoint
 
                 const initialRequest: RestRequestResponse = {
-                    ...context.request,
+                    ...currentReq,
                     method: config.method,
                     url: {
-                        ...(typeof context.request.url === "object" ? context.request.url : {}),
+                        ...(typeof currentReq.url === "object" ? currentReq.url : {}),
                         raw: initialFullUrl,
                     } as any,
                 }
 
                 const preOutput = await runPreRequestScript({
-                    script: context.preScriptValue,
+                    script: preScript,
                     request: initialRequest,
                     variables: varsObj,
                 })
 
                 if (preOutput.mutations) {
                     Object.assign(mergedMutations, preOutput.mutations)
-                    applyVariableMutations(
-                        preOutput.mutations,
-                        varsObj,
-                        context.runtimeVariables,
-                        context.setRuntimeVariables
-                    )
+                    await applyVariableMutations(preOutput.mutations)
                     if (preOutput.mutations["BASE_URL"]) {
                         config.baseUrl = String(preOutput.mutations["BASE_URL"])
                     }
-                    context.runtimeVariables
-                        .filter(v => v.category === "BASE_URL")
-                        .forEach(v => {
-                            if (preOutput.mutations[v.key]) {
-                                config.baseUrl = String(preOutput.mutations[v.key])
-                            }
-                        })
                 }
 
                 if (preOutput.logs?.length) {
@@ -543,37 +519,32 @@ export const useRequestSender = () => {
                     scriptType: "prerequest",
                 })
                 dispatch(setScriptResult({
-                    requestId: context.requestId,
+                    requestId: request.id,
                     result: collectedResults,
                     mutations: mergedMutations,
                     logs: collectedLogs,
                 }))
-                return;
+                return
             }
         }
 
         // 2. Send API request
-        const response = await sendApiRequest(finalConfig);
-        if (!response) return;
-        dispatch(setResponse({requestId: context.requestId, response}));
+        const response = await sendApiRequest(finalConfig)
+        if (!response) return
+        dispatch(setResponse({requestId: request.id, response}))
 
         // 3. Post-request script phase
-        if (context.scriptValue?.trim()) {
+        if (scriptValue?.trim()) {
             try {
                 const {result, mutations, logs} = await runScript({
-                    script: context.scriptValue,
+                    script: scriptValue,
                     response,
                     variables: varsObj,
                 })
 
                 if (mutations) {
                     Object.assign(mergedMutations, mutations)
-                    applyVariableMutations(
-                        mutations,
-                        varsObj,
-                        context.runtimeVariables,
-                        context.setRuntimeVariables
-                    )
+                    await applyVariableMutations(mutations)
                 }
 
                 if (logs?.length) {
@@ -601,7 +572,7 @@ export const useRequestSender = () => {
         // 4. Save combined script results to Redux
         if (collectedResults.length > 0 || collectedLogs.length > 0 || Object.keys(mergedMutations).length > 0) {
             dispatch(setScriptResult({
-                requestId: context.requestId,
+                requestId: request.id,
                 result: collectedResults,
                 mutations: mergedMutations,
                 logs: collectedLogs,

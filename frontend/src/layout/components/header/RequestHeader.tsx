@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import {cn} from "@/lib/utils.ts";
 import {isTestTab} from "@/lib/tabUtils.ts";
 
@@ -16,61 +16,96 @@ import {LoaderCircle, Plus, Send, X} from "lucide-react";
 import DeleteRequestDialog from "./DeleteRequestDialog.tsx";
 import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
-import {type ISendRequest, useRequestSender} from "@/layout/hooks/useSendRequest.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
-import type {CollectionVar, ItemUrl} from "@/pages/editor/types/api.ts";
+import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
+import {useRequestSender} from "@/layout/hooks/useSendRequest.ts";
+import {useEnvResolve} from "@/layout/hooks/useEnvResolve.ts";
 import {useDebouncedCallback} from "use-debounce";
 
+const requestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+const methodColorClass: Record<ColtReqMethod, string> = {
+    GET: "bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-700 text-white dark:text-white border-emerald-600 dark:border-emerald-600",
+    POST: "bg-amber-600 dark:bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-700 text-white dark:text-white border-amber-600 dark:border-amber-600",
+    PUT: "bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white dark:text-white border-blue-600 dark:border-blue-600",
+    PATCH: "bg-violet-600 dark:bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-700 text-white dark:text-white border-violet-600 dark:border-violet-600",
+    DELETE: "bg-red-600 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700 text-white dark:text-white border-red-600 dark:border-red-600"
+};
 
 const RequestHeader: React.FC = () => {
     const activeTabId = useAppSelector(selectEditorActiveTabId)
-    const {activeCollection, variables, preScript, createVariableMutation} = useCollection()
-    const baseUrlOptions = useMemo(() => {
-        return Array.from(
-            new Set(
-                variables
-                    .filter((item) => item.category === "BASE_URL")
-                    .map((item) => item.value)
-                    .filter(Boolean)
-            )
-        )
-    }, [variables])
-    const {request, updateMethod, updateUrl, updateQuery} = useRequestConfig(activeCollection?.id ?? "", activeTabId)
-    const sendRequestAction = useRequestSender()
-    const scriptValue = request?.script ?? ""
+    const {
+        activeCollection,
+        variables,
+        createVariableMutation,
+        selectBaseUrlMutation,
+    } = useCollection()
+
+    // Base URL options — all BASE_URL category variables' values
+    const baseUrlOptions = useMemo(() =>
+        Array.from(new Set(
+            variables
+                .filter(v => v.category === "BASE_URL")
+                .map(v => v.value)
+                .filter(Boolean)
+        )), [variables])
+
+    // Selected base URL comes from the variable with isSelected === true
+    const {selectedBaseUrl} = useEnvResolve()
+
+    const {request, updateMethod, updateUrl, updateQuery} = useRequestConfig(
+        activeCollection?.id ?? "",
+        activeTabId
+    )
+
+    const requestSender = useRequestSender()
     const collectionData = activeCollection
-    const envVars: Record<string, string> = {}
-    const [runtimeVariables, setRuntimeVariables] = useState<CollectionVar[]>(variables)
 
-    useEffect(() => setRuntimeVariables(variables), [variables])
+    // Request method — directly from service, no local processing needed
+    const currentMethod = (request?.method ?? "GET") as ColtReqMethod
 
+    // Endpoint input — driven by request.url.raw from service (backend manages it)
+    const [editedEndpoint, setEditedEndpoint] = useState<string>(request?.url?.raw ?? "")
     useEffect(() => {
-        if (baseUrlOptions.length === 0) {
-            setSelectedBaseUrl("")
-            return
+        setEditedEndpoint(request?.url?.raw ?? "")
+    }, [request?.url?.raw])
+
+    // Send / cancel state
+    const [isSending, setIsSending] = useState(false)
+    const [isHoveringButton, setIsHoveringButton] = useState(false)
+    const abortControllerRef = useRef<AbortController | null>(null)
+
+    // Base URL add UI state
+    const [newBaseUrl, setNewBaseUrl] = useState("")
+    const [selectOpen, setSelectOpen] = useState(false)
+    const [isAddingBaseUrl, setIsAddingBaseUrl] = useState(false)
+    const [isAddingLoading, setIsAddingLoading] = useState(false)
+    const newBaseUrlInputRef = useRef<HTMLInputElement>(null)
+
+    const isUpdatingSelectedBaseUrl = selectBaseUrlMutation.isPending
+
+    // Focus input when "Add New" is clicked
+    useEffect(() => {
+        if (isAddingBaseUrl) {
+            const timer = setTimeout(() => { newBaseUrlInputRef.current?.focus() }, 50)
+            return () => clearTimeout(timer)
         }
+    }, [isAddingBaseUrl])
 
-        setSelectedBaseUrl((currentValue) => {
-            if (currentValue && baseUrlOptions.includes(currentValue)) {
-                return currentValue
-            }
-
-            return baseUrlOptions[0] ?? ""
+    // Persist base URL selection to backend
+    const handleSelectBaseUrl = async (value: string) => {
+        const targetVar = variables.find(v => v.category === "BASE_URL" && v.value === value)
+        if (!targetVar) return
+        await selectBaseUrlMutation.mutateAsync({
+            id: targetVar.id,
+            key: targetVar.key,
+            value: targetVar.value,
         })
-    }, [baseUrlOptions]);
+    }
 
-    const requestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-    const methodColorClass: Record<ColtReqMethod, string> = {
-        GET: "bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-700 text-white dark:text-white border-emerald-600 dark:border-emerald-600",
-        POST: "bg-amber-600 dark:bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-700 text-white dark:text-white border-amber-600 dark:border-amber-600",
-        PUT: "bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white dark:text-white border-blue-600 dark:border-blue-600",
-        PATCH: "bg-violet-600 dark:bg-violet-600 hover:bg-violet-700 dark:hover:bg-violet-700 text-white dark:text-white border-violet-600 dark:border-violet-600",
-        DELETE: "bg-red-600 dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700 text-white dark:text-white border-red-600 dark:border-red-600"
-    };
-
-    const parseQueryParamsFromUrl = (url: string): { cleanUrl: string; params: ItemUrl[] } => {
+    // Parse query params out of a typed URL string (for endpoint input)
+    const parseQueryParamsFromUrl = (url: string): {cleanUrl: string; params: ItemUrl[]} => {
         const queryIndex = url.indexOf('?')
         if (queryIndex === -1) return {cleanUrl: url, params: []}
 
@@ -81,164 +116,83 @@ const RequestHeader: React.FC = () => {
         const hash = hashIndex >= 0 ? afterQuery.slice(hashIndex) : ''
 
         const params: ItemUrl[] = []
-        const searchParams = new URLSearchParams(queryString)
-        searchParams.forEach((value, key) => {
+        new URLSearchParams(queryString).forEach((value, key) => {
             params.push({id: crypto.randomUUID(), key, value, disabled: false})
         })
 
         return {cleanUrl: beforeQuery + hash, params}
     }
 
-    const formatEndpoint = (endpoint: unknown): string => {
-        if (endpoint === null || endpoint === undefined) return ""
-        let str = typeof endpoint === "string" ? endpoint : String(endpoint)
-        const baseUrlVarKeys = new Set(
-            runtimeVariables
-                .filter((item) => item.category === "BASE_URL")
-                .map((item) => item.key)
-        )
-        str = str.replace(/^\{\{([^{}]+)\}\}/, (match, key: string) => {
-            if (baseUrlVarKeys.has(key.trim())) {
-                return ""
-            }
-            return match
-        }).trim()
-
-        if (/^https?:\/\//i.test(str)) {
-            try {
-                const parsedUrl = new URL(str)
-                return `${parsedUrl.pathname}${parsedUrl.hash}`
-            } catch {
-                return str.split('?')[0]
-            }
-        }
-
-        return str.split('?')[0]
-    }
-
-    const debounceChangeEndpoint = useDebouncedCallback((value: string)=>{
+    // Debounced endpoint update — syncs user input to backend
+    const debounceChangeEndpoint = useDebouncedCallback((value: string) => {
         const {cleanUrl, params} = parseQueryParamsFromUrl(value)
-
         const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
         updateUrl(nextUrl)
-        const currentParams = request?.url?.query ?? []
-        const nextParams = params.map((param) => currentParams.find((item) => item.key === param.key) ? {
-            ...currentParams.find((item) => item.key === param.key)!,
-            value: param.value
-        } : param)
-        updateQuery(nextParams)
+        if (params.length > 0) {
+            const currentParams = request?.url?.query ?? []
+            const nextParams = params.map(param => {
+                const existing = currentParams.find(p => p.key === param.key)
+                return existing ? {...existing, value: param.value} : param
+            })
+            updateQuery(nextParams)
+        }
     }, 300)
 
-    const handleChangeEndpoint = (value: string)=>{
+    const handleChangeEndpoint = (value: string) => {
         setEditedEndpoint(value)
         debounceChangeEndpoint(value)
     }
 
-
-    const currentMethod = (request?.method ?? "GET") as ColtReqMethod;
-    const currentEndpoint = request?.url?.path?.length && request?.url?.path.map(e => String(e)).join("/")
-    const [editedEndpoint, setEditedEndpoint] = useState<string>(formatEndpoint(currentEndpoint))
-
-    useEffect(() => {
-        setEditedEndpoint(formatEndpoint(currentEndpoint))
-    }, [currentEndpoint]);
-
-    const [selectedBaseUrl, setSelectedBaseUrl] = useState("");
-    const [newBaseUrl, setNewBaseUrl] = useState("");
-    const [selectOpen, setSelectOpen] = useState(false);
-    const [isAddingBaseUrl, setIsAddingBaseUrl] = useState(false);
-    const [isAddingLoading, setIsAddingLoading] = useState(false);
-    const newBaseUrlInputRef = useRef<HTMLInputElement | null>(null);
-    const [isSending, setIsSending] = useState(false);
-    const [isHoveringButton, setIsHoveringButton] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    useEffect(() => {
-        if (isAddingBaseUrl) {
-            const timer = setTimeout(() => {
-                newBaseUrlInputRef.current?.focus()
-            }, 50)
-            return () => clearTimeout(timer)
-        }
-    }, [isAddingBaseUrl]);
-
-    const resolveVariableValue = (value: unknown): string => {
-        if (value === null || value === undefined) return ""
-        let str: string
-        if (typeof value === "string") {
-            str = value
-        } else if (typeof value === "object") {
-            if (value && typeof (value as any).toString === "function" && (value as any).toString !== Object.prototype.toString) {
-                str = (value as any).toString()
-            } else {
-                str = JSON.stringify(value)
-            }
-        } else {
-            str = String(value)
-        }
-        return str.replace(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
-            const k = key.trim()
-            const matchedVar = runtimeVariables.find((item) => item.key === k)
-            if (matchedVar?.category === "BASE_URL" && selectedBaseUrl) {
-                return selectedBaseUrl
-            }
-            const resolved = envVars[k] ?? matchedVar?.value ?? `{{${key}}}`
-            if (resolved === undefined || resolved === null) return `{{${key}}}`
-            return typeof resolved === "object" ? JSON.stringify(resolved) : String(resolved)
-        })
-    }
-
+    // Send request
     const handleSendRequest = () => {
         if (!request?.id || isSending) return
         setIsSending(true)
-
-        abortControllerRef.current = new AbortController();
-        const headerValue = request.headers?.find(h => h?.key.toLowerCase() === 'content-type' && !h.disabled)?.value ?? '';
-        console.log(selectedBaseUrl)
-        const sendRequestConfig: ISendRequest = {
-            baseUrl: selectedBaseUrl,
-            endpoint: formatEndpoint(currentEndpoint),
-            method: currentMethod,
-            headers: (request.headers ?? [])
-                .filter(h => !h.disabled)
-                .filter(h => h.key.toLowerCase() !== 'Content-Type'.toLowerCase())
-                .map((header) => ({
-                    ...header,
-                    value: resolveVariableValue(header.value ?? "")
-                })),
-            requestParams: (request.url?.query ?? [])
-                .filter(q => !q.disabled),
-            contentType: headerValue,
-            raw: request.body?.raw,
-            formData: request.body?.formdata,
-            signal: abortControllerRef.current.signal
-        }
-        const effectiveRuntimeVariables = runtimeVariables.map(v =>
-            v.category === 'BASE_URL' ? {...v, value: selectedBaseUrl} : v
-        )
-
-        sendRequestAction(sendRequestConfig, {
-            requestId: request.id,
-            request,
-            preScriptValue: preScript,
-            scriptValue,
-            runtimeVariables: effectiveRuntimeVariables,
-            setRuntimeVariables
-        }).finally(() => {
+        abortControllerRef.current = new AbortController()
+        requestSender(abortControllerRef.current.signal).finally(() => {
             setIsSending(false)
             abortControllerRef.current = null
         })
-    };
+    }
 
     const handleCancelRequest = () => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-        }
-        setIsSending(false);
-    };
+        abortControllerRef.current?.abort()
+        abortControllerRef.current = null
+        setIsSending(false)
+    }
 
-    // Handle Ctrl+Enter keyboard shortcut to send request
+    // Add a new base URL variable
+    const getNextBaseUrlKey = (): string => {
+        const existingKeys = new Set(variables.map(v => v.key.toLowerCase()))
+        if (!existingKeys.has("base_url")) return "base_url"
+        let index = 1
+        while (existingKeys.has(`base_url_${index}`)) index++
+        return `base_url_${index}`
+    }
+
+    const handleAddBaseUrl = async () => {
+        const trimmed = newBaseUrl.trim()
+        if (!trimmed || !collectionData?.version) return
+        setIsAddingLoading(true)
+        try {
+            await createVariableMutation.mutateAsync({
+                baseVersion: collectionData.version,
+                key: getNextBaseUrlKey(),
+                value: trimmed,
+                type: "string",
+            })
+            setNewBaseUrl("")
+            setIsAddingBaseUrl(false)
+            setSelectOpen(false)
+            // Select the newly added URL
+            await handleSelectBaseUrl(trimmed)
+        } catch {
+            // Error handled by createVariableMutation onError
+        } finally {
+            setIsAddingLoading(false)
+        }
+    }
+
+    // Ctrl+Enter shortcut
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (!collectionData) return
@@ -253,52 +207,12 @@ const RequestHeader: React.FC = () => {
         return () => window.removeEventListener("keydown", handleKeyDown)
     })
 
-    const getNextBaseUrlKey = (vars: CollectionVar[]): string => {
-        const existingKeys = new Set(vars.map((v) => v.key.toLowerCase()))
-        if (!existingKeys.has("base_url")) {
-            return "base_url"
-        }
-        let index = 1
-        while (existingKeys.has(`base_url_${index}`)) {
-            index++
-        }
-        return `base_url_${index}`
-    }
-
-    const handleAddBaseUrl = async () => {
-        const trimmed = newBaseUrl.trim()
-        if (!trimmed) return
-        if (!collectionData?.version) return
-
-        setIsAddingLoading(true)
-        try {
-            const nextKey = getNextBaseUrlKey(variables)
-            await createVariableMutation.mutateAsync({
-                baseVersion: collectionData.version,
-                key: nextKey,
-                value: trimmed,
-                type: 'string'
-            })
-            setSelectedBaseUrl(trimmed)
-            setNewBaseUrl('')
-            setIsAddingBaseUrl(false)
-            setSelectOpen(false)
-        } catch {
-            // Error is handled by createVariableMutation onError
-        } finally {
-            setIsAddingLoading(false)
-        }
-    }
-
     return (
         <div className="basis-3/4 flex items-center h-full gap-3">
             <Select
                 value={currentMethod}
                 disabled={!collectionData}
-                onValueChange={(value) => {
-                    const method = value as ColtReqMethod;
-                    updateMethod(method)
-                }}
+                onValueChange={(value) => updateMethod(value as ColtReqMethod)}
             >
                 <SelectTrigger
                     className={cn("min-w-[110px] font-semibold text-white [&_svg]:text-white [&_svg]:opacity-100", methodColorClass[currentMethod])}>
@@ -323,12 +237,19 @@ const RequestHeader: React.FC = () => {
                         }
                     }}
                     value={selectedBaseUrl}
-                    disabled={!collectionData}
-                    onValueChange={setSelectedBaseUrl}
+                    disabled={!collectionData || isUpdatingSelectedBaseUrl}
+                    onValueChange={handleSelectBaseUrl}
                 >
                     <SelectTrigger
                         className="w-[240px] rounded-none border-0 border-r border-input shadow-none focus-visible:ring-0">
-                        <SelectValue placeholder="Select Base URL"/>
+                        {isUpdatingSelectedBaseUrl ? (
+                            <div className="flex items-center gap-2">
+                                <LoaderCircle className="h-3.5 w-3.5 animate-spin text-muted-foreground"/>
+                                <span className="truncate">{selectedBaseUrl || "Updating..."}</span>
+                            </div>
+                        ) : (
+                            <SelectValue placeholder="Select Base URL"/>
+                        )}
                     </SelectTrigger>
                     <SelectContent>
                         {baseUrlOptions.length === 0 ? (
@@ -401,10 +322,15 @@ const RequestHeader: React.FC = () => {
                 </Select>
                 <Input
                     value={editedEndpoint}
-                    disabled={!collectionData}
-                    onChange={(value)=>{
-                        handleChangeEndpoint(value.target.value)
+                    disabled={!collectionData || !request}
+                    onBlur={() => {
+                        // If user typed a URL with query string, parse it on blur
+                        if (editedEndpoint.includes("?")) {
+                            const {cleanUrl} = parseQueryParamsFromUrl(editedEndpoint)
+                            setEditedEndpoint(cleanUrl)
+                        }
                     }}
+                    onChange={(event) => handleChangeEndpoint(event.target.value)}
                     className="border-0 rounded-none shadow-none focus-visible:ring-0"
                     placeholder="/v1/users"
                     aria-label="Endpoint path"

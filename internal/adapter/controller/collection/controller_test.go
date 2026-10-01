@@ -71,6 +71,9 @@ func (s *collectionUsecaseStub) GetAuth(ctx context.Context) (*service.Collectio
 func (s *collectionUsecaseStub) UpdateAuth(ctx context.Context, req service.UpdateCollectionAuthRequest) (*service.CollectionAuth, error) {
 	return s.authToReturn, s.authErrToReturn
 }
+func (s *collectionUsecaseStub) SelectBaseURL(ctx context.Context, req service.SelectBaseURLRequest) (service.SelectBaseURLResponse, error) {
+	return service.SelectBaseURLResponse{}, nil
+}
 
 func TestGetAuthActiveCollection(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -237,5 +240,25 @@ func TestUpdateAuthRoute(t *testing.T) {
 	}
 	if response.Data == nil || response.Data.Type != "bearer" {
 		t.Fatalf("unexpected data: %+v", response.Data)
+	}
+}
+
+func TestSelectBaseURLRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stub := &collectionUsecaseStub{}
+	controller := Controller{usecase: stub, mapper: mapper.NewMapper()}
+	router := gin.New()
+	controller.Route(router.Group(""))
+
+	body, _ := json.Marshal(service.SelectBaseURLRequest{
+		Value: "https://api.example.com",
+	})
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPut, "/collection/select-base-url", strings.NewReader(string(body)))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 }

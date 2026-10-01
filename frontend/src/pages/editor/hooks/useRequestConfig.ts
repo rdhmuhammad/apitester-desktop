@@ -17,33 +17,31 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
     const requestQuery = useQuery<RestRequestResponse>({
         queryKey,
         queryFn: () => RequestConfigServices.get(collectionId, requestId),
-        enabled,
+        enabled,    
         gcTime: 0,
         refetchOnWindowFocus: false,
     })
 
-    const update = useCallback(<T extends keyof RestRequestResponse>(
+    const update = useCallback(async <T extends keyof RestRequestResponse>(
         field: string,
         value: RestRequestResponse[T],
         mutation: (data: Versioned) => Promise<RestRequestResponse>,
         extra?: (request: RestRequestResponse) => Partial<RestRequestResponse>,
     ): Promise<RestRequestResponse | undefined> => {
         const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
-        console.log(current)
         if (!current || !enabled) return Promise.resolve(undefined)
         queryClient.setQueryData(queryKey, {...current, [field]: value, ...extra?.(current)})
-        return mutation({baseVersion: current.version, [field]: value} as Versioned)
-            .then(next => {
-                console.log(next)
-                queryClient.setQueryData(queryKey, next)
-                setMutationError(null)
-                return next
-            })
-            .catch((reason: unknown) => {
-                console.log(reason)
-                setMutationError(reason instanceof Error ? reason.message : String(reason))
-                return undefined
-            })
+        try {
+            const next = await mutation({baseVersion: current.version, [field]: value} as Versioned)
+            console.log(next)
+            queryClient.setQueryData(queryKey, next)
+            setMutationError(null)
+            return next
+        } catch (reason) {
+            console.log(reason)
+            setMutationError(reason instanceof Error ? reason.message : String(reason))
+            return undefined
+        }
     }, [enabled, queryClient, queryKey])
 
     // Place wiring endpoint for request mutation here
@@ -66,7 +64,7 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
                 RequestConfigServices.updateUrl(collectionId, requestId, {
                     ...data,
                     url
-                })),
+                }), (current) => ({query: url.query ?? current.query})),
         [collectionId, requestId, update])
     const updateHeaders = useCallback((headers: ItemUrl[]) =>
             update("headers", headers, (data) =>

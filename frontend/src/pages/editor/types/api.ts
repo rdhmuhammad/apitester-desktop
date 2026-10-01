@@ -119,4 +119,6 @@ export interface CollectionVar {
   value: string;
   category: string;
   type: string;
+  isSelected?: boolean;
 }
+
