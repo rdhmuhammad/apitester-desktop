@@ -108,6 +108,7 @@ Reads can remain HTTP-backed when the socket module only defines mutation events
 - Remove every listener on success, error, timeout, and component/service disposal.
 - Do not use `socket.timeout()` as an acknowledgement timeout unless the backend invokes the Socket.IO acknowledgement callback; server-emitted result events require an explicit client timer.
 - Keep event names and payload types centralized in the service module or a shared contract.
+- During Vite development, dispose top-level module sockets on HMR with `import.meta.hot.dispose(...)` to prevent zombie WebSocket connections across hot reloads.
 
 ## Related Pages
 

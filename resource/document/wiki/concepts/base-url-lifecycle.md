@@ -18,7 +18,8 @@ In the backend collection service, collection variables are evaluated to detect 
   ```
 - **Lifecycle Evaluation**:
   - `PrepareCreate()`: When a collection is created or imported, any variable key matching `baseURLRegex` is assigned `Category = "BASE_URL"` and persisted directly to the collection JSON on disk.
-  - `PrepareVariables()`: When a collection is loaded, any variable key matching `baseURLRegex` without an existing category is tagged with `Category = "BASE_URL"`.
+  - `PrepareVariables()`: When a collection is loaded, any variable key matching `baseURLRegex` without an existing category is tagged with `Category = "BASE_URL"`. If no variable has `IsSelected == true`, the first `BASE_URL` found is automatically marked `IsSelected = true`. It also updates `RequestUrl.host` of every request to `{{<selected_key>}}` and replaces the old host inside `RequestUrl.raw` with the new host (e.g. `{{oldDev}}/auth/login` => `{{dev}}/auth/login`).
+  - `SelectBaseURL()`: Endpoint (`PUT /collection/select-base-url`) to select a base URL by ID, key, or value, updating `isSelected` and persisting the change.
   - `AddVariable()` and `UpdateVariable()`: When a variable is inserted or updated via collection usecases, if `isBaseURLVar(key)` evaluates to `true`, the variable's category is set to `"BASE_URL"`.
 
 ## 2. Frontend Header Selection & Provisioning
@@ -26,8 +27,9 @@ In the backend collection service, collection variables are evaluated to detect 
 The frontend editor header manages available base URLs for the active collection:
 
 - **Option Extraction**: `RequestHeader.tsx` reads collection variables and filters for those with `category === "BASE_URL"`, deduplicating unique values into `baseUrlOptions`.
-- **Active Selection**: If available options exist, the component retains the current valid selection or automatically defaults to `baseUrlOptions[0]`.
-- **Dynamic Creation**: Users can add a new base URL directly via the dropdown interface. `getNextBaseUrlKey()` sequentially generates keys (`base_url`, `base_url_1`, `base_url_2`, etc.) and invokes the `createVariableMutation` to persist the new variable into the collection.
+- **Active Selection**: When a request is loaded (or tab changed), `getBaseUrlFromRequest` resolves the base URL directly from the request (e.g. `raw` url with `{{variable}}` or origin). If not specified on the request, it resolves from the collection variable with `isSelected === true`, falling back to `baseUrlOptions[0]`.
+- **On-the-fly Selection**: Selecting a base URL in the header dropdown calls the `selectBaseUrl` endpoint in the background, temporarily disabling the dropdown while the change persists.
+- **Dynamic Creation**: Users can add a new base URL directly via the dropdown interface. `getNextBaseUrlKey()` sequentially generates keys (`base_url`, `base_url_1`, `base_url_2`, etc.) and invokes `createVariableMutation` followed by `selectBaseUrlMutation` to persist and select the new variable.
 
 ## 3. Template Resolution & Enforcement
 
