@@ -1,14 +1,18 @@
 import axios from "@/config/axios.ts"
-import type {ItemUrl, ReqAuth, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
+import type {ItemUrl, ReqAuth, Request, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
 import type {Response} from "@/types/response.ts"
 import {socketCollection} from "@/pages/editor/services/mainSocket.ts"
 
 export interface ExampleResponse {
+    id?: string
     name: string
     status?: string
     code?: number
     body?: string
     header?: ItemUrl[] | Array<{key: string; value: string}>
+    cookie?: Array<{key: string; value: string}>
+    originalRequest?: Request
+    _postman_previewlanguage?: string | null
 }
 
 export interface RestRequestResponse {
@@ -51,37 +55,60 @@ type RequestIdentity = {collectionId: string; requestId: string}
 type SocketResult = {operation: string; request: RestRequestResponse}
 type SocketError = {operation: string; message: string}
 
-const emitRequestEvent = <T extends Versioned>(
+const ensureSocketConnected = (timeoutMs = 10_000): Promise<void> => {
+    if (socketCollection.connected) return Promise.resolve()
+    if (socketCollection.disconnected) {
+        socketCollection.connect()
+    }
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            socketCollection.off("connect", onConnect)
+            reject(new Error("Socket connection timed out"))
+        }, timeoutMs)
+
+        const onConnect = () => {
+            clearTimeout(timer)
+            resolve()
+        }
+        socketCollection.once("connect", onConnect)
+    })
+}
+
+const emitRequestEvent = async <T extends Versioned>(
     event: string,
     operation: string,
     identity: RequestIdentity,
     data: T,
-): Promise<RestRequestResponse> => new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-        cleanup()
-        reject(new Error(`Socket event timed out: ${operation}`))
-    }, 30_000)
+): Promise<RestRequestResponse> => {
+    await ensureSocketConnected()
 
-    const handleSuccess = (payload: SocketResult) => {
-        if (payload?.operation !== operation) return
-        cleanup()
-        resolve(payload.request)
-    }
-    const handleError = (payload: SocketError) => {
-        if (payload?.operation !== operation) return
-        cleanup()
-        reject(new Error(payload.message || `Failed to execute ${operation}`))
-    }
-    const cleanup = () => {
-        clearTimeout(timeout)
-        socketCollection.off(socketEvents.success, handleSuccess)
-        socketCollection.off(socketEvents.error, handleError)
-    }
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            cleanup()
+            reject(new Error(`Socket event timed out: ${operation}`))
+        }, 30_000)
 
-    socketCollection.on(socketEvents.success, handleSuccess)
-    socketCollection.on(socketEvents.error, handleError)
-    socketCollection.emit(event, {...identity, ...data})
-})
+        const handleSuccess = (payload: SocketResult) => {
+            if (payload?.operation !== operation) return
+            cleanup()
+            resolve(payload.request)
+        }
+        const handleError = (payload: SocketError) => {
+            if (payload?.operation !== operation) return
+            cleanup()
+            reject(new Error(payload.message || `Failed to execute ${operation}`))
+        }
+        const cleanup = () => {
+            clearTimeout(timeout)
+            socketCollection.off(socketEvents.success, handleSuccess)
+            socketCollection.off(socketEvents.error, handleError)
+        }
+
+        socketCollection.on(socketEvents.success, handleSuccess)
+        socketCollection.on(socketEvents.error, handleError)
+        socketCollection.emit(event, {...identity, ...data})
+    })
+}
 
 export const RequestConfigServices = {
     create: async (collectionId: string): Promise<RestRequestResponse> => {
@@ -129,11 +156,17 @@ export const RequestConfigServices = {
         collectionId: string,
         requestId: string,
         data: Versioned & {
-            name: string
+            id?: string
+            action?: string
+            name?: string
             status?: string
             code?: number
             body?: string
-            header?: Array<{key: string; value: string}>
+            header?: ItemUrl[] | Array<{key: string; value: string}>
+            cookie?: Array<{key: string; value: string}>
+            originalRequest?: Request
+            response?: ExampleResponse
+            responses?: ExampleResponse[]
         }
     ) =>
         emitRequestEvent(

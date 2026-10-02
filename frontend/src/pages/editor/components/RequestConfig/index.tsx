@@ -9,18 +9,19 @@ import ParamsContent from "@/pages/editor/components/RequestConfig/ParamsContent
 import HeadersContent from "@/pages/editor/components/RequestConfig/HeadersContent.tsx"
 import {BodyEditor, type ContentType} from "@/pages/editor/components/RequestConfig/BodyEditor.tsx"
 import ScriptEditor from "@/pages/editor/components/RequestConfig/ScriptEditor.tsx"
-import {useAppSelector} from "@/app/store/hooks.ts"
-import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts"
+import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
+import {selectEditorActiveTabId, setActiveExampleId} from "@/app/slices/editorTabsSlice.ts"
 import {useQueryClient} from "@tanstack/react-query"
 import {type Collection} from "@/layout/services/collection"
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts"
 
 const RequestConfigTabs: React.FC = () => {
+    const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
     const queryClient = useQueryClient()
     const activeCollection = queryClient.getQueryData<Collection>(["collection", "active"])
     const {
-        request, updateHeaders,
+        request, activeExample, isExampleMode, updateHeaders,
         updateJsonBody, updateFormDataBody,
         saveScript,
     } = useRequestConfig(activeCollection?.id ?? "", activeTabId)
@@ -58,14 +59,43 @@ const RequestConfigTabs: React.FC = () => {
         }
     }
 
+    console.log(isExampleMode)
     return (
         <section className="rounded-b-xl border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div>
-                    <h2 className="text-sm font-semibold text-foreground">Request Configuration</h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-foreground">Request Configuration</h2>
+                        {isExampleMode && (
+                            <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs">
+                                Example: {activeExample?.name}
+                            </Badge>
+                        )}
+                    </div>
                     <p className="text-xs text-muted-foreground">Manage query params, auth, headers, and payload.</p>
                 </div>
             </div>
+
+            {isExampleMode && (
+                <div className="flex items-center justify-between border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-800 dark:text-amber-200">
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="border-amber-500/40 bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
+                            Example Mode
+                        </Badge>
+                        <span>You are editing an example request and response. Switch to actual request to send requests.</span>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 hover:text-amber-900 dark:hover:text-amber-100"
+                        onClick={() => dispatch(setActiveExampleId({ tabId: activeTabId, exampleId: null }))}
+                    >
+                        Switch to Actual Request
+                    </Button>
+                </div>
+            )}
+
             <Tabs defaultValue="params" className="gap-0">
                 <div className="border-b border-border px-4 pt-3">
                     <TabsList className="h-10 rounded-lg bg-muted">

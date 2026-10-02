@@ -50,19 +50,47 @@ func NewPort(lg logger.Logger, database *bbolt.DB) *Port {
 	}
 }
 
+// FindSelectedCollection finds the collection where IsSelected is true.
+func FindSelectedCollection(ctx context.Context, repo db.RepositoryInterface[domain.Collection]) *domain.Collection {
+	all, err := repo.List(ctx)
+	if err != nil {
+		return nil
+	}
+	for i := range all {
+		if all[i].IsSelected {
+			return &all[i]
+		}
+	}
+	return nil
+}
+
+// FindSelectedCollection finds the collection where IsSelected is true using p.CollectionRepo.
+func (p *Port) FindSelectedCollection(ctx context.Context) *domain.Collection {
+	return FindSelectedCollection(ctx, p.CollectionRepo)
+}
+
 // LoadCollection loads a collection record and its raw file content.
 // It strips BOM and returns the raw bytes (trimmed) together with the
-// domain collection. The caller is responsible for unmarshalling the
+// domain collection. If id is empty, it resolves the currently selected collection.
+// The caller is responsible for unmarshalling the
 // content into its own DocsContent type. This avoids a circular import
 // on collection service DTOs.
 func (p *Port) LoadCollection(ctx context.Context, id string) (*domain.Collection, []byte, error) {
-	collection, err := p.CollectionRepo.View(ctx, id)
-	if err != nil {
-		return nil, nil, p.ErrHandler.ErrorReturn(err)
-	}
-
-	if collection == nil {
-		return nil, nil, localerror.InvalidData("Collection not found")
+	var collection *domain.Collection
+	var err error
+	if id == "" {
+		collection = p.FindSelectedCollection(ctx)
+		if collection == nil {
+			return nil, nil, localerror.InvalidData("No active collection")
+		}
+	} else {
+		collection, err = p.CollectionRepo.View(ctx, id)
+		if err != nil {
+			return nil, nil, p.ErrHandler.ErrorReturn(err)
+		}
+		if collection == nil {
+			return nil, nil, localerror.InvalidData("Collection not found")
+		}
 	}
 
 	content, err := os.ReadFile(collection.Path)

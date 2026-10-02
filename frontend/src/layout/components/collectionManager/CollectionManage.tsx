@@ -8,7 +8,7 @@ import {useCollection} from "@/layout/hooks/useCollection.ts"
 import {useQueryClient} from "@tanstack/react-query"
 import CustomToast from "@/components/common/toast"
 import {useAppDispatch} from "@/app/store/hooks.ts"
-import {resetEditorTabs, setCollectionId} from "@/app/slices/editorTabsSlice.ts"
+import {resetEditorTabs} from "@/app/slices/editorTabsSlice.ts"
 
 async function pickFilePath(): Promise<string | null> {
     if (window.electronAPI) {
@@ -56,7 +56,6 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
             .then((list) => {
                 const selected = list.data?.find((collection) => collection.is_selected)
                 setSelectedId(selected?.id ?? null)
-                dispatch(setCollectionId(selected?.id ?? null))
             })
             .catch((reason) => CustomToast.error(reason))
             .finally(() => setLoading(false))
@@ -105,7 +104,6 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
             updateCollectionList((items) => items.map((item) => ({...item, is_selected: item.id === id})))
             setSelectedId(id)
             dispatch(resetEditorTabs())
-            dispatch(setCollectionId(id))
             onOpenChange(false)
         } catch (error) {
             CustomToast.error(error instanceof Error ? error.message : "Failed to select collection")

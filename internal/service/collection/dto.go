@@ -54,6 +54,7 @@ type CollectionItem struct {
 }
 
 type CollectionResponse struct {
+	ID              string           `json:"id,omitempty"`
 	Name            string           `json:"name"`
 	OriginalRequest *Request         `json:"originalRequest,omitempty"`
 	Status          string           `json:"status"`
@@ -111,6 +112,10 @@ func (r *RequestURL) GetSelectedHost() string {
 	}
 
 	return host
+}
+
+func (r *RequestURL) OnlyEndpoint() {
+	r.Raw = strings.Replace(r.Raw, r.GetSelectedHost(), "", -1)
 }
 
 func (r *RequestURL) FormatEndpoint() {

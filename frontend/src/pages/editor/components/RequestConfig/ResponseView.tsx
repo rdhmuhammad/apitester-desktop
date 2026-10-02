@@ -11,17 +11,20 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog.tsx";
 import {Input} from "@/components/ui/input.tsx";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
-import {Download, Link2, Eye, EyeOff, ChevronDown} from "lucide-react";
+import {Download, Link2, Eye, EyeOff, ChevronDown, Plus, X, Pencil} from "lucide-react";
 import {useMemo, useState, useCallback, useEffect} from "react";
 import * as XLSX from 'xlsx';
-import {useAppSelector} from "@/app/store/hooks.ts";
-import {selectCollectionId, selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+import {selectEditorActiveTabId, setActiveExampleId} from "@/app/slices/editorTabsSlice.ts";
 import {selectResponseByRequestId} from "@/app/slices/restApiSlice.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
+import {useCollection} from "@/layout/hooks/useCollection.ts";
 import CustomToast from "@/components/common/toast";
 import type {ScriptLog} from "@/types/response.ts";
 import {cn} from "@/lib/utils.ts";
+import {useDebouncedCallback} from "use-debounce";
 
 const EMPTY_LOGS: ScriptLog[] = []
 const EMPTY_MUTATIONS: Record<string, string | null> = {}
@@ -74,21 +77,27 @@ const LogEntry: React.FC<{ log: ScriptLog }> = ({ log }) => {
 }
 
 const ResponseView: React.FC = () => {
+    const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
-    const collectionId = useAppSelector(selectCollectionId)
+    const {activeCollection} = useCollection()
+    const collectionId = activeCollection?.id
     const currResponse = useAppSelector((state) => selectResponseByRequestId(state, activeTabId))
-    const {request, saveResponse} = useRequestConfig(collectionId ?? "", activeTabId)
+    const {
+        request,
+        saveResponse,
+        addExampleResponse,
+        deleteExampleResponse,
+        updateExampleResponse,
+        activeExample,
+        activeExampleId,
+    } = useRequestConfig(collectionId ?? "", activeTabId)
     const [isSaving, setIsSaving] = useState(false)
     const scriptResult = currResponse?.result
     const scriptLogs = currResponse?.logs ?? EMPTY_LOGS
     const scriptMutations = currResponse?.mutations ?? EMPTY_MUTATIONS
     const examples = request?.responses ?? []
 
-    const [sourceTab, setSourceTab] = useState("actual")
-
-    const activeExample = sourceTab === "actual"
-        ? null
-        : examples[Number(sourceTab)]
+    const sourceTab = activeExampleId ?? "actual"
 
     const responseCode = activeExample?.code ?? currResponse?.statusCode
     const responseStatus = activeExample?.status ?? currResponse?.statusText ?? "OK"
@@ -102,7 +111,7 @@ const ResponseView: React.FC = () => {
     })()
 
     const responseBody = useMemo(() => {
-        if (activeExample) return activeExample.body
+        if (activeExample) return activeExample.body ?? ""
         if (!currResponse?.data) return ""
         return typeof currResponse.data === "string"
             ? currResponse.data
@@ -146,13 +155,45 @@ const ResponseView: React.FC = () => {
     const hasLogs = scriptLogs.length > 0
     const hasMutations = mutationKeys.length > 0
     const hasResult = normalizedScriptResults.length > 0
+
+    const [editorBody, setEditorBody] = useState(prettyResponse)
+
+    useEffect(() => {
+        setEditorBody(prettyResponse)
+    }, [prettyResponse])
+
+    const debouncedSaveBody = useDebouncedCallback(async (val: string) => {
+        if (!activeExample?.id) return
+        try {
+            await updateExampleResponse(activeExample.id, { body: val })
+        } catch (err) {
+            console.error("Failed to update example body:", err)
+        }
+    }, 400)
+
+    const handleBodyChange = (val: string) => {
+        setEditorBody(val)
+        if (activeExample?.id) {
+            debouncedSaveBody(val)
+        }
+    }
+
     const [responseOpen, setResponseOpen] = useState(true)
     const [resultOpen, setResultOpen] = useState(true)
     const [mutationsOpen, setMutationsOpen] = useState(true)
     const [logsOpen, setLogsOpen] = useState(true)
 
+    // Save actual response dialog
     const [dialogOpen, setDialogOpen] = useState(false)
     const [exampleName, setExampleName] = useState("")
+
+    // Add new example dialog
+    const [addDialogOpen, setAddDialogOpen] = useState(false)
+    const [newExampleName, setNewExampleName] = useState("")
+
+    // Rename example dialog
+    const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+    const [renameValue, setRenameValue] = useState("")
 
     const [visualizeExcel, setVisualizeExcel] = useState(false)
     const [excelHeaders, setExcelHeaders] = useState<string[]>([])
@@ -183,7 +224,7 @@ const ResponseView: React.FC = () => {
                 ? currResponse.data
                 : JSON.stringify(currResponse.data)
 
-            await saveResponse({
+            const saved = await saveResponse({
                 name: exampleName.trim(),
                 status: currResponse.statusText || "OK",
                 code: currResponse.statusCode,
@@ -193,10 +234,89 @@ const ResponseView: React.FC = () => {
             CustomToast.success("Example response saved")
             setExampleName("")
             setDialogOpen(false)
+            if (saved?.responses && saved.responses.length > 0) {
+                const latest = saved.responses[saved.responses.length - 1]
+                if (latest?.id) {
+                    dispatch(setActiveExampleId({ tabId: activeTabId, exampleId: latest.id }))
+                }
+            }
         } catch (err) {
             CustomToast.error(err instanceof Error ? err.message : "Failed to save response")
         } finally {
             setIsSaving(false)
+        }
+    }
+
+    const handleAddExample = async () => {
+        if (!activeTabId || !collectionId) return
+        try {
+            setIsSaving(true)
+            const name = newExampleName.trim() || "New Example"
+            const {id} = await addExampleResponse(name)
+            dispatch(setActiveExampleId({tabId: activeTabId, exampleId: id}))
+            CustomToast.success("New example created")
+            setNewExampleName("")
+            setAddDialogOpen(false)
+        } catch (err) {
+            CustomToast.error(err instanceof Error ? err.message : "Failed to create example")
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleDeleteExample = async (exampleId: string) => {
+        if (!activeTabId || !collectionId) return
+        try {
+            await deleteExampleResponse(exampleId)
+            if (activeExampleId === exampleId) {
+                dispatch(setActiveExampleId({tabId: activeTabId, exampleId: null}))
+            }
+            CustomToast.success("Example response removed")
+        } catch (err) {
+            CustomToast.error(err instanceof Error ? err.message : "Failed to remove example")
+        }
+    }
+
+    const handleOpenRename = () => {
+        if (!activeExample) return
+        setRenameValue(activeExample.name)
+        setRenameDialogOpen(true)
+    }
+
+    const handleRenameExample = async () => {
+        if (!activeExample?.id || !renameValue.trim()) return
+        try {
+            setIsSaving(true)
+            await updateExampleResponse(activeExample.id, {name: renameValue.trim()})
+            CustomToast.success("Example renamed")
+            setRenameDialogOpen(false)
+        } catch (err) {
+            CustomToast.error(err instanceof Error ? err.message : "Failed to rename example")
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleStatusChange = async (statusCodeStr: string) => {
+        if (!activeExample?.id) return
+        const code = Number(statusCodeStr)
+        const statusMap: Record<number, string> = {
+            200: "OK",
+            201: "Created",
+            204: "No Content",
+            400: "Bad Request",
+            401: "Unauthorized",
+            403: "Forbidden",
+            404: "Not Found",
+            500: "Internal Server Error",
+            502: "Bad Gateway",
+            503: "Service Unavailable",
+        }
+        const status = statusMap[code] ?? activeExample.status ?? "OK"
+        try {
+            await updateExampleResponse(activeExample.id, {code, status})
+        } catch (err) {
+            CustomToast.error("Failed to update status code")
         }
     }
 
@@ -232,8 +352,11 @@ const ResponseView: React.FC = () => {
     }, [isExcel, currResponse?.data, visualizeExcel])
 
     const onSourceChange = useCallback((value: string) => {
-        setSourceTab(value)
-    }, [])
+        dispatch(setActiveExampleId({
+            tabId: activeTabId,
+            exampleId: value === "actual" ? null : value,
+        }))
+    }, [activeTabId, dispatch])
 
     return (
         <>
@@ -242,7 +365,35 @@ const ResponseView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
                     <h2 className="text-sm font-semibold text-foreground">Response</h2>
-                    {responseCode && <Badge className={badgeColor}>{`${responseCode} ${responseStatus}`}</Badge>}
+                    {activeExample ? (
+                        <div className="flex items-center gap-2">
+                            <Select
+                                value={String(activeExample.code ?? 200)}
+                                onValueChange={handleStatusChange}
+                            >
+                                <SelectTrigger className="h-7 text-xs font-semibold w-[150px] bg-background">
+                                    <SelectValue placeholder="Status Code" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="200">200 OK</SelectItem>
+                                    <SelectItem value="201">201 Created</SelectItem>
+                                    <SelectItem value="204">204 No Content</SelectItem>
+                                    <SelectItem value="400">400 Bad Request</SelectItem>
+                                    <SelectItem value="401">401 Unauthorized</SelectItem>
+                                    <SelectItem value="403">403 Forbidden</SelectItem>
+                                    <SelectItem value="404">404 Not Found</SelectItem>
+                                    <SelectItem value="500">500 Internal Server Error</SelectItem>
+                                    <SelectItem value="502">502 Bad Gateway</SelectItem>
+                                    <SelectItem value="503">503 Service Unavailable</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                                Example: {activeExample.name}
+                            </Badge>
+                        </div>
+                    ) : (
+                        responseCode && <Badge className={badgeColor}>{`${responseCode} ${responseStatus}`}</Badge>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                     {sourceTab === "actual" && (
@@ -255,22 +406,67 @@ const ResponseView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="border-b border-border px-4 pt-2">
-                <Tabs value={sourceTab} onValueChange={onSourceChange}>
-                    <TabsList className="h-8 rounded-lg bg-muted">
-                        <TabsTrigger value="actual" className="h-7 px-3 text-xs">
-                            Actual Response
-                        </TabsTrigger>
-                        {examples.map((ex, i) => (
-                            <TabsTrigger
-                                key={i}
-                                value={String(i)}
-                                className="h-7 px-3 text-xs"
-                            >
-                                Example: {ex.name}
+            <div className="flex items-center justify-between border-b border-border px-4 pt-2">
+                <Tabs value={sourceTab} onValueChange={onSourceChange} className="w-full">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
+                        <TabsList className="h-8 rounded-lg bg-muted flex items-center shrink-0">
+                            <TabsTrigger value="actual" className="h-7 px-3 text-xs">
+                                Actual Response
                             </TabsTrigger>
-                        ))}
-                    </TabsList>
+                            {examples.map((ex, i) => {
+                                const exId = ex.id ?? String(i)
+                                return (
+                                    <div key={exId} className="flex items-center group relative">
+                                        <TabsTrigger
+                                            value={exId}
+                                            className="h-7 pl-3 pr-6 text-xs flex items-center gap-1"
+                                        >
+                                            <span>Example: {ex.name}</span>
+                                        </TabsTrigger>
+                                        <button
+                                            type="button"
+                                            title="Remove Example"
+                                            aria-label="Remove Example"
+                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-red-500 hover:bg-muted-foreground/10 transition-colors z-10"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleDeleteExample(exId)
+                                            }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                )
+                            })}
+                        </TabsList>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs flex items-center gap-1 shrink-0"
+                            onClick={() => {
+                                setNewExampleName("New Example")
+                                setAddDialogOpen(true)
+                            }}
+                            title="Add New Request Example"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Example</span>
+                        </Button>
+                        {activeExample && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-xs flex items-center gap-1 shrink-0 text-muted-foreground hover:text-foreground"
+                                onClick={handleOpenRename}
+                                title="Rename Example"
+                            >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span>Rename</span>
+                            </Button>
+                        )}
+                    </div>
                 </Tabs>
             </div>
 
@@ -281,7 +477,13 @@ const ResponseView: React.FC = () => {
                         <TabsTrigger value="console">Console</TabsTrigger>
                     </TabsList>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" disabled={!currResponse} onClick={() => setDialogOpen(true)}>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!currResponse || Boolean(activeExample)}
+                            onClick={() => setDialogOpen(true)}
+                            title={activeExample ? "Cannot save example while viewing an example. Switch to Actual Response first." : undefined}
+                        >
                             <Download className="mr-1 h-4 w-4"/>
                             Save
                         </Button>
@@ -336,9 +538,9 @@ const ResponseView: React.FC = () => {
                         ) : (
                             <div className="h-[300px] overflow-hidden rounded-md">
                                 <SandpackScriptEditor
-                                    readOnly
-                                    value={prettyResponse}
-                                    onChange={() => undefined}
+                                    readOnly={!activeExample}
+                                    value={editorBody}
+                                    onChange={handleBodyChange}
                                     fileName="response.json"
                                     theme="dark"
                                     showReadOnly={false}
@@ -490,6 +692,54 @@ const ResponseView: React.FC = () => {
                     <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} disabled={isSaving}>Cancel</Button>
                     <Button size="sm" disabled={!exampleName.trim() || isSaving} onClick={handleSaveExample}>
                         {isSaving ? "Saving..." : "Save"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Add Request Example</DialogTitle>
+                    <DialogDescription>
+                        Create a new mock example response for this request from scratch.
+                    </DialogDescription>
+                </DialogHeader>
+                <Input
+                    value={newExampleName}
+                    onChange={(e) => setNewExampleName(e.target.value)}
+                    placeholder="e.g. 404 Not Found"
+                    disabled={isSaving}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !isSaving) handleAddExample() }}
+                />
+                <DialogFooter>
+                    <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(false)} disabled={isSaving}>Cancel</Button>
+                    <Button size="sm" disabled={isSaving} onClick={handleAddExample}>
+                        {isSaving ? "Creating..." : "Create Example"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Rename Example</DialogTitle>
+                    <DialogDescription>
+                        Enter a new name for this example response.
+                    </DialogDescription>
+                </DialogHeader>
+                <Input
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    placeholder="e.g. Success 200"
+                    disabled={isSaving}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !isSaving) handleRenameExample() }}
+                />
+                <DialogFooter>
+                    <Button variant="outline" size="sm" onClick={() => setRenameDialogOpen(false)} disabled={isSaving}>Cancel</Button>
+                    <Button size="sm" disabled={!renameValue.trim() || isSaving} onClick={handleRenameExample}>
+                        {isSaving ? "Renaming..." : "Rename"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

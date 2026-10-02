@@ -174,3 +174,110 @@ func TestSaveResponseReturnsErrorWhenRequestNotFound(t *testing.T) {
 		t.Fatal("expected error when request not found, got nil")
 	}
 }
+
+func TestSaveResponseUpdateAndDelete(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	tempDir := t.TempDir()
+	collectionPath := filepath.Join(tempDir, "collection.json")
+	docs := collectionService.DocsContent{
+		Item: []collectionService.CollectionItem{
+			{
+				ID:   "request-id",
+				Name: "Get Users",
+				Request: &collectionService.Request{
+					Method: "GET",
+					URL: collectionService.RequestURL{
+						Raw: "https://api.example.com/users",
+					},
+				},
+				Response: []collectionService.CollectionResponse{},
+			},
+		},
+	}
+	content, err := json.MarshalIndent(docs, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(collectionPath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	boltDB, err := db.NewBoltDB(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer boltDB.Close()
+
+	lg := logger.DefaultLogger().Build()
+	usecase := NewUsecase(&lg, boltDB.DB())
+	collection := domain.Collection{ID: "collection-id", Path: collectionPath}
+	if err := usecase.CollectionRepo.Create(context.Background(), collection.ID, &collection); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Add new example
+	res, err := usecase.SaveResponse(context.Background(), collection.ID, "request-id", SaveResponseRequest{
+		Name:   "Initial Example",
+		Status: "OK",
+		Code:   200,
+		Body:   `{"msg": "hello"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Responses) != 1 {
+		t.Fatalf("expected 1 response, got %d", len(res.Responses))
+	}
+	exampleID := res.Responses[0].ID
+	if exampleID == "" {
+		t.Fatal("expected response ID to be populated")
+	}
+
+	// 2. Update response properties
+	res, err = usecase.SaveResponse(context.Background(), collection.ID, "request-id", SaveResponseRequest{
+		ID:     exampleID,
+		Name:   "Updated Example",
+		Status: "Created",
+		Code:   201,
+		Body:   `{"msg": "created"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Responses) != 1 {
+		t.Fatalf("expected 1 response, got %d", len(res.Responses))
+	}
+	if res.Responses[0].Name != "Updated Example" || res.Responses[0].Code != 201 {
+		t.Fatalf("expected updated example properties, got %#v", res.Responses[0])
+	}
+
+	// 3. Update originalRequest properties of the example
+	res, err = usecase.SaveResponse(context.Background(), collection.ID, "request-id", SaveResponseRequest{
+		ID:   exampleID,
+		Name: "Updated Example",
+		OriginalRequest: &collectionService.Request{
+			Method: "POST",
+			URL: collectionService.RequestURL{
+				Raw: "https://api.example.com/users/create",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Responses[0].OriginalRequest == nil || res.Responses[0].OriginalRequest.Method != "POST" {
+		t.Fatalf("expected updated originalRequest Method POST, got %#v", res.Responses[0].OriginalRequest)
+	}
+
+	// 4. Delete example
+	res, err = usecase.SaveResponse(context.Background(), collection.ID, "request-id", SaveResponseRequest{
+		ID:     exampleID,
+		Action: "delete",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Responses) != 0 {
+		t.Fatalf("expected 0 responses after delete, got %d", len(res.Responses))
+	}
+}

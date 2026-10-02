@@ -91,6 +91,7 @@ func (u *Usecase) UpdateURL(ctx context.Context, collectionID, requestID string,
 		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.URL
 			item.Request.URL = req.URL
+			item.Request.URL.OnlyEndpoint()
 			return old
 		},
 	})
@@ -272,8 +273,63 @@ func (u *Usecase) SaveResponse(ctx context.Context, collectionID, requestID stri
 		Field:        "response",
 		NewValue:     func() any { return newResponse },
 		Apply: func(item *collectionService.CollectionItem) any {
-			newResponse = req.ToCollectionResponse(item.Request)
 			old := append([]collectionService.CollectionResponse(nil), item.Response...)
+
+			for i := range item.Response {
+				if item.Response[i].ID == "" {
+					item.Response[i].ID = uuid.NewString()
+				}
+			}
+
+			if req.Responses != nil {
+				item.Response = req.Responses
+				for i := range item.Response {
+					if item.Response[i].ID == "" {
+						item.Response[i].ID = uuid.NewString()
+					}
+				}
+				newResponse = collectionService.CollectionResponse{Name: "bulk_update"}
+				return old
+			}
+
+			targetID := req.ID
+			if targetID == "" && req.Response != nil {
+				targetID = req.Response.ID
+			}
+
+			if strings.EqualFold(req.Action, "delete") || strings.EqualFold(req.Action, "remove") {
+				if targetID != "" {
+					filtered := make([]collectionService.CollectionResponse, 0, len(item.Response))
+					for _, resp := range item.Response {
+						if resp.ID != targetID {
+							filtered = append(filtered, resp)
+						}
+					}
+					item.Response = filtered
+				}
+				newResponse = collectionService.CollectionResponse{ID: targetID, Name: "deleted"}
+				return old
+			}
+
+			if targetID != "" {
+				for i, existing := range item.Response {
+					if existing.ID == targetID {
+						updated := req.ToCollectionResponse(item.Request)
+						updated.ID = targetID
+						if req.OriginalRequest == nil && (req.Response == nil || req.Response.OriginalRequest == nil) {
+							updated.OriginalRequest = existing.OriginalRequest
+						}
+						item.Response[i] = updated
+						newResponse = updated
+						return old
+					}
+				}
+			}
+
+			newResponse = req.ToCollectionResponse(item.Request)
+			if newResponse.ID == "" {
+				newResponse.ID = uuid.NewString()
+			}
 			item.Response = append(item.Response, newResponse)
 			return old
 		},
@@ -352,6 +408,7 @@ func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, e
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
+	item.Request.URL.OnlyEndpoint()
 	res := requestResponse(collection, updated, item)
 	if req.Remove {
 		res.Version = u.Version(updated)
@@ -424,7 +481,9 @@ func findRequest(items []collectionService.CollectionItem, id string, auth ...*c
 			if len(auth) > 0 && items[i].Request != nil {
 				resolveAuth(&items[i], auth[0])
 			}
-			resolveURL(&items[i])
+			if items[i].Request != nil {
+				items[i].Request.URL.OnlyEndpoint()
+			}
 			return &items[i]
 		}
 		if item := findRequest(items[i].Item, id, auth...); item != nil {
@@ -432,14 +491,6 @@ func findRequest(items []collectionService.CollectionItem, id string, auth ...*c
 		}
 	}
 	return nil
-}
-
-func resolveURL(item *collectionService.CollectionItem) {
-	if item == nil || item.Request == nil {
-		return
-	}
-
-	item.Request.URL.Raw = strings.Replace(item.Request.URL.Raw, item.Request.URL.GetSelectedHost(), "", -1)
 }
 
 func resolveAuth(item *collectionService.CollectionItem, collectionAuth *collectionService.CollectionAuth) {

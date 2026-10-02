@@ -5,11 +5,22 @@ const URL = (import.meta.env.VITE_SOCKET_URL || "http://localhost:8993").replace
 export const socketCollection = io(`${URL}/restrequest`, {
     path: "/socket.io",
     autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     transports: ["websocket", "polling"],
 })
 
 export const socketAutomation = io(`${URL}/automation`, {
     path: "/socket.io",
-    autoConnect: true,
+    autoConnect: false,
     transports: ["websocket", "polling"],
 })
+
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+        socketCollection.disconnect()
+        socketAutomation.disconnect()
+    })
+}

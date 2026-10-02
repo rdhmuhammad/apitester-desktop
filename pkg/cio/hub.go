@@ -21,8 +21,8 @@ type IO struct {
 
 func New(server *gin.Engine) *IO {
 	config := socket.DefaultServerOptions()
-	config.SetPingInterval(300 * time.Millisecond)
-	config.SetPingTimeout(200 * time.Millisecond)
+	config.SetPingInterval(25 * time.Second)
+	config.SetPingTimeout(20 * time.Second)
 	config.SetMaxHttpBufferSize(1000000)
 	config.SetConnectTimeout(1000 * time.Millisecond)
 	config.SetCors(&types.Cors{

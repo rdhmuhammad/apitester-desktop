@@ -1,18 +1,22 @@
 import {useQuery, useQueryClient} from "@tanstack/react-query"
-import {useCallback, useState} from "react"
+import {useCallback, useMemo, useState} from "react"
 import {
     requestConfigQueryKey,
     RequestConfigServices,
+    type ExampleResponse,
     type RestRequestResponse,
     type Versioned,
 } from "../services/requestConfig.ts"
-import type {ItemUrl, ReqAuth, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
+import type {ItemUrl, ReqAuth, Request, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
+import {useAppSelector} from "@/app/store/hooks.ts"
+import {selectActiveExampleId} from "@/app/slices/editorTabsSlice.ts"
 
 export const useRequestConfig = (collectionId: string, requestId: string) => {
     const queryClient = useQueryClient()
     const enabled = Boolean(collectionId && requestId)
     const queryKey = requestConfigQueryKey(collectionId, requestId)
     const [mutationError, setMutationError] = useState<string | null>(null)
+    const activeExampleId = useAppSelector(selectActiveExampleId)
 
     const requestQuery = useQuery<RestRequestResponse>({
         queryKey,
@@ -21,6 +25,57 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         gcTime: 0,
         refetchOnWindowFocus: false,
     })
+
+    const rawRequest = requestQuery.data ?? null
+
+    const activeExample = useMemo(() => {
+        if (!rawRequest?.responses || !activeExampleId) return null
+        return rawRequest.responses.find(r => r.id === activeExampleId) ?? null
+    }, [rawRequest?.responses, activeExampleId])
+
+    const request = useMemo(() => {
+        if (!rawRequest) return null
+        if (!activeExample) return rawRequest
+        const orig = activeExample.originalRequest
+        return {
+            ...rawRequest,
+            name: activeExample.name || rawRequest.name,
+            method: orig?.method ?? rawRequest.method,
+            url: orig?.url ?? rawRequest.url,
+            headers: (orig?.header as ItemUrl[] | undefined) ?? rawRequest.headers,
+            query: orig?.url?.query ?? rawRequest.query,
+            body: orig?.body ?? rawRequest.body,
+            auth: orig?.auth ?? rawRequest.auth,
+        }
+    }, [rawRequest, activeExample])
+
+    const saveResponse = useCallback(
+        async (payload: {
+            id?: string
+            action?: string
+            name?: string
+            status?: string
+            code?: number
+            body?: string
+            header?: ItemUrl[] | Array<{key: string; value: string}>
+            cookie?: Array<{key: string; value: string}>
+            originalRequest?: Request
+            response?: ExampleResponse
+            responses?: ExampleResponse[]
+        }) => {
+            const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+            const baseVersion = current?.version ?? ""
+            const result = await RequestConfigServices.saveResponse(collectionId, requestId, {
+                baseVersion,
+                ...payload,
+            })
+            queryClient.setQueryData(queryKey, result)
+            setMutationError(null)
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
+            return result
+        },
+        [collectionId, queryClient, queryKey, requestId]
+    )
 
     const update = useCallback(async <T extends keyof RestRequestResponse>(
         field: string,
@@ -44,106 +99,174 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         }
     }, [enabled, queryClient, queryKey])
 
-    // Place wiring endpoint for request mutation here
-    const updateMethod = useCallback((method: string) =>
-            update("method", method, (data) =>
-                RequestConfigServices.updateMethod(collectionId, requestId, {
-                    ...data,
-                    method
-                })),
-        [collectionId, requestId, update])
-    const updateName = useCallback((name: string) =>
-            update("name", name, (data) =>
-                RequestConfigServices.updateName(collectionId, requestId, {
-                    ...data,
-                    name
-                })),
-        [collectionId, requestId, update])
-    const updateUrl = useCallback((url: RequestURL) =>
-            update("url", url, (data) =>
-                RequestConfigServices.updateUrl(collectionId, requestId, {
-                    ...data,
-                    url
-                }), (current) => ({query: url.query ?? current.query})),
-        [collectionId, requestId, update])
-    const updateHeaders = useCallback((headers: ItemUrl[]) =>
-            update("headers", headers, (data) =>
-                RequestConfigServices.updateHeaders(collectionId, requestId, {
-                    ...data,
-                    headers
-                })),
-        [collectionId, requestId, update])
-    const updateAuth = useCallback((auth: ReqAuth) =>
-            update("auth", auth, (data) =>
-                RequestConfigServices.updateAuth(collectionId, requestId, {
-                    ...data,
-                    type: auth.type,
-                    bearer: auth.bearer,
-                    authSource: auth.authSource ?? "none",
-                })),
-        [collectionId, requestId, update])
-    const updateQuery = useCallback((query: ItemUrl[]) =>
-            update("query", query, (data) =>
-                RequestConfigServices.updateQuery(collectionId, requestId, {
-                    ...data,
-                    query
-                }), (current) => ({url: {...current.url, query}})),
-        [collectionId, requestId, update])
-    const updateJsonBody = useCallback((raw: string) => {
-            const body: RequestBody = {mode: "raw", raw}
-            update("body", body, (data) =>
-                RequestConfigServices.updateJsonBody(collectionId, requestId, {...data, raw}))
-        },
-        [collectionId, requestId, update])
-    const updateFormDataBody = useCallback((formdata: ItemUrl[]) => {
-            const body: RequestBody = {mode: "formdata", formdata}
-            update("body", body, (data) =>
-                RequestConfigServices.updateFormDataBody(collectionId, requestId, {
-                    ...data,
-                    formdata
-                }))
-        },
-        [collectionId, requestId, update])
-    const updateScript = useCallback((script: string) =>
-            update("script", script, (data) =>
-                RequestConfigServices.updatePostRequestScript(collectionId, requestId, {
-                    ...data,
-                    exec: script.split("\n"),
-                    type: "text/javascript"
-                })),
-        [collectionId, requestId, update])
-    const deleteRequest = useCallback(async () => {
-            const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
-            if (!current || !enabled) return
+    const getBaseOrigRequest = useCallback((): Request => {
+        const orig = activeExample?.originalRequest
+        return {
+            funIden: "",
+            method: orig?.method ?? rawRequest?.method ?? "GET",
+            url: orig?.url ?? rawRequest?.url ?? {raw: "", host: [], path: [], query: []},
+            header: (orig?.header as ItemUrl[] | undefined) ?? rawRequest?.headers ?? [],
+            body: orig?.body ?? rawRequest?.body,
+            auth: orig?.auth ?? rawRequest?.auth,
+            description: "",
+        }
+    }, [activeExample, rawRequest])
 
-            await RequestConfigServices.delete(collectionId, requestId, {baseVersion: current.version})
-
-            queryClient.removeQueries({queryKey})
-            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
-        },
-        [collectionId, enabled, queryClient, queryKey, requestId])
-
-    const saveResponse = useCallback(
-        async (payload: {
-            name: string
-            status?: string
-            code?: number
-            body?: string
-            header?: Array<{key: string; value: string}>
-        }) => {
-            const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
-            const baseVersion = current?.version ?? ""
-            const result = await RequestConfigServices.saveResponse(collectionId, requestId, {
-                baseVersion,
-                ...payload,
+    // Mutators automatically direct to activeExample.originalRequest if example is selected
+    const updateMethod = useCallback((method: string) => {
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, method}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
             })
-            queryClient.setQueryData(queryKey, result)
-            setMutationError(null)
-            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
-            return result
-        },
-        [collectionId, queryClient, queryKey, requestId]
-    )
+        }
+        return update("method", method, (data) =>
+            RequestConfigServices.updateMethod(collectionId, requestId, {
+                ...data,
+                method
+            }))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateName = useCallback((name: string) => {
+        if (activeExample?.id) {
+            return saveResponse({
+                id: activeExample.id,
+                name,
+                response: {...activeExample, name},
+            })
+        }
+        return update("name", name, (data) =>
+            RequestConfigServices.updateName(collectionId, requestId, {
+                ...data,
+                name
+            }))
+    }, [activeExample, collectionId, requestId, saveResponse, update])
+
+    const updateUrl = useCallback((url: RequestURL) => {
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, url}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        return update("url", url, (data) =>
+            RequestConfigServices.updateUrl(collectionId, requestId, {
+                ...data,
+                url
+            }), (current) => ({query: url.query ?? current.query}))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateHeaders = useCallback((headers: ItemUrl[]) => {
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, header: headers}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        return update("headers", headers, (data) =>
+            RequestConfigServices.updateHeaders(collectionId, requestId, {
+                ...data,
+                headers
+            }))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateAuth = useCallback((auth: ReqAuth) => {
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, auth}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        return update("auth", auth, (data) =>
+            RequestConfigServices.updateAuth(collectionId, requestId, {
+                ...data,
+                type: auth.type,
+                bearer: auth.bearer,
+                authSource: auth.authSource ?? "none",
+            }))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateQuery = useCallback((query: ItemUrl[]) => {
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedUrl = {...(orig.url ?? {raw: "", host: [], path: []}), query}
+            const updatedOrig: Request = {...orig, url: updatedUrl}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        return update("query", query, (data) =>
+            RequestConfigServices.updateQuery(collectionId, requestId, {
+                ...data,
+                query
+            }), (current) => ({url: {...current.url, query}}))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateJsonBody = useCallback((raw: string) => {
+        const body: RequestBody = {mode: "raw", raw}
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, body}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        return update("body", body, (data) =>
+            RequestConfigServices.updateJsonBody(collectionId, requestId, {...data, raw}))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateFormDataBody = useCallback((formdata: ItemUrl[]) => {
+        const body: RequestBody = {mode: "formdata", formdata}
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, body}
+            return saveResponse({
+                id: activeExample.id,
+                originalRequest: updatedOrig,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        return update("body", body, (data) =>
+            RequestConfigServices.updateFormDataBody(collectionId, requestId, {
+                ...data,
+                formdata
+            }))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+
+    const updateScript = useCallback((script: string) =>
+        update("script", script, (data) =>
+            RequestConfigServices.updatePostRequestScript(collectionId, requestId, {
+                ...data,
+                exec: script.split("\n"),
+                type: "text/javascript"
+            })),
+    [collectionId, requestId, update])
+
+    const deleteRequest = useCallback(async () => {
+        const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+        if (!current || !enabled) return
+
+        await RequestConfigServices.delete(collectionId, requestId, {baseVersion: current.version})
+
+        queryClient.removeQueries({queryKey})
+        await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
+    }, [collectionId, enabled, queryClient, queryKey, requestId])
 
     const saveScript = useCallback(
         (script: string) =>
@@ -157,9 +280,54 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         [collectionId, requestId, update]
     )
 
+    const addExampleResponse = useCallback(async (name?: string) => {
+        const current = queryClient.getQueryData<RestRequestResponse>(queryKey) ?? rawRequest
+        const newId = crypto.randomUUID()
+        const origRequest: Request | undefined = current ? {
+            funIden: "",
+            method: current.method,
+            url: current.url,
+            header: current.headers,
+            body: current.body,
+            auth: current.auth,
+            description: "",
+        } : undefined
+        const result = await saveResponse({
+            id: newId,
+            name: name || "New Example",
+            status: "OK",
+            code: 200,
+            body: "{\n  \"message\": \"success\"\n}",
+            header: [{id: crypto.randomUUID(), key: "Content-Type", value: "application/json", disabled: false}],
+            originalRequest: origRequest,
+        })
+        return {id: newId, result}
+    }, [queryClient, queryKey, rawRequest, saveResponse])
+
+    const deleteExampleResponse = useCallback(async (exampleId: string) => {
+        return saveResponse({
+            id: exampleId,
+            action: "delete",
+        })
+    }, [saveResponse])
+
+    const updateExampleResponse = useCallback(async (exampleId: string, updates: Partial<ExampleResponse>) => {
+        const current = queryClient.getQueryData<RestRequestResponse>(queryKey) ?? rawRequest
+        const ex = current?.responses?.find(r => r.id === exampleId)
+        const next = ex ? {...ex, ...updates} : updates
+        return saveResponse({
+            id: exampleId,
+            ...updates,
+            response: next as ExampleResponse,
+        })
+    }, [queryClient, queryKey, rawRequest, saveResponse])
 
     return {
-        request: requestQuery.data ?? null,
+        rawRequest,
+        request,
+        activeExample,
+        activeExampleId,
+        isExampleMode: Boolean(activeExample),
         loading: requestQuery.isLoading || requestQuery.isFetching,
         error: requestQuery.error ? (requestQuery.error.message) : mutationError,
         requestQuery,
@@ -174,6 +342,10 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         updateScript,
         saveScript,
         saveResponse,
+        addExampleResponse,
+        deleteExampleResponse,
+        updateExampleResponse,
         deleteRequest,
     }
 }
+

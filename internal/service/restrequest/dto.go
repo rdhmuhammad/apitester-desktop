@@ -79,15 +79,18 @@ type SavePostRequestScriptRequest struct {
 type SaveScriptRequest = SavePostRequestScriptRequest
 
 type SaveResponseRequest struct {
-	Response        *collectionService.CollectionResponse `json:"response,omitempty"`
-	Name            string                                `json:"name,omitempty"`
-	OriginalRequest *collectionService.Request            `json:"originalRequest,omitempty"`
-	Status          string                                `json:"status,omitempty"`
-	Code            int                                   `json:"code,omitempty"`
-	PreviewLanguage *string                               `json:"_postman_previewlanguage,omitempty"`
-	Header          []collectionService.Header            `json:"header,omitempty"`
-	Cookie          []collectionService.ResponseCookie    `json:"cookie,omitempty"`
-	Body            string                                `json:"body,omitempty"`
+	ID              string                                 `json:"id,omitempty"`
+	Action          string                                 `json:"action,omitempty"`
+	Responses       []collectionService.CollectionResponse `json:"responses,omitempty"`
+	Response        *collectionService.CollectionResponse  `json:"response,omitempty"`
+	Name            string                                 `json:"name,omitempty"`
+	OriginalRequest *collectionService.Request             `json:"originalRequest,omitempty"`
+	Status          string                                 `json:"status,omitempty"`
+	Code            int                                    `json:"code,omitempty"`
+	PreviewLanguage *string                                `json:"_postman_previewlanguage,omitempty"`
+	Header          []collectionService.Header             `json:"header,omitempty"`
+	Cookie          []collectionService.ResponseCookie     `json:"cookie,omitempty"`
+	Body            string                                 `json:"body,omitempty"`
 }
 
 func (r SaveResponseRequest) ToCollectionResponse(req *collectionService.Request) collectionService.CollectionResponse {
@@ -96,6 +99,7 @@ func (r SaveResponseRequest) ToCollectionResponse(req *collectionService.Request
 		resp = *r.Response
 	} else {
 		resp = collectionService.CollectionResponse{
+			ID:              r.ID,
 			Name:            r.Name,
 			OriginalRequest: r.OriginalRequest,
 			Status:          r.Status,
@@ -105,6 +109,9 @@ func (r SaveResponseRequest) ToCollectionResponse(req *collectionService.Request
 			Cookie:          r.Cookie,
 			Body:            r.Body,
 		}
+	}
+	if resp.ID == "" && r.ID != "" {
+		resp.ID = r.ID
 	}
 	if resp.OriginalRequest == nil && req != nil {
 		origReq := *req

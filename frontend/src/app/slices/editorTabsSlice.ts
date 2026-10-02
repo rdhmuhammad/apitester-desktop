@@ -5,13 +5,13 @@ import type {EditorTab} from "@/pages/editor/types/editor.ts";
 export interface EditorTabsState {
     tabs: EditorTab[];
     activeTabId: string;
-    collectionId: string | null;
+    activeExampleIdByTab: Record<string, string | null>;
 }
 
 export const initialEditorTabsState: EditorTabsState = {
     tabs: [],
     activeTabId: '',
-    collectionId: null,
+    activeExampleIdByTab: {},
 };
 
 const editorTabsSlice = createSlice({
@@ -29,8 +29,11 @@ const editorTabsSlice = createSlice({
                 state.activeTabId = action.payload;
             }
         },
-        setCollectionId(state, action: PayloadAction<string | null>) {
-            state.collectionId = action.payload;
+        setActiveExampleId(state, action: PayloadAction<{tabId: string; exampleId: string | null}>) {
+            if (!state.activeExampleIdByTab) {
+                state.activeExampleIdByTab = {};
+            }
+            state.activeExampleIdByTab[action.payload.tabId] = action.payload.exampleId;
         },
         resetEditorTabs() {
             return initialEditorTabsState;
@@ -43,6 +46,9 @@ const editorTabsSlice = createSlice({
         },
         removeEditorTab(state, action: PayloadAction<string>) {
             state.tabs = state.tabs.filter(tab => tab.id !== action.payload);
+            if (state.activeExampleIdByTab) {
+                delete state.activeExampleIdByTab[action.payload];
+            }
             if (state.activeTabId === action.payload) {
                 state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
             }
@@ -59,7 +65,7 @@ const editorTabsSlice = createSlice({
 export const {
     syncEditorTabs,
     setEditorActiveTab,
-    setCollectionId,
+    setActiveExampleId,
     resetEditorTabs,
     openEditorTab,
     removeEditorTab,
@@ -70,9 +76,10 @@ export const setActiveTabId = setEditorActiveTab;
 export const removeTab = removeEditorTab;
 export const selectEditorTabs = (state: RootState) => state.editorTabs.tabs;
 export const selectEditorActiveTabId = (state: RootState) => state.editorTabs.activeTabId;
-export const selectCollectionId = (state: RootState) => state.editorTabs.collectionId;
-export const selectEditorActiveTabIds = (state: RootState) => state.editorTabs.tabs.map(tb=> tb.id)
+export const selectEditorActiveTabIds = (state: RootState) => state.editorTabs.tabs.map(tb=> tb.id);
 export const selectEditorActiveTab = (state: RootState) =>
     state.editorTabs.tabs.find(tab => tab.id === state.editorTabs.activeTabId);
+export const selectActiveExampleId = (state: RootState) =>
+    state.editorTabs.activeExampleIdByTab?.[state.editorTabs.activeTabId] ?? null;
 
 export default editorTabsSlice.reducer;

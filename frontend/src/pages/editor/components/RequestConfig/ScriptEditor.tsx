@@ -4,8 +4,9 @@ import { pmCompletionSource, resCompletionSource } from "@/lib/pmCompletions"
 import { jsCompletionSource } from "@/lib/jsCompletions"
 import { useDebouncedCallback } from "use-debounce"
 import { useAppSelector } from "@/app/store/hooks.ts"
-import { selectEditorActiveTabId, selectCollectionId } from "@/app/slices/editorTabsSlice.ts"
+import { selectEditorActiveTabId } from "@/app/slices/editorTabsSlice.ts"
 import { useRequestConfig } from "@/pages/editor/hooks/useRequestConfig.ts"
+import { useCollection } from "@/layout/hooks/useCollection.ts"
 import { linter, type Diagnostic } from "@codemirror/lint"
 
 interface ScriptEditorProps {
@@ -66,8 +67,8 @@ export const getJavaScriptDiagnostic = (value: string): Diagnostic | null => {
 
 export const ScriptEditor: React.FC<ScriptEditorProps> = ({value: propValue, onChange: propOnChange}) => {
     const activeTabId = useAppSelector(selectEditorActiveTabId)
-    const collectionId = useAppSelector(selectCollectionId)
-    const { request, saveScript } = useRequestConfig(collectionId ?? "", activeTabId)
+    const { activeCollection } = useCollection()
+    const { request, saveScript } = useRequestConfig(activeCollection?.id ?? "", activeTabId)
 
     const completionSources = useMemo(() => [pmCompletionSource, resCompletionSource, jsCompletionSource], [])
 

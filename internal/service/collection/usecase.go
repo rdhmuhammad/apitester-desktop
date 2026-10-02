@@ -48,7 +48,7 @@ func NewUsecase(
 	}
 
 	fw := watcher.New(lg)
-	if selected := findSelectedCollection(context.Background(), port.CollectionRepo); selected != nil {
+	if selected := port.FindSelectedCollection(context.Background()); selected != nil {
 		fw.Watch(selected.Path)
 	}
 
@@ -58,19 +58,6 @@ func NewUsecase(
 		testSuiteRepo:  testSuiteRepo,
 		automationRepo: automationRepo,
 	}
-}
-
-func findSelectedCollection(ctx context.Context, repo db.RepositoryInterface[domain.Collection]) *domain.Collection {
-	all, err := repo.List(ctx)
-	if err != nil {
-		return nil
-	}
-	for i := range all {
-		if all[i].IsSelected {
-			return &all[i]
-		}
-	}
-	return nil
 }
 
 func (u *Usecase) ListCollections(ctx context.Context) ([]domain.Collection, error) {
@@ -200,7 +187,7 @@ func (u *Usecase) SelectCollection(ctx context.Context, id string) (domain.Colle
 }
 
 func (u *Usecase) GetActiveCollection(ctx context.Context) (ActiveCollectionResponse, error) {
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return ActiveCollectionResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -231,7 +218,7 @@ func (u *Usecase) GetActiveCollection(ctx context.Context) (ActiveCollectionResp
 }
 
 func (u *Usecase) GetVariables(ctx context.Context) ([]CollectionVar, error) {
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return nil, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -257,7 +244,7 @@ func (u *Usecase) GetVariables(ctx context.Context) ([]CollectionVar, error) {
 }
 
 func (u *Usecase) GetPreScript(ctx context.Context) (string, error) {
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return "", u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -277,7 +264,7 @@ func (u *Usecase) GetPreScript(ctx context.Context) (string, error) {
 }
 
 func (u *Usecase) GetAuth(ctx context.Context) (*CollectionAuth, error) {
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return nil, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -297,7 +284,7 @@ func (u *Usecase) GetAuth(ctx context.Context) (*CollectionAuth, error) {
 }
 
 func (u *Usecase) UpdateAuth(ctx context.Context, req UpdateCollectionAuthRequest) (*CollectionAuth, error) {
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return nil, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -327,7 +314,7 @@ func (u *Usecase) UpdateAuth(ctx context.Context, req UpdateCollectionAuthReques
 }
 
 func (u *Usecase) UpdatePreScript(ctx context.Context, req UpdatePreScriptRequest) (UpdatePreScriptResponse, error) {
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return UpdatePreScriptResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -363,7 +350,7 @@ func (u *Usecase) CreateVariable(ctx context.Context, req CreateVariableRequest)
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Variable key is required"))
 	}
 
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -404,7 +391,7 @@ func (u *Usecase) UpdateVariable(ctx context.Context, variableID string, req Upd
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Variable ID and key are required"))
 	}
 
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -440,7 +427,7 @@ func (u *Usecase) DeleteVariable(ctx context.Context, variableID string) (Create
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Variable ID is required"))
 	}
 
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -476,7 +463,7 @@ func (u *Usecase) SelectBaseURL(ctx context.Context, req SelectBaseURLRequest) (
 		return SelectBaseURLResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Base URL ID, key, or value is required"))
 	}
 
-	selected := findSelectedCollection(ctx, u.CollectionRepo)
+	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
 		return SelectBaseURLResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("No active collection"))
 	}
@@ -524,6 +511,9 @@ func setId(item []CollectionItem) []CollectionItem {
 
 		setRequestIDs(item[i].Request)
 		for j := range item[i].Response {
+			if item[i].Response[j].ID == "" {
+				item[i].Response[j].ID = uuid.NewString()
+			}
 			for k := range item[i].Response[j].Header {
 				if item[i].Response[j].Header[k].Id == "" {
 					item[i].Response[j].Header[k].Id = uuid.NewString()

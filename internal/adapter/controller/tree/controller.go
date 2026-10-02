@@ -47,8 +47,11 @@ func (ctrl Controller) GetTestSuiteTree(c *gin.Context) {
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest := rg.Group("/restrequest")
 	restRequest.GET("/tree/:collectionId", ctrl.GetRequestTree)
+	restRequest.GET("/tree", ctrl.GetRequestTree)
 	restRequest.GET("/tree/automation/:collectionId", ctrl.GetAutomationTree)
+	restRequest.GET("/tree/automation", ctrl.GetAutomationTree)
 	restRequest.GET("/tree/testsuite/:collectionId", ctrl.GetTestSuiteTree)
+	restRequest.GET("/tree/testsuite", ctrl.GetTestSuiteTree)
 }
 
 func (ctrl Controller) respond(c *gin.Context, res *payload.Response, err error) {

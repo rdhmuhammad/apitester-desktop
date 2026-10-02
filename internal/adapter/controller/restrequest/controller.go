@@ -56,9 +56,13 @@ func (ctrl Controller) UpdateTree(c *gin.Context) {
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest := rg.Group("/restrequest")
 	restRequest.POST("/create-request/:collectionId", ctrl.CreateRequest)
+	restRequest.POST("/create-request", ctrl.CreateRequest)
 	restRequest.GET("/:collectionId/:requestId", ctrl.Get)
+	restRequest.GET("/request/:requestId", ctrl.Get)
 	restRequest.DELETE("/:collectionId/:requestId", ctrl.Delete)
+	restRequest.DELETE("/request/:requestId", ctrl.Delete)
 	restRequest.PUT("/tree/:collectionId", ctrl.UpdateTree)
+	restRequest.PUT("/tree", ctrl.UpdateTree)
 }
 
 func (ctrl Controller) respond(c *gin.Context, res *payload.Response, err error) {

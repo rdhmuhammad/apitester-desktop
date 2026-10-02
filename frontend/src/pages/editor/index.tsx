@@ -27,7 +27,6 @@ import {
     openEditorTab,
     removeEditorTab,
     renameEditorTab,
-    selectCollectionId,
     selectEditorActiveTabId,
     selectEditorTabs,
     setEditorActiveTab,
@@ -39,7 +38,6 @@ import {
 } from "@/pages/editor/services/requestConfig.ts";
 import {useQueryClient} from "@tanstack/react-query";
 import CustomToast from "@/components/common/toast";
-import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 
 const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     GET: "bg-emerald-100 text-emerald-700",
@@ -57,8 +55,8 @@ const Editor: React.FC = () => {
     const queryClient = useQueryClient()
     const allTabs = useAppSelector(selectEditorTabs)
     const effectiveActiveTabId = useAppSelector(selectEditorActiveTabId)
-    const collectionId = useAppSelector(selectCollectionId)
-    const {activeCollection} = useCollection(collectionId)
+    const {activeCollection} = useCollection()
+    const collectionId = activeCollection?.id
 
 
     const activeTab = allTabs.find(t => t.id === effectiveActiveTabId)
@@ -67,9 +65,6 @@ const Editor: React.FC = () => {
     const [editValue, setEditValue] = useState('')
     const [isCreatingRequest, setIsCreatingRequest] = useState(false)
     const editInputRef = useRef<HTMLInputElement | null>(null)
-    const editingTab = allTabs.find(tab => tab.id === editingTabId)
-    const editingRequestId = editingTab?.type === 'request' ? editingTab.id : ''
-    const {updateName} = useRequestConfig(collectionId ?? '', editingRequestId)
 
     const handleCreateRequest = useCallback(async () => {
         if (!collectionId || isCreatingRequest) return
@@ -100,21 +95,31 @@ const Editor: React.FC = () => {
         setTimeout(() => editInputRef.current?.select(), 0)
     }, [])
 
-    const commitEdit = useCallback(() => {
+    const commitEdit = useCallback(async () => {
         const name = editValue.trim()
         const tab = allTabs.find(tab => tab.id === editingTabId)
-        if (tab?.type === 'request' && name && name !== tab.label) {
-            void updateName(name).then((request) => {
-                if (!request) return
-                dispatch(renameEditorTab({id: tab.id, label: request.name}))
-                if (collectionId) {
-                    void queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
-                }
-            })
-        }
+        const targetTabId = editingTabId
         setEditingTabId(null)
         setEditValue('')
-    }, [allTabs, collectionId, dispatch, editingTabId, editValue, queryClient, updateName])
+
+        if (tab?.type === 'request' && name && name !== tab.label && targetTabId) {
+            try {
+                const request = await RequestConfigServices.updateName(collectionId ?? '', targetTabId, {
+                    baseVersion: '',
+                    name,
+                })
+                if (request) {
+                    dispatch(renameEditorTab({id: targetTabId, label: request.name}))
+                    if (collectionId) {
+                        void queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+                        void queryClient.invalidateQueries({queryKey: requestConfigQueryKey(collectionId, targetTabId)})
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to rename request:", err)
+            }
+        }
+    }, [allTabs, collectionId, dispatch, editingTabId, editValue, queryClient])
 
     const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {

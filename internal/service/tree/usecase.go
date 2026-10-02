@@ -13,6 +13,7 @@ import (
 	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
+	"github.com/rdhmuhammad/apitester/shared/base"
 	"go.etcd.io/bbolt"
 )
 
@@ -102,6 +103,13 @@ func (u *Usecase) GetTestSuiteTree(collectionID string) ([]RequestTree, error) {
 }
 
 func (u *Usecase) collection(id string) (*domain.Collection, error) {
+	if strings.TrimSpace(id) == "" {
+		selected := base.FindSelectedCollection(context.Background(), u.collectionRepo)
+		if selected == nil {
+			return nil, localerror.InvalidData("No active collection")
+		}
+		return selected, nil
+	}
 	collection, err := u.collectionRepo.View(context.Background(), id)
 	if err != nil {
 		return nil, u.errHandler.ErrorReturn(err)

@@ -17,7 +17,6 @@ import DeleteRequestDialog from "./DeleteRequestDialog.tsx";
 import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
-import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 import {useRequestSender} from "@/layout/hooks/useSendRequest.ts";
@@ -54,10 +53,11 @@ const RequestHeader: React.FC = () => {
     // Selected base URL comes from the variable with isSelected === true
     const {selectedBaseUrl} = useEnvResolve()
 
-    const {request, updateMethod, updateUrl, updateQuery} = useRequestConfig(
+    const {request, updateMethod, updateUrl, activeExampleId} = useRequestConfig(
         activeCollection?.id ?? "",
         activeTabId
     )
+    const isExampleActive = Boolean(activeExampleId)
 
     const requestSender = useRequestSender()
     const collectionData = activeCollection
@@ -104,48 +104,22 @@ const RequestHeader: React.FC = () => {
         })
     }
 
-    // Parse query params out of a typed URL string (for endpoint input)
-    const parseQueryParamsFromUrl = (url: string): {cleanUrl: string; params: ItemUrl[]} => {
-        const queryIndex = url.indexOf('?')
-        if (queryIndex === -1) return {cleanUrl: url, params: []}
-
-        const beforeQuery = url.slice(0, queryIndex)
-        const afterQuery = url.slice(queryIndex + 1)
-        const hashIndex = afterQuery.indexOf('#')
-        const queryString = hashIndex >= 0 ? afterQuery.slice(0, hashIndex) : afterQuery
-        const hash = hashIndex >= 0 ? afterQuery.slice(hashIndex) : ''
-
-        const params: ItemUrl[] = []
-        new URLSearchParams(queryString).forEach((value, key) => {
-            params.push({id: crypto.randomUUID(), key, value, disabled: false})
-        })
-
-        return {cleanUrl: beforeQuery + hash, params}
-    }
-
     // Debounced endpoint update — syncs user input to backend
     const debounceChangeEndpoint = useDebouncedCallback((value: string) => {
-        const {cleanUrl, params} = parseQueryParamsFromUrl(value)
-        const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: cleanUrl}
+        const nextUrl = {...(request?.url ?? {raw: "", host: [], path: [], query: []}), raw: value}
+        console.log(value)
         updateUrl(nextUrl)
-        if (params.length > 0) {
-            const currentParams = request?.url?.query ?? []
-            const nextParams = params.map(param => {
-                const existing = currentParams.find(p => p.key === param.key)
-                return existing ? {...existing, value: param.value} : param
-            })
-            updateQuery(nextParams)
-        }
     }, 300)
 
     const handleChangeEndpoint = (value: string) => {
+        console.log(value)
         setEditedEndpoint(value)
         debounceChangeEndpoint(value)
     }
 
     // Send request
     const handleSendRequest = () => {
-        if (!request?.id || isSending) return
+        if (!request?.id || isSending || isExampleActive) return
         setIsSending(true)
         abortControllerRef.current = new AbortController()
         requestSender(abortControllerRef.current.signal).finally(() => {
@@ -326,8 +300,7 @@ const RequestHeader: React.FC = () => {
                     onBlur={() => {
                         // If user typed a URL with query string, parse it on blur
                         if (editedEndpoint.includes("?")) {
-                            const {cleanUrl} = parseQueryParamsFromUrl(editedEndpoint)
-                            setEditedEndpoint(cleanUrl)
+                            setEditedEndpoint(editedEndpoint)
                         }
                     }}
                     onChange={(event) => handleChangeEndpoint(event.target.value)}
@@ -337,8 +310,9 @@ const RequestHeader: React.FC = () => {
                 />
             </div>
             <Button
-                disabled={!collectionData || (!isSending && isTestTab(activeTabId))}
+                disabled={!collectionData || (!isSending && isTestTab(activeTabId)) || isExampleActive}
                 onClick={isSending ? handleCancelRequest : handleSendRequest}
+                title={isExampleActive ? "Cannot send request while viewing an example response. Switch to Actual Response first." : undefined}
                 onMouseEnter={() => setIsHoveringButton(true)}
                 onMouseLeave={() => setIsHoveringButton(false)}
                 className={cn(

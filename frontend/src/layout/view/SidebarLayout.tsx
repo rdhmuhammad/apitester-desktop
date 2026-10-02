@@ -10,7 +10,6 @@ import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {
     openEditorTab,
-    selectCollectionId,
     selectEditorActiveTabId,
 } from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
@@ -37,8 +36,7 @@ const SidebarLayout: React.FC = () => {
     const [dropPosition, setDropPosition] = useState<DropPosition>(null)
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
-    const collectionId = useAppSelector(selectCollectionId)
-    const {requestTree: tree, activeCollection} = useCollection(collectionId)
+    const {requestTree: tree, activeCollection} = useCollection()
 
     const sensors = useSensors(
         useSensor(PointerSensor, {activationConstraint: {distance: 5}})
