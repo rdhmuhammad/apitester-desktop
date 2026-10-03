@@ -114,8 +114,7 @@ func (r SaveResponseRequest) ToCollectionResponse(req *collectionService.Request
 		resp.ID = r.ID
 	}
 	if resp.OriginalRequest == nil && req != nil {
-		origReq := *req
-		resp.OriginalRequest = &origReq
+		resp.OriginalRequest = req
 	}
 	if resp.Name == "" {
 		if resp.Status != "" {

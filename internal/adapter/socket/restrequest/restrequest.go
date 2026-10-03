@@ -2,6 +2,8 @@ package restrequest
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -214,6 +216,7 @@ func (s *RequestSocket) SaveResponse(_ *cio.NS, client *socket.Socket, message c
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
 	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
 	if collectionID == "" || requestID == "" {
 		s.emitError(client, RequestSaveResponse.Name(), "Collection id and request id are required")
@@ -281,9 +284,11 @@ func (s *RequestSocket) requestIDs(ctx context.Context, client *socket.Socket, i
 
 func (s *RequestSocket) emitResult(client *socket.Socket, operation string, result service.RequestResponse, err error) {
 	if err != nil {
+		fmt.Println(err.Error())
 		s.emitError(client, operation, err.Error())
 		return
 	}
+	log.Println(result)
 	_ = client.Emit(RequestSuccess.Name(), map[string]any{
 		"operation": operation,
 		"request":   result,

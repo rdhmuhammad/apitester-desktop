@@ -119,7 +119,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, method}
             const res = await saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
             await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
@@ -155,7 +154,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, url}
             return saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
         }
@@ -172,7 +170,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, header: headers}
             return saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
         }
@@ -189,7 +186,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, auth}
             return saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
         }
@@ -209,7 +205,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, url: updatedUrl}
             return saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
         }
@@ -227,7 +222,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, body}
             return saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
         }
@@ -242,7 +236,6 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             const updatedOrig: Request = {...orig, body}
             return saveResponse({
                 id: activeExample.id,
-                originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
         }
