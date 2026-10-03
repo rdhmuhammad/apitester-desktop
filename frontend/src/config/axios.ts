@@ -38,12 +38,7 @@ type AxiosErrorWithDuration<T = unknown> = AxiosError<T> & {
 
 // Add a request interceptor to add auth token and signature
 axios.interceptors.request.use(
-    async (config) => {
-        // const token = getData(LOCALSTORAGE_KEY.TOKEN)
-        //
-        // if (token) {
-        //     config.headers.Authorization = `Bearer ${token}`;
-        // }
+    (config) => {
         const newConfig = config as RequestConfigWithMetadata
         newConfig.metadata = {startTime: Date.now()}
         return newConfig;

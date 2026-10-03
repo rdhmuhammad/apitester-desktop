@@ -139,22 +139,6 @@ func (n *NS) Build() {
 			if roomId != "" {
 				client.Join(socket.Room(roomId))
 			}
-
-			if n.onConnect != nil {
-				n.onConnect(n, client)
-			}
-
-			for name, ev := range n.onEvent {
-				client.On(name, func(msg ...any) {
-					ev(n, client, msg...)
-				})
-			}
-			client.On("disconnect", func(any ...any) {
-				if n.onDisconnect != nil {
-					n.onDisconnect(n, client)
-				}
-			})
-			return
 		}
 
 		if n.onConnect != nil {
@@ -170,6 +154,5 @@ func (n *NS) Build() {
 				n.onDisconnect(n, client)
 			}
 		})
-
 	})
 }

@@ -120,40 +120,6 @@ function SelectItem({
   )
 }
 
-type CustomSelectItemProps = React.ComponentProps<typeof SelectPrimitive.Item> & {
-  selectedValue: string;
-};
-
-function CustomSelectItem({
-  className,
-  children,
-  value,
-  selectedValue,
-  ...props
-}: CustomSelectItemProps) {
-  const isSelected = value === selectedValue;
-
-  return (
-    <SelectPrimitive.Item
-      value={value}
-      className={cn(
-        "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none transition-all data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        className
-      )}
-      {...props}
-    >
-      <div
-        className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-300",
-          isSelected ? "bg-emerald-800 text-white" : "bg-white text-transparent"
-        )}
-      >
-        {isSelected && <CheckIcon className="h-4 w-4" />}
-      </div>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-    </SelectPrimitive.Item>
-  );
-}
 
 function SelectSeparator({
   className,
@@ -214,6 +180,5 @@ export {
   SelectScrollUpButton,
   SelectSeparator,
   SelectTrigger,
-  SelectValue,
-  CustomSelectItem
+  SelectValue
 }

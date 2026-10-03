@@ -15,26 +15,6 @@ func (e InvalidDataError) Error() string {
 	return e.Msg
 }
 
-type AccessControlError struct {
-	Msg string
-}
-
-func (e AccessControlError) Error() string {
-	return e.Msg
-}
-
-//func AccessNotAllowedUserNotFound(err error) error {
-//	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-//		return AccessControlError{Msg: constant.SessionExpired.String()}
-//	}
-//
-//	return err
-//}
-
-func IsAccessNotAllowedUserNotFound(err error) bool {
-	return err != nil && errors.Is(err, AccessControlError{Msg: "Session Expired"})
-}
-
 func IsNotFound(err error) bool {
 	return errors.Is(err, InvalidDataError{Msg: err.Error()})
 }
@@ -42,13 +22,6 @@ func IsNotFound(err error) bool {
 func IsInvalidData(err error) bool {
 	return err != nil && errors.As(err, &InvalidDataError{})
 }
-
-//func NotFound(err error, msg string) error {
-//	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-//		return InvalidDataError{Msg: msg}
-//	}
-//	return err
-//}
 
 func IsNotFoundStr(target string, source error) bool {
 	var newErr = InvalidDataError{}
@@ -94,8 +67,7 @@ func (h HandleError) DebugPrint(err string, v ...interface{}) {
 }
 
 func (h HandleError) ErrorReturn(err error) error {
-	if IsAccessNotAllowedUserNotFound(err) ||
-		IsNotFound(err) || IsInvalidData(err) {
+	if IsNotFound(err) || IsInvalidData(err) {
 		return err
 	}
 
