@@ -43,6 +43,7 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
 
     const {
         collections,
+        refetchTree,
         refetchCollections,
         createCollectionMutation,
         updateCollectionMutation,
@@ -104,6 +105,7 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
             updateCollectionList((items) => items.map((item) => ({...item, is_selected: item.id === id})))
             setSelectedId(id)
             dispatch(resetEditorTabs())
+            await refetchTree()
             onOpenChange(false)
         } catch (error) {
             CustomToast.error(error instanceof Error ? error.message : "Failed to select collection")

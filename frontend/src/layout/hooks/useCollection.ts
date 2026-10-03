@@ -9,6 +9,7 @@ import {
     type UpdateCollectionAuthRequest,
     type SelectBaseURLRequest,
     type RequestTree,
+    type UpdateTreeItem,
 } from "../services/collection"
 import type {CollectionAuth, CollectionVar} from "@/pages/editor/types/api"
 import CustomToast from "@/components/common/toast"
@@ -42,7 +43,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
 
     const treeQuery = useQuery<RequestTree[]>({
         queryKey: ["collection", "tree"],
-        queryFn: () => CollectionServices.getRequestTree(collectionId as string),
+        queryFn: () => CollectionServices.getRequestTree(),
         enabled: Boolean(collectionId),
         gcTime: 0,
         refetchOnWindowFocus: false,
@@ -188,6 +189,23 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         },
     })
 
+    const updateTreeMutation = useMutation({
+        mutationFn: (data: {collectionId?: string; tree: UpdateTreeItem[]}) => {
+            const targetId = data.collectionId ?? collectionId
+            if (!targetId) {
+                throw new Error("No collection selected")
+            }
+            return CollectionServices.updateTree(targetId, data.tree)
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+        },
+        onError: (error: AxiosError<Response<unknown>>) => {
+            queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+            CustomToast.error(error.response?.data.message || "Failed to update collection tree")
+        },
+    })
+
     return {
         collections: collectionsQuery.data ?? EMPTY_COLLECTIONS,
         activeCollection: activeCollectionQuery.data ?? null,
@@ -203,6 +221,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         isLoadingVariables: variablesQuery.isLoading || variablesQuery.isFetching,
         isLoadingPreScript: preScriptQuery.isLoading || preScriptQuery.isFetching,
         isLoadingAuth: authQuery.isLoading || authQuery.isFetching,
+        isUpdatingTree: updateTreeMutation.isPending,
         refetchCollections: collectionsQuery.refetch,
         refetchActiveCollection: activeCollectionQuery.refetch,
         refetchCollection: activeCollectionQuery.refetch,
@@ -227,5 +246,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         selectBaseUrlMutation,
         updatePreScriptMutation,
         updateAuthMutation,
+        updateTreeMutation,
     }
 }

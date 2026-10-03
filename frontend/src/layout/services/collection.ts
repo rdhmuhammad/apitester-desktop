@@ -184,8 +184,35 @@ export const CollectionServices = {
         return response.data.data
     },
 
-    getRequestTree: async (collectionId: string): Promise<RequestTree[]> => {
-        const response = await axios.get<Response<RequestTree[]>>(`/restrequest/tree/${collectionId}`)
+    getRequestTree: async (): Promise<RequestTree[]> => {
+        const response = await axios.get<Response<RequestTree[]>>(`/restrequest/tree`)
         return response.data.data
     },
+
+    updateTree: async (collectionId: string, tree: UpdateTreeItem[]): Promise<UpdateTreeResponse> => {
+        const response = await axios.put<Response<UpdateTreeResponse>>(`/restrequest/tree/${collectionId}`, tree)
+        return response.data.data
+    },
+}
+
+export interface UpdateTreeItem {
+    id: string
+    item?: UpdateTreeItem[]
+}
+
+export interface UpdateTreeResponse {
+    item: unknown[]
+    version: string
+}
+
+export const toUpdateTreePayload = (nodes: RequestTree[]): UpdateTreeItem[] => {
+    return nodes.map((node) => {
+        const item: UpdateTreeItem = {
+            id: node.id,
+        }
+        if (node.category === "FOLD") {
+            item.item = node.item ? toUpdateTreePayload(node.item) : []
+        }
+        return item
+    })
 }

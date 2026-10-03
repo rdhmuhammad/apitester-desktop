@@ -1,15 +1,16 @@
 import {Sidebar, SidebarContent} from "@/components/ui/sidebar.tsx";
 import {type ReactNode, useCallback, useEffect, useRef, useState} from "react";
-import {FileCode2, Folder, FolderGit2, Search} from "lucide-react";
+import {FileCode2, Folder, FolderGit2, LoaderCircle, Search} from "lucide-react";
 import TestScenarioSidebar from "@/layout/components/sidebar/TestScenarioSidebar.tsx";
 import AutomationSidebar from "@/layout/components/sidebar/AutomationSidebar.tsx";
 import DragNode, {type DropPosition} from "@/layout/components/sidebar/DragNode.tsx";
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
-import type {RequestTree} from "@/layout/services/collection.ts";
+import {toUpdateTreePayload, type RequestTree} from "@/layout/services/collection.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {
     openEditorTab,
+    removeEditorTab,
     selectEditorActiveTabId,
 } from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
@@ -24,6 +25,147 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog.tsx";
+
+const collectRequestIds = (node: RequestTree): string[] => {
+    const ids: string[] = []
+    if (node.category === "REQ") {
+        ids.push(node.id)
+    }
+    if (node.item) {
+        for (const child of node.item) {
+            ids.push(...collectRequestIds(child))
+        }
+    }
+    return ids
+}
+
+const containsNode = (nodes: RequestTree[], id: string): boolean => {
+    for (const node of nodes) {
+        if (node.id === id) return true
+        if (node.item && containsNode(node.item, id)) return true
+    }
+    return false
+}
+
+const isDescendantNode = (nodes: RequestTree[], parentId: string, targetId: string): boolean => {
+    for (const node of nodes) {
+        if (node.id === parentId) {
+            return containsNode(node.item || [], targetId)
+        }
+        if (node.item && isDescendantNode(node.item, parentId, targetId)) {
+            return true
+        }
+    }
+    return false
+}
+
+const findNodeById = (nodes: RequestTree[], id: string): RequestTree | null => {
+    for (const node of nodes) {
+        if (node.id === id) return node
+        if (node.item) {
+            const found = findNodeById(node.item, id)
+            if (found) return found
+        }
+    }
+    return null
+}
+
+const removeNode = (
+    nodes: RequestTree[],
+    id: string
+): { newNodes: RequestTree[]; removed: RequestTree | null } => {
+    let removed: RequestTree | null = null
+    const newNodes: RequestTree[] = []
+
+    for (const node of nodes) {
+        if (node.id === id) {
+            removed = node
+            continue
+        }
+        if (node.item && node.item.length > 0) {
+            const childResult = removeNode(node.item, id)
+            if (childResult.removed) {
+                removed = childResult.removed
+                newNodes.push({
+                    ...node,
+                    item: childResult.newNodes,
+                })
+                continue
+            }
+        }
+        newNodes.push(node)
+    }
+
+    return { newNodes, removed }
+}
+
+const insertNode = (
+    nodes: RequestTree[],
+    targetId: string,
+    nodeToInsert: RequestTree,
+    position: 'before' | 'after' | 'inside'
+): RequestTree[] => {
+    if (position === 'inside') {
+        return nodes.map((node) => {
+            if (node.id === targetId) {
+                return {
+                    ...node,
+                    item: [...(node.item || []), nodeToInsert],
+                }
+            }
+            if (node.item && node.item.length > 0) {
+                return {
+                    ...node,
+                    item: insertNode(node.item, targetId, nodeToInsert, position),
+                }
+            }
+            return node
+        })
+    }
+
+    const targetIndex = nodes.findIndex((node) => node.id === targetId)
+    if (targetIndex !== -1) {
+        const nextNodes = [...nodes]
+        const insertIndex = position === 'before' ? targetIndex : targetIndex + 1
+        nextNodes.splice(insertIndex, 0, nodeToInsert)
+        return nextNodes
+    }
+
+    return nodes.map((node) => {
+        if (node.item && node.item.length > 0) {
+            return {
+                ...node,
+                item: insertNode(node.item, targetId, nodeToInsert, position),
+            }
+        }
+        return node
+    })
+}
+
+const reorderTree = (
+    nodes: RequestTree[],
+    activeId: string,
+    overId: string,
+    position: 'before' | 'after' | 'inside'
+): RequestTree[] | null => {
+    if (activeId === overId) return null
+    if (isDescendantNode(nodes, activeId, overId)) return null
+
+    const { newNodes, removed } = removeNode(nodes, activeId)
+    if (!removed) return null
+
+    return insertNode(newNodes, overId, removed, position)
+}
 
 const SidebarLayout: React.FC = () => {
     const dispatch = useAppDispatch()
@@ -34,9 +176,16 @@ const SidebarLayout: React.FC = () => {
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
     const [dropTargetId, setDropTargetId] = useState<string | null>(null)
     const [dropPosition, setDropPosition] = useState<DropPosition>(null)
+    const dropPositionRef = useRef<DropPosition>(null)
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
-    const {requestTree: tree, activeCollection} = useCollection()
+    const [nodeToDelete, setNodeToDelete] = useState<RequestTree | null>(null)
+    const {
+        requestTree: tree,
+        activeCollection,
+        updateTreeMutation,
+        isUpdatingTree,
+    } = useCollection()
 
     const sensors = useSensors(
         useSensor(PointerSensor, {activationConstraint: {distance: 5}})
@@ -90,20 +239,23 @@ const SidebarLayout: React.FC = () => {
 
     useEffect(() => {
         queryClient.removeQueries({queryKey: ["collection", "tree"]})
-    }, [activeCollection]);
+        setExpandedFolders({})
+    }, [activeCollection, queryClient]);
 
     useEffect(() => {
-        const record: Record<string, boolean> = {}
-        const loadExpandFolder = (nodes: RequestTree[]) => {
-            for (const node of nodes) {
-                if (node.category === "FOLD") {
-                    record[node.id] = false
-                    if (node.item) loadExpandFolder(node.item)
+        setExpandedFolders((prev) => {
+            const record: Record<string, boolean> = {}
+            const loadExpandFolder = (nodes: RequestTree[]) => {
+                for (const node of nodes) {
+                    if (node.category === "FOLD") {
+                        record[node.id] = prev[node.id] ?? false
+                        if (node.item) loadExpandFolder(node.item)
+                    }
                 }
             }
-        }
-        loadExpandFolder(tree)
-        setExpandedFolders(record)
+            loadExpandFolder(tree)
+            return record
+        })
     }, [tree]);
 
     const computeDropPosition = useCallback((event: DragOverEvent): DropPosition => {
@@ -125,6 +277,7 @@ const SidebarLayout: React.FC = () => {
 
     const handleDragStart = useCallback((event: DragStartEvent) => {
         setActiveDragId(String(event.active.id))
+        dropPositionRef.current = null
         if (expandTimerRef.current) {
             clearTimeout(expandTimerRef.current)
             expandTimerRef.current = null
@@ -136,6 +289,7 @@ const SidebarLayout: React.FC = () => {
         if (!overId || !event.active.id) {
             setDropTargetId(null)
             setDropPosition(null)
+            dropPositionRef.current = null
             return
         }
 
@@ -145,6 +299,7 @@ const SidebarLayout: React.FC = () => {
         if (activeId === targetId) {
             setDropTargetId(null)
             setDropPosition(null)
+            dropPositionRef.current = null
             return
         }
 
@@ -152,6 +307,7 @@ const SidebarLayout: React.FC = () => {
 
         const position = computeDropPosition(event)
         setDropPosition(position)
+        dropPositionRef.current = position
 
         if (expandTimerRef.current) {
             clearTimeout(expandTimerRef.current)
@@ -167,9 +323,12 @@ const SidebarLayout: React.FC = () => {
     }, [computeDropPosition, expandedFolders])
 
     const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const targetPosition = dropPositionRef.current ?? dropPosition
+
         setActiveDragId(null)
         setDropTargetId(null)
         setDropPosition(null)
+        dropPositionRef.current = null
 
         if (expandTimerRef.current) {
             clearTimeout(expandTimerRef.current)
@@ -177,9 +336,72 @@ const SidebarLayout: React.FC = () => {
         }
 
         const {active, over} = event
-        if (!over || !active || active.id === over.id) return
+        if (!over || !active || active.id === over.id || !targetPosition) return
 
-    }, [])
+        const activeId = String(active.id)
+        const overId = String(over.id)
+
+        const targetNode = findNodeById(tree, overId)
+        if (!targetNode) return
+
+        let effectivePosition = targetPosition
+        if (effectivePosition === 'inside' && targetNode.category !== 'FOLD') {
+            effectivePosition = 'after'
+        }
+
+        const reorderedTree = reorderTree(tree, activeId, overId, effectivePosition)
+        if (!reorderedTree) return
+
+        if (effectivePosition === 'inside') {
+            setExpandedFolders((prev) => ({...prev, [overId]: true}))
+        }
+
+        // 1. Optimistically update TanStack Query tree state
+        queryClient.setQueryData(["collection", "tree"], reorderedTree)
+
+        // 2. Persist new tree order to backend
+        if (activeCollection?.id) {
+            const payload = toUpdateTreePayload(reorderedTree)
+            updateTreeMutation.mutate({
+                collectionId: activeCollection.id,
+                tree: payload,
+            })
+        }
+    }, [tree, dropPosition, activeCollection, queryClient, updateTreeMutation])
+
+    const handleConfirmDelete = () => {
+        if (!nodeToDelete) return
+
+        const targetId = nodeToDelete.id
+        const affectedRequestIds = collectRequestIds(nodeToDelete)
+
+        // Close any open editor tabs for deleted request(s)
+        for (const reqId of affectedRequestIds) {
+            if (activeTabsId.includes(reqId)) {
+                dispatch(removeEditorTab(reqId))
+            }
+        }
+
+        const {newNodes, removed} = removeNode(tree, targetId)
+        if (!removed) {
+            setNodeToDelete(null)
+            return
+        }
+
+        // 1. Optimistically update TanStack Query tree state
+        queryClient.setQueryData(["collection", "tree"], newNodes)
+
+        // 2. Persist new tree order to backend (pruned node will be omitted)
+        if (activeCollection?.id) {
+            const payload = toUpdateTreePayload(newNodes)
+            updateTreeMutation.mutate({
+                collectionId: activeCollection.id,
+                tree: payload,
+            })
+        }
+
+        setNodeToDelete(null)
+    }
 
     const renderNode = (node: RequestTree, depth = 0): ReactNode => {
         if (searchQuery && !matchesSearch(node, searchQuery)) return null
@@ -194,6 +416,7 @@ const SidebarLayout: React.FC = () => {
                 depth={depth}
                 onClick={() => handleRequestClick(node)}
                 onToggle={() => toggleFolder(node.id)}
+                onDelete={() => setNodeToDelete(node)}
                 isOpen={isOpen}
                 isActive={isActive}
                 dropPosition={dropTargetId === node.id ? dropPosition : null}
@@ -209,17 +432,6 @@ const SidebarLayout: React.FC = () => {
             </DragNode>
         );
     };
-
-    const findNodeById = (nodes: RequestTree[], id: string): RequestTree | null => {
-        for (const node of nodes) {
-            if (node.id === id) return node
-            if (node.item) {
-                const found = findNodeById(node.item, id)
-                if (found) return found
-            }
-        }
-        return null
-    }
 
     const draggedNode = activeDragId ? findNodeById(tree, activeDragId) : null
 
@@ -265,37 +477,68 @@ const SidebarLayout: React.FC = () => {
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collections
                         ({countFolders(tree)})</p>
                 </div>
-                {searchQuery ? (
-                    treeContent
-                ) : (
-                    <DndContext
-                        sensors={sensors}
-                        onDragStart={handleDragStart}
-                        onDragOver={handleDragOver}
-                        onDragEnd={handleDragEnd}
-                    >
-                        {treeContent}
-                        <DragOverlay dropAnimation={null}>
-                            {draggedNode ? (
-                                <div
-                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-card shadow-lg border border-border opacity-90">
-                                    {draggedNode.category === 'FOLD'
-                                        ? <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>
-                                        : <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>
-                                    }
-                                    {draggedNode.category === 'REQ' && (
-                                        <span
-                                            className={`text-xs font-semibold shrink-0 ${methodColorClass[draggedNode?.method ?? "GET"]}`}>{draggedNode?.method ?? "GET"}</span>
-                                    )}
-                                    <span className="truncate text-sm text-foreground">{draggedNode.name}</span>
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
-                )}
+                <div className="relative">
+                    {searchQuery ? (
+                        treeContent
+                    ) : (
+                        <DndContext
+                            sensors={sensors}
+                            onDragStart={handleDragStart}
+                            onDragOver={handleDragOver}
+                            onDragEnd={handleDragEnd}
+                        >
+                            {treeContent}
+                            <DragOverlay dropAnimation={null}>
+                                {draggedNode ? (
+                                    <div
+                                        className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-card shadow-lg border border-border opacity-90">
+                                        {draggedNode.category === 'FOLD'
+                                            ? <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>
+                                            : <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>
+                                        }
+                                        {draggedNode.category === 'REQ' && (
+                                            <span
+                                                className={`text-xs font-semibold shrink-0 ${methodColorClass[draggedNode?.method ?? "GET"]}`}>{draggedNode?.method ?? "GET"}</span>
+                                        )}
+                                        <span className="truncate text-sm text-foreground">{draggedNode.name}</span>
+                                    </div>
+                                ) : null}
+                            </DragOverlay>
+                        </DndContext>
+                    )}
+                    {isUpdatingTree && (
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1px] rounded-md transition-opacity">
+                            <LoaderCircle className="h-6 w-6 animate-spin text-white"/>
+                            <span className="mt-1 text-xs font-medium text-white/90">Updating tree...</span>
+                        </div>
+                    )}
+                </div>
                 <TestScenarioSidebar searchQuery={searchQuery}/>
                 <AutomationSidebar searchQuery={searchQuery}/>
             </SidebarContent>
+            <AlertDialog open={Boolean(nodeToDelete)} onOpenChange={(open) => !open && setNodeToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete {nodeToDelete?.category === "FOLD" ? "Folder" : "Request"}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {nodeToDelete?.category === "FOLD"
+                                ? `Are you sure you want to delete folder "${nodeToDelete?.name}" and all of its items? This action cannot be undone.`
+                                : `Are you sure you want to delete request "${nodeToDelete?.name}"? This action cannot be undone.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setNodeToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmDelete}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Sidebar>
     );
 };

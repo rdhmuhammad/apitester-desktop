@@ -18,6 +18,7 @@ import (
 )
 
 type Usecase struct {
+	*base.Port
 	errHandler     localerror.HandleError
 	collectionRepo db.RepositoryInterface[domain.Collection]
 	automationRepo db.RepositoryInterface[domain.Automation]
@@ -43,16 +44,13 @@ func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 		errHandler:     localerror.NewHandlerError(lg),
 		collectionRepo: collectionRepo,
 		automationRepo: automationRepo,
+		Port:           base.NewPort(lg, database),
 		testRepo:       testRepo,
 	}
 }
 
-func (u *Usecase) GetRequestTree(collectionID string) ([]RequestTree, error) {
-	collection, err := u.collection(collectionID)
-	if err != nil {
-		return nil, err
-	}
-
+func (u *Usecase) GetRequestTree(ctx context.Context) ([]RequestTree, error) {
+	collection := u.FindSelectedCollection(ctx)
 	content, err := os.ReadFile(collection.Path)
 	if err != nil {
 		return nil, u.errHandler.ErrorReturn(err)

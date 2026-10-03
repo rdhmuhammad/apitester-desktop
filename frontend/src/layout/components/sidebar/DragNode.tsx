@@ -1,4 +1,4 @@
-import {ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen, GripVertical} from "lucide-react";
+import {ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen, GripVertical, Trash2} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
 import {type ReactNode} from "react";
 import {type RequestTree} from "@/layout/services/collection.ts";
@@ -16,12 +16,13 @@ const DragNode: React.FC<{
     depth: number
     onClick: () => void
     onToggle: () => void
+    onDelete?: () => void
     isOpen: boolean
     isActive: boolean
     dropPosition: DropPosition
     isDragOver: boolean
     children?: ReactNode
-}> = ({node, depth, onClick, onToggle, isOpen, isActive, dropPosition, isDragOver, children}) => {
+}> = ({node, depth, onClick, onToggle, onDelete, isOpen, isActive, dropPosition, isDragOver, children}) => {
     const indentStyle = {paddingLeft: `${depth * 14}px`}
     const {setNodeRef: setDroppableRef, isOver} = useDroppable({id: node.id, data: {node}})
     const {attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging} = useDraggable({
@@ -63,6 +64,19 @@ const DragNode: React.FC<{
                             <Folder className="h-4 w-4 text-indigo-500"/>}
                         <span className="truncate">{node.name}</span>
                     </button>
+                    {onDelete && (
+                        <button
+                            type="button"
+                            title="Delete folder"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete();
+                            }}
+                            className="cursor-pointer flex items-center justify-center shrink-0 w-6 h-6 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-red-600 dark:hover:text-red-400 mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <Trash2 className="h-3.5 w-3.5"/>
+                        </button>
+                    )}
                 </div>
                 {isOpen && children}
             </div>
@@ -96,6 +110,19 @@ const DragNode: React.FC<{
                 <span className={`w-12 text-xs font-semibold ${methodColorClass[node.method ?? "GET"]}`}>{node.method ?? "GET"}</span>
                 <span className="truncate text-sidebar-foreground">{node.name}</span>
             </button>
+            {onDelete && (
+                <button
+                    type="button"
+                    title="Delete request"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete();
+                    }}
+                    className="cursor-pointer flex items-center justify-center shrink-0 w-6 h-6 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-red-600 dark:hover:text-red-400 mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                    <Trash2 className="h-3.5 w-3.5"/>
+                </button>
+            )}
         </div>
     )
 }

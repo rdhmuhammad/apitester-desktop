@@ -71,7 +71,7 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             })
             queryClient.setQueryData(queryKey, result)
             setMutationError(null)
-            await queryClient.invalidateQueries({queryKey: ["collection", "tree", collectionId]})
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
             return result
         },
         [collectionId, queryClient, queryKey, requestId]
@@ -113,22 +113,26 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
     }, [activeExample, rawRequest])
 
     // Mutators automatically direct to activeExample.originalRequest if example is selected
-    const updateMethod = useCallback((method: string) => {
+    const updateMethod = useCallback(async (method: string) => {
         if (activeExample?.id) {
             const orig = getBaseOrigRequest()
             const updatedOrig: Request = {...orig, method}
-            return saveResponse({
+            const res = await saveResponse({
                 id: activeExample.id,
                 originalRequest: updatedOrig,
                 response: {...activeExample, originalRequest: updatedOrig},
             })
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+            return res
         }
-        return update("method", method, (data) =>
+        const res = await update("method", method, (data) =>
             RequestConfigServices.updateMethod(collectionId, requestId, {
                 ...data,
                 method
             }))
-    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
+        await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+        return res
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest, queryClient])
 
     const updateName = useCallback((name: string) => {
         if (activeExample?.id) {

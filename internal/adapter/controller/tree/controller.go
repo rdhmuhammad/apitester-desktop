@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +13,7 @@ import (
 )
 
 type Usecase interface {
-	GetRequestTree(collectionID string) ([]tree.RequestTree, error)
+	GetRequestTree(ctx context.Context) ([]tree.RequestTree, error)
 	GetAutomationTree(collectionID string) ([]tree.RequestTree, error)
 	GetTestSuiteTree(collectionID string) ([]tree.RequestTree, error)
 }
@@ -30,7 +31,7 @@ func NewController(lg logger.Logger, database *bbolt.DB) Controller {
 }
 
 func (ctrl Controller) GetRequestTree(c *gin.Context) {
-	res, err := ctrl.usecase.GetRequestTree(c.Param("collectionId"))
+	res, err := ctrl.usecase.GetRequestTree(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request tree retrieved"), err)
 }
 
@@ -46,7 +47,6 @@ func (ctrl Controller) GetTestSuiteTree(c *gin.Context) {
 
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest := rg.Group("/restrequest")
-	restRequest.GET("/tree/:collectionId", ctrl.GetRequestTree)
 	restRequest.GET("/tree", ctrl.GetRequestTree)
 	restRequest.GET("/tree/automation/:collectionId", ctrl.GetAutomationTree)
 	restRequest.GET("/tree/automation", ctrl.GetAutomationTree)

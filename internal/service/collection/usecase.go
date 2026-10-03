@@ -554,29 +554,24 @@ func setRequestIDs(request *Request) {
 	}
 }
 
-func setContentType(items []CollectionItem) []CollectionItem {
-	for i := range items {
-		if request := items[i].Request; request != nil && request.Body != nil {
-			if contentType := contentTypeForBodyMode(request.Body.Mode); contentType != "" {
-				found := false
-				for j := range request.Header {
-					if strings.EqualFold(strings.TrimSpace(request.Header[j].Key), "Content-Type") {
-						request.Header[j].Value = contentType
-						found = true
-					}
-				}
-				if !found {
-					request.Header = append(request.Header, Header{Key: "Content-Type", Value: contentType})
-				}
-			}
-		}
-
-		if items[i].Item != nil {
-			items[i].Item = setContentType(items[i].Item)
-		}
+func setContentType(request *Request) {
+	if request == nil || request.Body == nil {
+		return
 	}
 
-	return items
+	if contentType := contentTypeForBodyMode(request.Body.Mode); contentType != "" {
+		found := false
+		for j := range request.Header {
+			if strings.EqualFold(strings.TrimSpace(request.Header[j].Key), "Content-Type") {
+				request.Header[j].Value = contentType
+				found = true
+			}
+		}
+		if !found {
+			request.Header = append(request.Header, Header{Key: "Content-Type", Value: contentType})
+		}
+
+	}
 }
 
 func contentTypeForBodyMode(mode string) string {
@@ -594,9 +589,28 @@ func contentTypeForBodyMode(mode string) string {
 	}
 }
 
-func setBearerAuthorization(items []CollectionItem, auth *CollectionAuth) []CollectionItem {
+func rearrangeRequest(items []CollectionItem, collAuth *CollectionAuth) []CollectionItem {
+	for i, _ := range items {
+		setContentType(items[i].Request)
+		setBearerAuthorization(items[i].Request, collAuth)
+		if items[i].Response != nil {
+			for j, _ := range items[i].Response {
+				setContentType(items[i].Response[j].OriginalRequest)
+				setBearerAuthorization(items[i].Response[j].OriginalRequest, collAuth)
+
+			}
+		}
+		if items[i].Item != nil {
+			items[i].Item = rearrangeRequest(items[i].Item, collAuth)
+		}
+	}
+
+	return items
+}
+
+func setBearerAuthorization(request *Request, auth *CollectionAuth) {
 	if auth == nil || !strings.EqualFold(strings.TrimSpace(auth.Type), "bearer") {
-		return items
+		return
 	}
 
 	token := ""
@@ -610,32 +624,27 @@ func setBearerAuthorization(items []CollectionItem, auth *CollectionAuth) []Coll
 		}
 	}
 	if token == "" {
-		return items
+		return
 	}
 
-	for i := range items {
-		if request := items[i].Request; request != nil {
-			hasAuthorization := false
-			for _, header := range request.Header {
-				if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
-					hasAuthorization = true
-					break
-				}
-			}
-			if !hasAuthorization {
-				request.Header = append(request.Header, Header{
-					Key:   "Authorization",
-					Value: "Bearer " + token,
-				})
-			}
-		}
-
-		if items[i].Item != nil {
-			items[i].Item = setBearerAuthorization(items[i].Item, auth)
-		}
+	if request == nil {
+		return
 	}
 
-	return items
+	hasAuthorization := false
+	for _, header := range request.Header {
+		if strings.EqualFold(strings.TrimSpace(header.Key), "Authorization") {
+			hasAuthorization = true
+			break
+		}
+	}
+	if !hasAuthorization {
+		request.Header = append(request.Header, Header{
+			Key:   "Authorization",
+			Value: "Bearer " + token,
+		})
+	}
+
 }
 
 func isBaseURLVar(s string) bool {
@@ -800,8 +809,7 @@ func (d *DocsContent) PrepareCreate() {
 		}
 	}
 	d.PrepareVariables()
-	d.Item = setContentType(d.Item)
-	d.Item = setBearerAuthorization(d.Item, d.Auth)
+	d.Item = rearrangeRequest(d.Item, d.Auth)
 }
 
 func (d *DocsContent) PrepareVariables() {

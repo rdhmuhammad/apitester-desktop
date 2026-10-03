@@ -22,6 +22,7 @@ import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 import {useRequestSender} from "@/layout/hooks/useSendRequest.ts";
 import {useEnvResolve} from "@/layout/hooks/useEnvResolve.ts";
 import {useDebouncedCallback} from "use-debounce";
+import {useQueryClient} from "@tanstack/react-query";
 
 const requestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const methodColorClass: Record<ColtReqMethod, string> = {
@@ -52,6 +53,7 @@ const RequestHeader: React.FC = () => {
 
     // Selected base URL comes from the variable with isSelected === true
     const {selectedBaseUrl} = useEnvResolve()
+    const queryClient = useQueryClient()
 
     const {request, updateMethod, updateUrl, activeExampleId} = useRequestConfig(
         activeCollection?.id ?? "",
@@ -61,6 +63,11 @@ const RequestHeader: React.FC = () => {
 
     const requestSender = useRequestSender()
     const collectionData = activeCollection
+
+    const handleMethodChange = async (value: string) => {
+        await updateMethod(value as ColtReqMethod)
+        await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+    }
 
     // Request method — directly from service, no local processing needed
     const currentMethod = (request?.method ?? "GET") as ColtReqMethod
@@ -186,7 +193,7 @@ const RequestHeader: React.FC = () => {
             <Select
                 value={currentMethod}
                 disabled={!collectionData}
-                onValueChange={(value) => updateMethod(value as ColtReqMethod)}
+                onValueChange={handleMethodChange}
             >
                 <SelectTrigger
                     className={cn("min-w-[110px] font-semibold text-white [&_svg]:text-white [&_svg]:opacity-100", methodColorClass[currentMethod])}>
