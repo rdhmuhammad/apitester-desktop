@@ -38,6 +38,7 @@ const socketEvents = {
     updateMethod: "request:update:method",
     updateName: "request:update:name",
     updateUrl: "request:update:url",
+    editPathVariable: "request:edit:path:variable",
     updateHeaders: "request:update:headers",
     updateAuth: "request:update:auth",
     updateQuery: "request:update:query",
@@ -133,6 +134,9 @@ export const RequestConfigServices = {
 
     updateUrl: (collectionId: string, requestId: string, data: Versioned & {url: RequestURL}) =>
         emitRequestEvent(socketEvents.updateUrl, socketEvents.updateUrl, {collectionId, requestId}, data),
+
+    editPathVariable: (collectionId: string, requestId: string, data: Versioned & {key: string; value: string}) =>
+        emitRequestEvent(socketEvents.editPathVariable, socketEvents.editPathVariable, {collectionId, requestId}, data),
 
     updateHeaders: (collectionId: string, requestId: string, data: Versioned & {headers: ItemUrl[]}) =>
         emitRequestEvent(socketEvents.updateHeaders, socketEvents.updateHeaders, {collectionId, requestId}, data),

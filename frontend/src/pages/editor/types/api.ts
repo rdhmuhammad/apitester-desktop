@@ -86,11 +86,18 @@ export interface ItemUrl {
   src?: string;
 }
 
+export interface PathVariable {
+  id: string;
+  key: string;
+  value: string;
+}
+
 export interface RequestURL {
   raw: string;
   host: string[];
   path: string[];
   query: ItemUrl[];
+  variable?: PathVariable[];
 }
 
 export interface CollectionAuth {

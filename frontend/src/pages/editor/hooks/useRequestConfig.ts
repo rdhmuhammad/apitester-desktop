@@ -215,6 +215,29 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
             }), (current) => ({url: {...current.url, query}}))
     }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest])
 
+    const editPathVariable = useCallback((key: string, value: string) => {
+        const withValue = (url: RequestURL): RequestURL => ({
+            ...url,
+            variable: (url.variable ?? []).map(v => v.key === key ? {...v, value} : v),
+        })
+        if (activeExample?.id) {
+            const orig = getBaseOrigRequest()
+            const updatedOrig: Request = {...orig, url: withValue(orig.url)}
+            return saveResponse({
+                id: activeExample.id,
+                response: {...activeExample, originalRequest: updatedOrig},
+            })
+        }
+        const current = queryClient.getQueryData<RestRequestResponse>(queryKey)
+        if (!current) return Promise.resolve(undefined)
+        return update("url", withValue(current.url), (data) =>
+            RequestConfigServices.editPathVariable(collectionId, requestId, {
+                baseVersion: data.baseVersion,
+                key,
+                value,
+            }))
+    }, [activeExample, collectionId, requestId, saveResponse, update, getBaseOrigRequest, queryClient, queryKey])
+
     const updateJsonBody = useCallback((raw: string) => {
         const body: RequestBody = {mode: "raw", raw}
         if (activeExample?.id) {
@@ -334,6 +357,7 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         updateHeaders,
         updateAuth,
         updateQuery,
+        editPathVariable,
         updateJsonBody,
         updateFormDataBody,
         updateScript,

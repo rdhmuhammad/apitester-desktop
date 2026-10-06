@@ -1,7 +1,7 @@
 import {useAppDispatch} from "@/app/store/hooks.ts";
 import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
 import {runPreRequestScript, runScript} from "@/layout/hooks/useScriptRunner.ts";
-import type {ItemUrl} from "@/pages/editor/types/api.ts";
+import type {ItemUrl, PathVariable} from "@/pages/editor/types/api.ts";
 import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts";
 import type {ScriptResultDto} from "@/app/slices/index.ts";
 import axios from "@/config/axios.ts";
@@ -33,6 +33,18 @@ export interface ISendRequest {
 type AxiosResponseWithDuration<T = unknown> = AxiosResponse<T> & {
     duration?: number
 }
+
+// Replaces `:key` path segments with the matching variable value; blank values keep `:key`.
+export const resolvePathVariables = (
+    endpoint: string,
+    variables: PathVariable[] = [],
+    vars: Record<string, string>
+): string =>
+    endpoint.replace(/(^|\/):(\w+)(?=[/?#]|$)/g, (match, prefix: string, key: string) => {
+        const variable = variables.find(v => v.key === key)
+        const value = variable ? resolveVars(variable.value ?? "", vars) : ""
+        return value ? `${prefix}${encodeURIComponent(value)}` : match
+    })
 
 const formData = (request: ItemUrl[]): FormData => {
     const dt = new FormData()
@@ -414,7 +426,7 @@ export const useRequestSender = () => {
 
         // endpoint = selectedBaseUrl + request.url.raw (backend keeps raw url with path+query)
         const rawEndpoint = currentReq.url?.raw ?? ""
-        const endpoint = rawEndpoint
+        const endpoint = resolvePathVariables(rawEndpoint, currentReq.url?.variable, varsObj)
 
         const contentType = currentReq.headers?.find(
             h => h?.key.toLowerCase() === 'content-type' && !h.disabled

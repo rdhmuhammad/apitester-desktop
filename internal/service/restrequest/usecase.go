@@ -79,6 +79,7 @@ func (u *Usecase) Get(ctx context.Context, collectionID, requestID string) (Requ
 }
 
 func (u *Usecase) UpdateURL(ctx context.Context, collectionID, requestID string, req UpdateURLRequest) (RequestResponse, error) {
+	req.URL.ResolvePath()
 	req.URL.FormatEndpoint()
 	req.URL.Query = resolveQueryParams(req.URL.Raw)
 
@@ -91,7 +92,29 @@ func (u *Usecase) UpdateURL(ctx context.Context, collectionID, requestID string,
 		Apply: func(item *collectionService.CollectionItem) any {
 			old := item.Request.URL
 			item.Request.URL = req.URL
+			item.Request.URL.SyncVariables(old.Variable)
 			item.Request.URL.OnlyEndpoint()
+			return old
+		},
+	})
+}
+
+func (u *Usecase) EditPathVariable(ctx context.Context, collectionID, requestID string, req EditPathVariableRequest) (RequestResponse, error) {
+	return u.update(ctx, updateReq{
+		CollectionID: collectionID,
+		RequestID:    requestID,
+		Operation:    "edit_path_variable",
+		Field:        "request.url.variable",
+		NewValue:     req,
+		Validate: func(item *collectionService.CollectionItem) error {
+			if !item.Request.URL.HasVariable(req.Key) {
+				return localerror.InvalidData("Path variable not found")
+			}
+			return nil
+		},
+		Apply: func(item *collectionService.CollectionItem) any {
+			old := append([]collectionService.PathVariable(nil), item.Request.URL.Variable...)
+			item.Request.URL.SetVariableValue(req.Key, req.Value)
 			return old
 		},
 	})
@@ -364,6 +387,7 @@ type updateReq struct {
 	Field        string
 	NewValue     any
 	Remove       bool
+	Validate     func(*collectionService.CollectionItem) error
 	Apply        func(*collectionService.CollectionItem) any
 }
 
@@ -388,6 +412,11 @@ func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, e
 		item = findRequest(docs.Item, req.RequestID)
 		if item == nil || item.Request == nil {
 			return RequestResponse{}, localerror.InvalidData("Request not found")
+		}
+		if req.Validate != nil {
+			if err := req.Validate(item); err != nil {
+				return RequestResponse{}, err
+			}
 		}
 		if req.Apply != nil {
 			oldValue = req.Apply(item)

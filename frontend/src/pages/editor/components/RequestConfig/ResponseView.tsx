@@ -12,8 +12,14 @@ import {
 } from "@/components/ui/dialog.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu.tsx";
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
-import {Download, Link2, Eye, EyeOff, ChevronDown, Plus, X, Pencil} from "lucide-react";
+import {Download, Link2, Eye, EyeOff, ChevronDown, Plus, X, Pencil, Copy} from "lucide-react";
 import {useMemo, useState, useCallback, useEffect} from "react";
 import * as XLSX from 'xlsx';
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
@@ -405,6 +411,31 @@ const ResponseView: React.FC = () => {
         }))
     }, [activeTabId, dispatch])
 
+    const handleCopyResponseBody = useCallback(async () => {
+        const textToCopy = editorBody || prettyResponse
+        if (!textToCopy) {
+            CustomToast.error("No response body to copy")
+            return
+        }
+        try {
+            if (navigator?.clipboard?.writeText) {
+                await navigator.clipboard.writeText(textToCopy)
+            } else {
+                const textArea = document.createElement("textarea")
+                textArea.value = textToCopy
+                textArea.style.position = "fixed"
+                textArea.style.opacity = "0"
+                document.body.appendChild(textArea)
+                textArea.select()
+                document.execCommand("copy")
+                document.body.removeChild(textArea)
+            }
+            CustomToast.success("Response body copied to clipboard")
+        } catch (err) {
+            CustomToast.error(err instanceof Error ? err.message : "Failed to copy response")
+        }
+    }, [editorBody, prettyResponse])
+
     return (
         <>
         <section
@@ -575,10 +606,24 @@ const ResponseView: React.FC = () => {
                             <Download className="mr-1 h-4 w-4"/>
                             Save
                         </Button>
-                        <Button variant="outline" size="sm">
-                            <Link2 className="mr-1 h-4 w-4"/>
-                            Share
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <Link2 className="mr-1 h-4 w-4"/>
+                                    Share
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                                <DropdownMenuItem
+                                    onClick={handleCopyResponseBody}
+                                    disabled={!editorBody && !prettyResponse}
+                                    className="cursor-pointer"
+                                >
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Copy
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="outline" size="sm" disabled={!isExcel} onClick={handleVisualize}>
                             {visualizeExcel ? <EyeOff className="mr-1 h-4 w-4" /> : <Eye className="mr-1 h-4 w-4" />}
                             {visualizeExcel ? 'Show Raw' : 'Visualize'}

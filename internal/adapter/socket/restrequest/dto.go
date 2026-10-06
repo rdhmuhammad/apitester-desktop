@@ -40,6 +40,7 @@ const (
 	RequestSaveScript
 	RequestError
 	RequestSuccess
+	RequestEditPathVariable
 )
 
 const RequestSavePostRequestScript = RequestSaveScript
@@ -58,6 +59,11 @@ type RequestGetPayload struct {
 type RequestUpdateURLPayload struct {
 	RequestIdentity
 	service.UpdateURLRequest
+}
+
+type RequestEditPathVariablePayload struct {
+	RequestIdentity
+	service.EditPathVariableRequest
 }
 
 type RequestUpdateHeadersPayload struct {
@@ -137,6 +143,10 @@ func (p *RequestGetPayload) From(msg ...any) {
 }
 
 func (p *RequestUpdateURLPayload) From(msg ...any) {
+	decodeRequestPayload(msg, p)
+}
+
+func (p *RequestEditPathVariablePayload) From(msg ...any) {
 	decodeRequestPayload(msg, p)
 }
 

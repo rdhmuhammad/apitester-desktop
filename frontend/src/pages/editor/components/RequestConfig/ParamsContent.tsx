@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import { cn } from "@/lib/utils.ts"
@@ -8,7 +8,8 @@ import { selectEditorActiveTabId } from "@/app/slices/editorTabsSlice.ts"
 import { useQueryClient } from "@tanstack/react-query"
 import { type Collection } from "@/layout/services/collection"
 import { useRequestConfig } from "@/pages/editor/hooks/useRequestConfig.ts"
-import type { ItemUrl } from "@/pages/editor/types/api.ts"
+import type { ItemUrl, PathVariable } from "@/pages/editor/types/api.ts"
+import { useDebouncedCallback } from "use-debounce"
 
 export interface ParamsContentProps {
     query?: ItemUrl[]
@@ -24,13 +25,14 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
     const activeTabId = useAppSelector(selectEditorActiveTabId)
     const queryClient = useQueryClient()
     const activeCollection = queryClient.getQueryData<Collection>(["collection", "active"])
-    const { request, updateQuery: hookUpdateQuery } = useRequestConfig(
+    const { request, updateQuery: hookUpdateQuery, editPathVariable } = useRequestConfig(
         activeCollection?.id ?? "",
         activeTabId
     )
 
     const query = propQuery ?? request?.query ?? []
     const updateQuery = propUpdateQuery ?? hookUpdateQuery
+    const pathVariables = request?.url?.variable ?? []
 
     const [newParamKey, setNewParamKey] = useState("")
     const [newParamValue, setNewParamValue] = useState("")
@@ -64,7 +66,10 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
     }
 
     return (
-        <div className={cn("overflow-hidden rounded-lg border border-border", className)}>
+        <div className={cn("space-y-4", className)}>
+        <div className="space-y-2">
+        <h3 className="text-sm font-medium">Query Params</h3>
+        <div className="overflow-hidden rounded-lg border border-border">
             <div className="grid grid-cols-12 gap-x-2 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <span className="col-span-3">Key</span>
                 <span className="col-span-3">Value</span>
@@ -159,6 +164,72 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
                     </Button>
                 </div>
             </div>
+        </div>
+        </div>
+        {pathVariables.length > 0 && (
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium">Path Variables</h3>
+                <div className="overflow-hidden rounded-lg border border-border">
+                    <div className="grid grid-cols-12 gap-x-2 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="col-span-4">Key</span>
+                        <span className="col-span-8">Value</span>
+                    </div>
+                    {pathVariables.map((item) => (
+                        <PathVariableRow
+                            key={item.id ?? item.key}
+                            item={item}
+                            onChange={editPathVariable}
+                        />
+                    ))}
+                </div>
+            </div>
+        )}
+        </div>
+    )
+}
+
+interface PathVariableRowProps {
+    item: PathVariable
+    onChange: (key: string, value: string) => void
+}
+
+const PathVariableRow: React.FC<PathVariableRowProps> = ({ item, onChange }) => {
+    const [localValue, setLocalValue] = useState(item.value ?? "")
+
+    useEffect(() => {
+        setLocalValue(item.value ?? "")
+    }, [item.value])
+
+    const debouncedOnChange = useDebouncedCallback((val: string) => {
+        onChange(item.key, val)
+    }, 300)
+
+    useEffect(() => {
+        return () => {
+            debouncedOnChange.flush()
+        }
+    }, [debouncedOnChange])
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const val = event.target.value
+        setLocalValue(val)
+        debouncedOnChange(val)
+    }
+
+    const handleBlur = () => {
+        debouncedOnChange.flush()
+    }
+
+    return (
+        <div className="grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center">
+            <Input value={item.key} readOnly className="col-span-4 h-8" />
+            <Input
+                value={localValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className="col-span-8 h-8"
+                placeholder="value"
+            />
         </div>
     )
 }

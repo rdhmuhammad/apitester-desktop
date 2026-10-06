@@ -20,6 +20,7 @@ import (
 
 type Usecase interface {
 	UpdateURL(ctx context.Context, collectionID, requestID string, req service.UpdateURLRequest) (service.RequestResponse, error)
+	EditPathVariable(ctx context.Context, collectionID, requestID string, req service.EditPathVariableRequest) (service.RequestResponse, error)
 	UpdateHeaders(ctx context.Context, collectionID, requestID string, req service.UpdateHeadersRequest) (service.RequestResponse, error)
 	UpdateAuth(ctx context.Context, collectionID, requestID string, req service.UpdateAuthRequest) (service.RequestResponse, error)
 	UpdateMethod(ctx context.Context, collectionID, requestID string, req service.UpdateMethodRequest) (service.RequestResponse, error)
@@ -79,6 +80,22 @@ func (s *RequestSocket) UpdateURL(_ *cio.NS, client *socket.Socket, message cio.
 	}
 	res, err := s.usecase.UpdateURL(ctx, collectionID, requestID, payload.UpdateURLRequest)
 	s.emitResult(client, RequestUpdateUrl.Name(), res, err)
+}
+
+func (s *RequestSocket) EditPathVariable(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	payload, ok := message.(*RequestEditPathVariablePayload)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
+	if collectionID == "" || requestID == "" {
+		s.emitError(client, RequestEditPathVariable.Name(), "Collection id and request id are required")
+		return
+	}
+	res, err := s.usecase.EditPathVariable(ctx, collectionID, requestID, payload.EditPathVariableRequest)
+	s.emitResult(client, RequestEditPathVariable.Name(), res, err)
 }
 
 func (s *RequestSocket) UpdateHeaders(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
@@ -249,6 +266,7 @@ func (s *RequestSocket) SaveScript(ns *cio.NS, client *socket.Socket, message ci
 func (s *RequestSocket) OnSpace(ns cio.NSInitiate) {
 	ns("restrequest", nil).
 		Event(RequestUpdateUrl.Name(), &RequestUpdateURLPayload{}, s.UpdateURL).
+		Event(RequestEditPathVariable.Name(), &RequestEditPathVariablePayload{}, s.EditPathVariable).
 		Event(RequestUpdateHeaders.Name(), &RequestUpdateHeadersPayload{}, s.UpdateHeaders).
 		Event(RequestUpdateAuth, &RequestUpdateAuthPayload{}, s.UpdateAuth).
 		Event(RequestUpdateMethod.Name(), &RequestUpdateMethodPayload{}, s.UpdateMethod).

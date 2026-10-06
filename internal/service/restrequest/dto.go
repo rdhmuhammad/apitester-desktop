@@ -36,6 +36,11 @@ type UpdateURLRequest struct {
 	URL collectionService.RequestURL `json:"url"`
 }
 
+type EditPathVariableRequest struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type UpdateHeadersRequest struct {
 	Headers []collectionService.Header `json:"headers"`
 }

@@ -2,8 +2,11 @@ package collection
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ReadResponse struct {
@@ -98,11 +101,75 @@ type RequestBody struct {
 	FormData []Property `json:"formdata,omitempty"`
 }
 
+type PathVariable struct {
+	ID    string `json:"id"`
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type RequestURL struct {
-	Raw   string     `json:"raw"`
-	Host  []string   `json:"host"`
-	Path  []string   `json:"path"`
-	Query []Property `json:"query"`
+	Raw      string         `json:"raw"`
+	Host     []string       `json:"host"`
+	Path     []string       `json:"path"`
+	Query    []Property     `json:"query"`
+	Variable []PathVariable `json:"variable,omitempty"`
+}
+
+var pathVariablePattern = regexp.MustCompile(`^:(\w+)$`)
+
+// ResolvePath rebuilds Path from Raw, ignoring host, query string and fragment.
+func (r *RequestURL) ResolvePath() {
+	endpoint := strings.Replace(r.Raw, r.GetSelectedHost(), "", 1)
+	endpoint = strings.SplitN(endpoint, "#", 2)[0]
+	endpoint = strings.SplitN(endpoint, "?", 2)[0]
+
+	r.Path = []string{}
+	for _, segment := range strings.Split(endpoint, "/") {
+		if segment != "" {
+			r.Path = append(r.Path, segment)
+		}
+	}
+}
+
+// SyncVariables makes Variable mirror the unique `:word` segments of Path.
+// Values of keys found in existing are kept, orphans are dropped, new keys are added.
+func (r *RequestURL) SyncVariables(existing []PathVariable) {
+	r.Variable = []PathVariable{}
+	seen := map[string]bool{}
+	for _, segment := range r.Path {
+		match := pathVariablePattern.FindStringSubmatch(segment)
+		if match == nil || seen[match[1]] {
+			continue
+		}
+		seen[match[1]] = true
+		r.Variable = append(r.Variable, findOrNewPathVariable(existing, match[1]))
+	}
+}
+
+func findOrNewPathVariable(existing []PathVariable, key string) PathVariable {
+	for _, variable := range existing {
+		if variable.Key == key {
+			return variable
+		}
+	}
+	return PathVariable{ID: uuid.NewString(), Key: key}
+}
+
+func (r *RequestURL) HasVariable(key string) bool {
+	for _, variable := range r.Variable {
+		if variable.Key == key {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *RequestURL) SetVariableValue(key, value string) {
+	for i := range r.Variable {
+		if r.Variable[i].Key == key {
+			r.Variable[i].Value = value
+		}
+	}
 }
 
 func (r *RequestURL) GetSelectedHost() string {
