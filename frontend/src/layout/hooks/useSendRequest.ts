@@ -122,16 +122,25 @@ export const parseBlobResponse = async (blob: Blob, contentType: string): Promis
 export const sendApiRequest = async (request: ISendRequest): Promise<SendResponse | null> => {
     const isFormData = request.contentType === "multipart/form-data"
     const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI)
+    // requestParams is the single source of query params; url.raw may already carry "?a=b",
+    // which would otherwise be sent twice (a=b&a=b) and parsed as an array by the server.
+    const endpoint = request.endpoint.split(/[?#]/)[0]
+    let params: Record<string, string> | undefined = request.requestParams.reduce((acc, it) => {
+        acc[it.key] = it.value ?? ""
+        return acc
+    }, {} as Record<string, string>)
     let baseURL = request.baseUrl
-    let url = request.endpoint
+    let url = endpoint
 
     // In browser dev mode outside Electron, route external requests through Vite CORS bypass proxy
     if (!isElectron && /^https?:\/\//i.test(request.baseUrl) && import.meta.env.DEV) {
         const cleanBase = request.baseUrl.replace(/\/+$/, "")
-        const cleanEndpoint = request.endpoint.replace(/^\/+/, "")
-        const fullTarget = cleanEndpoint ? `${cleanBase}/${cleanEndpoint}` : cleanBase
+        const cleanEndpoint = endpoint.replace(/^\/+/, "")
+        const qs = new URLSearchParams(params).toString()
+        const fullTarget = (cleanEndpoint ? `${cleanBase}/${cleanEndpoint}` : cleanBase) + (qs ? `?${qs}` : "")
         baseURL = ""
         url = `/__cors_proxy__?target=${encodeURIComponent(fullTarget)}`
+        params = undefined // proxy only reads `target`
     }
 
     try {
@@ -146,10 +155,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             },
             baseURL,
             url,
-            params: request.requestParams.reduce((acc, it) => {
-                acc[it.key] = it.value ?? ""
-                return acc
-            }, {} as Record<string, string>),
+            params,
             data: request.contentType === "application/json"
                 ? (request.raw ?? "{}") :
                 formData(request.formData ?? []),
