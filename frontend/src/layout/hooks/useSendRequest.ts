@@ -16,6 +16,7 @@ import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
 import {requestConfigQueryKey} from "@/pages/editor/services/requestConfig.ts";
 import {useQueryClient} from "@tanstack/react-query";
 import {useEnvResolve, resolveVars, buildEnvVarsRecord} from "@/layout/hooks/useEnvResolve.ts";
+import {getHttpStatusText} from "@/lib/httpStatusCodes.ts";
 
 export interface ISendRequest {
     baseUrl: string
@@ -180,7 +181,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             responseTime: response.duration ?? 0,
             responseSize,
             statusCode: response?.status ?? 0,
-            statusText: response?.statusText ?? 'UNKNOWN',
+            statusText: getHttpStatusText(response?.status, response?.statusText),
             data,
             contentType,
             isBinary,
@@ -227,7 +228,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             responseTime: error.duration ?? 0,
             responseSize: size,
             statusCode: error.response?.status ?? 0,
-            statusText: error.response?.statusText ?? error.message ?? "UNKNOWN",
+            statusText: getHttpStatusText(error.response?.status, error.response?.statusText || error.message),
             data,
             contentType,
             isBinary,

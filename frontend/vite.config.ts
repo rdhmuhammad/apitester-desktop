@@ -49,6 +49,9 @@ function corsBypassPlugin(): Plugin {
             },
             (proxyRes) => {
               res.statusCode = proxyRes.statusCode || 200
+              if (proxyRes.statusMessage) {
+                res.statusMessage = proxyRes.statusMessage
+              }
               for (const [k, v] of Object.entries(proxyRes.headers)) {
                 if (k.toLowerCase().startsWith("access-control-")) continue
                 if (v !== undefined) {

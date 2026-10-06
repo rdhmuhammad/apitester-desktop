@@ -11,7 +11,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog.tsx";
 import {Input} from "@/components/ui/input.tsx";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
+import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {Download, Link2, Eye, EyeOff, ChevronDown, Plus, X, Pencil} from "lucide-react";
 import {useMemo, useState, useCallback, useEffect} from "react";
@@ -25,6 +25,7 @@ import CustomToast from "@/components/common/toast";
 import type {ScriptLog} from "@/types/response.ts";
 import {cn} from "@/lib/utils.ts";
 import {useDebouncedCallback} from "use-debounce";
+import {getHttpStatusText, HTTP_STATUS_TEXTS} from "@/lib/httpStatusCodes.ts";
 
 const EMPTY_LOGS: ScriptLog[] = []
 const EMPTY_MUTATIONS: Record<string, string | null> = {}
@@ -76,6 +77,63 @@ const LogEntry: React.FC<{ log: ScriptLog }> = ({ log }) => {
     )
 }
 
+const getStatusBadgeColor = (code?: number) => {
+    if (!code) return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200/70 dark:hover:bg-slate-800/80"
+    const s = Math.floor(code / 100)
+    if (s === 2) return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-200/70 dark:hover:bg-emerald-900/40"
+    if (s === 3) return "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border-blue-200 dark:border-blue-800/60 hover:bg-blue-200/70 dark:hover:bg-blue-900/40"
+    if (s === 4) return "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border-amber-200 dark:border-amber-800/60 hover:bg-amber-200/70 dark:hover:bg-amber-900/40"
+    return "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400 border-red-200 dark:border-red-800/60 hover:bg-red-200/70 dark:hover:bg-red-900/40"
+}
+
+const getStatusDotColor = (code?: number) => {
+    if (!code) return "bg-slate-400"
+    const s = Math.floor(code / 100)
+    if (s === 2) return "bg-emerald-500"
+    if (s === 3) return "bg-blue-500"
+    if (s === 4) return "bg-amber-500"
+    return "bg-red-500"
+}
+
+const STATUS_GROUPS = [
+    {
+        label: "2xx Success",
+        options: [
+            { code: 200, label: "OK", dot: "bg-emerald-500" },
+            { code: 201, label: "Created", dot: "bg-emerald-500" },
+            { code: 204, label: "No Content", dot: "bg-emerald-500" },
+        ],
+    },
+    {
+        label: "3xx Redirection",
+        options: [
+            { code: 301, label: "Moved Permanently", dot: "bg-blue-500" },
+            { code: 302, label: "Found", dot: "bg-blue-500" },
+            { code: 304, label: "Not Modified", dot: "bg-blue-500" },
+        ],
+    },
+    {
+        label: "4xx Client Error",
+        options: [
+            { code: 400, label: "Bad Request", dot: "bg-amber-500" },
+            { code: 401, label: "Unauthorized", dot: "bg-amber-500" },
+            { code: 403, label: "Forbidden", dot: "bg-amber-500" },
+            { code: 404, label: "Not Found", dot: "bg-amber-500" },
+            { code: 422, label: "Unprocessable Entity", dot: "bg-amber-500" },
+            { code: 429, label: "Too Many Requests", dot: "bg-amber-500" },
+        ],
+    },
+    {
+        label: "5xx Server Error",
+        options: [
+            { code: 500, label: "Internal Server Error", dot: "bg-red-500" },
+            { code: 502, label: "Bad Gateway", dot: "bg-red-500" },
+            { code: 503, label: "Service Unavailable", dot: "bg-red-500" },
+            { code: 504, label: "Gateway Timeout", dot: "bg-red-500" },
+        ],
+    },
+]
+
 const ResponseView: React.FC = () => {
     const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
@@ -99,16 +157,17 @@ const ResponseView: React.FC = () => {
 
     const sourceTab = activeExampleId ?? "actual"
 
+    console.log(currResponse)
     const responseCode = activeExample?.code ?? currResponse?.statusCode
-    const responseStatus = activeExample?.status ?? currResponse?.statusText ?? "OK"
-    const badgeColor = (() => {
-        if (!responseCode) return "bg-slate-100 text-slate-700"
-        const s = Math.floor(responseCode / 100)
-        if (s === 2) return "bg-emerald-100 text-emerald-700"
-        if (s === 3) return "bg-blue-100 text-blue-700"
-        if (s === 4) return "bg-amber-100 text-amber-700"
-        return "bg-red-100 text-red-700"
-    })()
+    const responseStatus = activeExample?.status || getHttpStatusText(currResponse?.statusCode, currResponse?.statusText) || "OK"
+    const badgeColor = getStatusBadgeColor(responseCode)
+    const activeExampleCode = activeExample?.code ?? 200
+    const isKnownCode = STATUS_GROUPS.some(g => g.options.some(o => o.code === activeExampleCode))
+    const customOption = (!isKnownCode && activeExample?.code) ? {
+        code: activeExample.code,
+        label: HTTP_STATUS_TEXTS[activeExample.code] ?? "Custom",
+        dot: getStatusDotColor(activeExample.code),
+    } : null
 
     const responseBody = useMemo(() => {
         if (activeExample) return activeExample.body ?? ""
@@ -300,19 +359,7 @@ const ResponseView: React.FC = () => {
     const handleStatusChange = async (statusCodeStr: string) => {
         if (!activeExample?.id) return
         const code = Number(statusCodeStr)
-        const statusMap: Record<number, string> = {
-            200: "OK",
-            201: "Created",
-            204: "No Content",
-            400: "Bad Request",
-            401: "Unauthorized",
-            403: "Forbidden",
-            404: "Not Found",
-            500: "Internal Server Error",
-            502: "Bad Gateway",
-            503: "Service Unavailable",
-        }
-        const status = statusMap[code] ?? activeExample.status ?? "OK"
+        const status = HTTP_STATUS_TEXTS[code] ?? activeExample.status ?? "OK"
         try {
             await updateExampleResponse(activeExample.id, {code, status})
         } catch (err) {
@@ -368,31 +415,73 @@ const ResponseView: React.FC = () => {
                     {activeExample ? (
                         <div className="flex items-center gap-2">
                             <Select
-                                value={String(activeExample.code ?? 200)}
+                                value={String(activeExampleCode)}
                                 onValueChange={handleStatusChange}
                             >
-                                <SelectTrigger className="h-7 text-xs font-semibold w-[150px] bg-background">
+                                <SelectTrigger
+                                    className={cn(
+                                        "h-[22px] data-[size=default]:h-[22px] data-[size=sm]:h-[22px] min-h-[22px] py-0 px-2 text-xs font-semibold rounded-md border gap-1 transition-colors cursor-pointer shadow-none [&_svg]:size-3 [&_svg]:text-current [&_svg]:opacity-70",
+                                        getStatusBadgeColor(activeExampleCode)
+                                    )}
+                                >
                                     <SelectValue placeholder="Status Code" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="200">200 OK</SelectItem>
-                                    <SelectItem value="201">201 Created</SelectItem>
-                                    <SelectItem value="204">204 No Content</SelectItem>
-                                    <SelectItem value="400">400 Bad Request</SelectItem>
-                                    <SelectItem value="401">401 Unauthorized</SelectItem>
-                                    <SelectItem value="403">403 Forbidden</SelectItem>
-                                    <SelectItem value="404">404 Not Found</SelectItem>
-                                    <SelectItem value="500">500 Internal Server Error</SelectItem>
-                                    <SelectItem value="502">502 Bad Gateway</SelectItem>
-                                    <SelectItem value="503">503 Service Unavailable</SelectItem>
+                                <SelectContent align="start" className="w-[230px]">
+                                    {customOption && (
+                                        <>
+                                            <SelectGroup>
+                                                <SelectLabel className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground px-2 py-1">
+                                                    Custom Status
+                                                </SelectLabel>
+                                                <SelectItem value={String(customOption.code)} className="text-xs cursor-pointer py-1.5">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={cn("size-1.5 rounded-full shrink-0", customOption.dot)} />
+                                                        <span className="font-semibold">{customOption.code}</span>
+                                                        <span className="text-current opacity-90">{customOption.label}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectGroup>
+                                            <SelectSeparator />
+                                        </>
+                                    )}
+                                    {STATUS_GROUPS.map((group, groupIndex) => (
+                                        <div key={group.label}>
+                                            {groupIndex > 0 && <SelectSeparator />}
+                                            <SelectGroup>
+                                                <SelectLabel className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground px-2 py-1">
+                                                    {group.label}
+                                                </SelectLabel>
+                                                {group.options.map((opt) => (
+                                                    <SelectItem
+                                                        key={opt.code}
+                                                        value={String(opt.code)}
+                                                        className="text-xs cursor-pointer py-1.5"
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={cn("size-1.5 rounded-full shrink-0", opt.dot)} />
+                                                            <span className="font-semibold">{opt.code}</span>
+                                                            <span className="text-current opacity-90">{opt.label}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </div>
+                                    ))}
                                 </SelectContent>
                             </Select>
-                            <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
-                                Example: {activeExample.name}
-                            </Badge>
                         </div>
                     ) : (
-                        responseCode && <Badge className={badgeColor}>{`${responseCode} ${responseStatus}`}</Badge>
+                        responseCode && (
+                            <Badge
+                                className={cn(
+                                    "h-[22px] text-xs font-semibold px-2 py-0 rounded-md border shadow-none flex items-center gap-1",
+                                    badgeColor
+                                )}
+                            >
+                                <span className={cn("size-1.5 rounded-full shrink-0", getStatusDotColor(responseCode))} />
+                                <span>{`${responseCode} ${responseStatus}`}</span>
+                            </Badge>
+                        )
                     )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -451,7 +540,6 @@ const ResponseView: React.FC = () => {
                             title="Add New Request Example"
                         >
                             <Plus className="h-3.5 w-3.5" />
-                            <span>Example</span>
                         </Button>
                         {activeExample && (
                             <Button
