@@ -1,6 +1,6 @@
 import {createSlice, type PayloadAction} from "@reduxjs/toolkit";
 import type {RootState} from "@/app/store/store.ts";
-import type {EditorTab} from "@/pages/editor/types/editor.ts";
+import type {ColtReqMethod, EditorTab} from "@/pages/editor/types/editor.ts";
 
 export interface EditorTabsState {
     tabs: EditorTab[];
@@ -59,6 +59,17 @@ const editorTabsSlice = createSlice({
                 tab.label = action.payload.label;
             }
         },
+        updateEditorTab(state, action: PayloadAction<{id: string; label?: string; method?: ColtReqMethod}>) {
+            const tab = state.tabs.find(tab => tab.id === action.payload.id);
+            if (tab?.type === 'request') {
+                if (action.payload.label !== undefined) {
+                    tab.label = action.payload.label;
+                }
+                if (action.payload.method !== undefined) {
+                    tab.method = action.payload.method;
+                }
+            }
+        },
     },
 });
 
@@ -70,6 +81,7 @@ export const {
     openEditorTab,
     removeEditorTab,
     renameEditorTab,
+    updateEditorTab,
 } = editorTabsSlice.actions;
 export const setTabs = syncEditorTabs;
 export const setActiveTabId = setEditorActiveTab;

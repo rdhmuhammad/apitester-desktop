@@ -13,10 +13,24 @@ import (
 )
 
 type FileWatcher struct {
-	watcher *fsnotify.Watcher
-	State   *FileState
-	pathCh  chan string
-	logger  logger.Logger
+	watcher   *fsnotify.Watcher
+	State     *FileState
+	pathCh    chan string
+	logger    logger.Logger
+	mu        sync.RWMutex
+	onChanges []func(data []byte)
+}
+
+var (
+	defaultWatcher *FileWatcher
+	defaultOnce    sync.Once
+)
+
+func Default(lg logger.Logger) *FileWatcher {
+	defaultOnce.Do(func() {
+		defaultWatcher = New(lg)
+	})
+	return defaultWatcher
 }
 
 func New(lg logger.Logger) *FileWatcher {
@@ -39,6 +53,12 @@ func New(lg logger.Logger) *FileWatcher {
 
 func (fw *FileWatcher) Watch(path string) {
 	fw.pathCh <- path
+}
+
+func (fw *FileWatcher) OnChanges(fun func(data []byte)) {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	fw.onChanges = append(fw.onChanges, fun)
 }
 
 func (fw *FileWatcher) Close() error {
@@ -83,6 +103,18 @@ func (fw *FileWatcher) listen() {
 					log.Printf("error stating file: %v", err)
 					continue
 				}
+
+				fw.mu.RLock()
+				callbacks := make([]func(data []byte), len(fw.onChanges))
+				copy(callbacks, fw.onChanges)
+				fw.mu.RUnlock()
+
+				for _, fn := range callbacks {
+					if fn != nil {
+						fn(data)
+					}
+				}
+
 				fw.State.Update(string(data), info.ModTime())
 				log.Printf("file changed: %s at %s", currentPath, info.ModTime().Format(time.RFC3339))
 			}

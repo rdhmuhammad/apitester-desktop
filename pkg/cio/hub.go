@@ -35,10 +35,12 @@ func New(server *gin.Engine) *IO {
 	server.Any("/socket.io", handler)
 	server.Any("/socket.io/*any", handler)
 
-	return &IO{
+	io := &IO{
 		socket: sc,
 		ns:     make(map[string]*NS),
 	}
+
+	return io
 }
 
 func (io *IO) NewSpace(name string, middleware types.EventListener) *NS {
@@ -55,6 +57,27 @@ func (io *IO) NewSpace(name string, middleware types.EventListener) *NS {
 func (io *IO) GetSpace(name string) (*NS, bool) {
 	ns, ok := io.ns[name]
 	return ns, ok
+}
+
+func (io *IO) Emit(namespace string, ev string, args ...any) error {
+	if io == nil {
+		return nil
+	}
+	if ns, ok := io.GetSpace(namespace); ok {
+		return ns.Emit(ev, args...)
+	}
+	trimmed := strings.TrimPrefix(namespace, "/")
+	if ns, ok := io.GetSpace(trimmed); ok {
+		return ns.Emit(ev, args...)
+	}
+	withSlash := "/" + trimmed
+	if ns, ok := io.GetSpace(withSlash); ok {
+		return ns.Emit(ev, args...)
+	}
+	if io.socket != nil {
+		return io.socket.Of(namespace, nil).Emit(ev, args...)
+	}
+	return nil
 }
 
 // ================================ NameSpace ================================
@@ -85,6 +108,13 @@ type MessagePayload interface {
 	From(msg ...any)
 }
 type NSListenerMessage[T MessagePayload] func(io *NS, client *socket.Socket, msg T)
+
+func (n *NS) Emit(ev string, args ...any) error {
+	if n == nil || n.Space == nil {
+		return nil
+	}
+	return n.Space.Emit(ev, args...)
+}
 
 func (n *NS) UserRoom() *NS {
 	n.useRoom = true

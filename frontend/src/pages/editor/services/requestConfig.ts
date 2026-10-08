@@ -1,7 +1,7 @@
 import axios from "@/config/axios.ts"
 import type {ItemUrl, ReqAuth, Request, RequestBody, RequestURL} from "@/pages/editor/types/api.ts"
 import type {Response} from "@/types/response.ts"
-import {socketCollection} from "@/pages/editor/services/mainSocket.ts"
+import {socketRestRequest} from "@/pages/editor/services/mainSocket.ts"
 
 export interface ExampleResponse {
     id?: string
@@ -57,13 +57,13 @@ type SocketResult = {operation: string; request: RestRequestResponse}
 type SocketError = {operation: string; message: string}
 
 const ensureSocketConnected = (timeoutMs = 10_000): Promise<void> => {
-    if (socketCollection.connected) return Promise.resolve()
-    if (socketCollection.disconnected) {
-        socketCollection.connect()
+    if (socketRestRequest.connected) return Promise.resolve()
+    if (socketRestRequest.disconnected) {
+        socketRestRequest.connect()
     }
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
-            socketCollection.off("connect", onConnect)
+            socketRestRequest.off("connect", onConnect)
             reject(new Error("Socket connection timed out"))
         }, timeoutMs)
 
@@ -71,7 +71,7 @@ const ensureSocketConnected = (timeoutMs = 10_000): Promise<void> => {
             clearTimeout(timer)
             resolve()
         }
-        socketCollection.once("connect", onConnect)
+        socketRestRequest.once("connect", onConnect)
     })
 }
 
@@ -101,13 +101,13 @@ const emitRequestEvent = async <T extends Versioned>(
         }
         const cleanup = () => {
             clearTimeout(timeout)
-            socketCollection.off(socketEvents.success, handleSuccess)
-            socketCollection.off(socketEvents.error, handleError)
+            socketRestRequest.off(socketEvents.success, handleSuccess)
+            socketRestRequest.off(socketEvents.error, handleError)
         }
 
-        socketCollection.on(socketEvents.success, handleSuccess)
-        socketCollection.on(socketEvents.error, handleError)
-        socketCollection.emit(event, {...identity, ...data})
+        socketRestRequest.on(socketEvents.success, handleSuccess)
+        socketRestRequest.on(socketEvents.error, handleError)
+        socketRestRequest.emit(event, {...identity, ...data})
     })
 }
 

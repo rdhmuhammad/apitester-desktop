@@ -1,6 +1,8 @@
 import type {CollectionAuth, CollectionVar} from "@/pages/editor/types/api.ts";
 import axios from "@/config/axios.ts";
+import {SOCKET_EVENTS} from "@/config/socket.ts";
 import type {Response} from "@/types/response.ts";
+import {socketCollection} from "@/pages/editor/services/mainSocket.ts";
 
 export interface Collection {
     id: string
@@ -193,7 +195,25 @@ export const CollectionServices = {
         const response = await axios.put<Response<UpdateTreeResponse>>(`/restrequest/tree/${collectionId}`, tree)
         return response.data.data
     },
+
+    onNotifyChanges: (callback: (payload: NotifyChangesPayload) => void): (() => void) => {
+        const handler = (payload: NotifyChangesPayload) => {
+            callback(payload)
+        }
+        socketCollection.on(SOCKET_EVENTS.collectionRefresh, handler)
+        return () => {
+            socketCollection.off(SOCKET_EVENTS.collectionRefresh, handler)
+        }
+    },
 }
+
+export interface NotifyChangesPayload {
+    refresh: boolean
+}
+
+export const onNotifyChanges = CollectionServices.onNotifyChanges
+export const onCollectionRefresh = CollectionServices.onNotifyChanges
+
 
 export interface UpdateTreeItem {
     id: string

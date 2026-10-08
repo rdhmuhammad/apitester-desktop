@@ -14,8 +14,13 @@ import {
 } from "@/components/ui/select.tsx";
 import {LoaderCircle, Plus, Send, X} from "lucide-react";
 import DeleteRequestDialog from "./DeleteRequestDialog.tsx";
-import {useAppSelector} from "@/app/store/hooks.ts";
-import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
+import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
+import {
+    selectEditorActiveTabId,
+    selectEditorTabs,
+    syncEditorTabs,
+    updateEditorTab,
+} from "@/app/slices/editorTabsSlice.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
@@ -23,6 +28,25 @@ import {useRequestSender} from "@/layout/hooks/useSendRequest.ts";
 import {useEnvResolve} from "@/layout/hooks/useEnvResolve.ts";
 import {useDebouncedCallback} from "use-debounce";
 import {useQueryClient} from "@tanstack/react-query";
+import {CollectionServices, type RequestTree} from "@/layout/services/collection.ts";
+import type {EditorTab} from "@/app/slices";
+import CustomToast from "@/components/common/toast";
+
+const flattenTreeRequests = (nodes: RequestTree[]): Map<string, RequestTree> => {
+    const map = new Map<string, RequestTree>();
+    const walk = (items: RequestTree[]) => {
+        for (const item of items) {
+            if (item.category === "REQ") {
+                map.set(item.id, item);
+            }
+            if (item.item && item.item.length > 0) {
+                walk(item.item);
+            }
+        }
+    };
+    walk(nodes);
+    return map;
+};
 
 const requestMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const methodColorClass: Record<ColtReqMethod, string> = {
@@ -34,12 +58,15 @@ const methodColorClass: Record<ColtReqMethod, string> = {
 };
 
 const RequestHeader: React.FC = () => {
+    const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const editorTabs = useAppSelector(selectEditorTabs)
     const {
         activeCollection,
         variables,
         createVariableMutation,
         selectBaseUrlMutation,
+        refetchTree,
     } = useCollection()
 
     // Base URL options — all BASE_URL category variables' values
@@ -55,17 +82,79 @@ const RequestHeader: React.FC = () => {
     const {selectedBaseUrl} = useEnvResolve()
     const queryClient = useQueryClient()
 
-    const {request, updateMethod, updateUrl, activeExampleId} = useRequestConfig(
+    const {
+        request,
+        requestQuery,
+        updateMethod,
+        updateUrl,
+        activeExampleId,
+    } = useRequestConfig(
         activeCollection?.id ?? "",
         activeTabId
     )
     const isExampleActive = Boolean(activeExampleId)
+
+    const editorTabsRef = useRef(editorTabs)
+    editorTabsRef.current = editorTabs
+
+    const activeTabIdRef = useRef(activeTabId)
+    activeTabIdRef.current = activeTabId
+
+    const activeCollectionRef = useRef(activeCollection)
+    activeCollectionRef.current = activeCollection
+
+    const requestQueryRef = useRef(requestQuery)
+    requestQueryRef.current = requestQuery
+
+    useEffect(() => {
+        const unsubscribe = CollectionServices.onNotifyChanges(async (payload) => {
+            console.log(payload)
+            if (payload?.refresh) {
+                await queryClient.invalidateQueries({queryKey: ["collection"]})
+                await queryClient.invalidateQueries({queryKey: ["request-config"]})
+
+                const tree = await refetchTree()
+                if (tree.isError){
+                    CustomToast.error("Failed fetching tree data");
+                }
+
+                const treeNodes = tree.data ?? []
+                console.log(treeNodes)
+                if (treeNodes) {
+                    const reqMap = flattenTreeRequests(treeNodes)
+                    const currentTabs = editorTabsRef.current
+
+                    const nextTabs = currentTabs
+                        .filter((tab) => {
+                            if (tab.type !== "request") return true
+                            return reqMap.has(tab.id)
+                        }).map(tab => {
+                            let nextTab = reqMap.get(tab.id) ?? {} as RequestTree
+                            return {
+                                id: nextTab.id,
+                                label: nextTab.name,
+                                method: nextTab.method as ColtReqMethod,
+                                type: "request"
+                            } as EditorTab
+                        })
+
+                    dispatch(syncEditorTabs(nextTabs))
+                }
+            }
+        })
+        return () => {
+            unsubscribe()
+        }
+    }, [queryClient, dispatch])
 
     const requestSender = useRequestSender()
     const collectionData = activeCollection
 
     const handleMethodChange = async (value: string) => {
         await updateMethod(value as ColtReqMethod)
+        if (activeTabId) {
+            dispatch(updateEditorTab({id: activeTabId, method: value as ColtReqMethod}))
+        }
         await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
     }
 
@@ -95,7 +184,9 @@ const RequestHeader: React.FC = () => {
     // Focus input when "Add New" is clicked
     useEffect(() => {
         if (isAddingBaseUrl) {
-            const timer = setTimeout(() => { newBaseUrlInputRef.current?.focus() }, 50)
+            const timer = setTimeout(() => {
+                newBaseUrlInputRef.current?.focus()
+            }, 50)
             return () => clearTimeout(timer)
         }
     }, [isAddingBaseUrl])

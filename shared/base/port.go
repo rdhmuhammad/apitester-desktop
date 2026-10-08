@@ -16,6 +16,7 @@ import (
 	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
+	"github.com/rdhmuhammad/apitester/pkg/watcher"
 	"go.etcd.io/bbolt"
 )
 
@@ -31,6 +32,7 @@ type Port struct {
 	CollectionRepo db.RepositoryInterface[domain.Collection]
 	HistoryRepo    db.RepositoryInterface[domain.CollectionHistory]
 	ErrHandler     localerror.HandleError
+	Watcher        *watcher.FileWatcher
 }
 
 // NewPort constructs a Port with collection and history repositories.
@@ -43,10 +45,17 @@ func NewPort(lg logger.Logger, database *bbolt.DB) *Port {
 	if err != nil {
 		elog.Panicf(elog.EIDGenericError, "failed to initialize collection history repository: %v", err)
 	}
+
+	fw := watcher.Default(lg)
+	if selected := FindSelectedCollection(context.Background(), collectionRepo); selected != nil {
+		fw.Watch(selected.Path)
+	}
+
 	return &Port{
 		CollectionRepo: collectionRepo,
 		HistoryRepo:    historyRepo,
 		ErrHandler:     localerror.NewHandlerError(lg),
+		Watcher:        fw,
 	}
 }
 
@@ -114,6 +123,7 @@ func (p *Port) SaveCollection(ctx context.Context, collection *domain.Collection
 	if err := p.CollectionRepo.Update(ctx, collection.ID, collection); err != nil {
 		return nil, p.ErrHandler.ErrorReturn(err)
 	}
+	p.NotifyWatcher(collection.Path, content)
 	return content, nil
 }
 
@@ -223,4 +233,35 @@ func (p *Port) Update(ctx context.Context, collectionID, requestID, operation, f
 		return nil, err
 	}
 	return saved, nil
+}
+
+// NotifyWatcher updates the file watcher's cached state with saved content and modification time.
+func (p *Port) NotifyWatcher(path string, saved []byte) {
+	if p.Watcher != nil && p.Watcher.State != nil {
+		if info, statErr := os.Stat(path); statErr == nil {
+			p.Watcher.State.Update(string(saved), info.ModTime())
+		} else {
+			p.Watcher.State.Update(string(saved), time.Now())
+		}
+		if info, statErr := os.Stat(path); statErr == nil && info.ModTime().IsZero() {
+			p.Watcher.State.Update(string(saved), time.Now())
+		}
+	}
+}
+
+// LatestHistory returns the latest CollectionHistory record for a collectionID by CreatedAt.
+func (p *Port) LatestHistory(ctx context.Context, collectionID string) (*domain.CollectionHistory, error) {
+	histories, err := p.HistoryRepo.List(ctx)
+	if err != nil {
+		return nil, p.ErrHandler.ErrorReturn(err)
+	}
+	var latest *domain.CollectionHistory
+	for i := range histories {
+		if histories[i].CollectionID == collectionID {
+			if latest == nil || histories[i].CreatedAt.After(latest.CreatedAt) {
+				latest = &histories[i]
+			}
+		}
+	}
+	return latest, nil
 }

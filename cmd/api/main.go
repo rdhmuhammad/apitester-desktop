@@ -10,6 +10,7 @@ import (
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/restrequest"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/testsuits"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/tree"
+	collectionSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/collection"
 	requestSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/restrequest"
 	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/shared/api"
@@ -41,6 +42,7 @@ func main() {
 	})
 	start.RegisterSocket(func(conn api.Conns) []api.Namespace {
 		return []api.Namespace{
+			collectionSocket.NewCollectionSocket(conn.Logger, conn.DB),
 			requestSocket.NewRestRequestSocket(conn.Logger, conn.DB),
 		}
 	})

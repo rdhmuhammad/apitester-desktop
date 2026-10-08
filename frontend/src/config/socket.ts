@@ -1,12 +1,14 @@
 import {io, type Socket} from "socket.io-client";
 
 export const SOCKET_NAMESPACES = {
-    collection: "/restrequest",
+    collection: "/collection",
+    restrequest: "/restrequest",
 } as const;
 
 export const SOCKET_EVENTS = {
     collectionWrite: "collection:write",
     collectionWriteError: "collection:write:error",
+    collectionRefresh: "collection:refresh",
 } as const;
 
 export type SocketQuery = Record<string, string | number | boolean>;

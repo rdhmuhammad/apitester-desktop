@@ -57,6 +57,8 @@ func (u *Usecase) CreateRequest(ctx context.Context, collectionID string) (Reque
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
+	u.NotifyWatcher(collection.Path, updated)
+
 	if err := u.RecordHistory(ctx, collection, item.ID, "create_request", "request", nil, item, content, updated); err != nil {
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
@@ -428,6 +430,8 @@ func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, e
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
+	u.NotifyWatcher(collection.Path, updated)
+
 	newValue := req.NewValue
 	if fn, ok := newValue.(func() any); ok {
 		newValue = fn()
@@ -439,9 +443,7 @@ func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, e
 
 	item.Request.URL.OnlyEndpoint()
 	res := requestResponse(collection, updated, item)
-	if req.Remove {
-		res.Version = u.Version(updated)
-	}
+
 	return res, nil
 }
 
@@ -471,6 +473,8 @@ func (u *Usecase) updateTree(ctx context.Context, req updateTreeReq) (UpdateTree
 	if err != nil {
 		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
+	u.NotifyWatcher(collection.Path, updated)
 
 	if err := u.RecordHistory(ctx, collection, "", "update_tree", "item", oldItems, newItems, content, updated); err != nil {
 		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)

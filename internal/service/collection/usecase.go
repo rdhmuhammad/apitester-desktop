@@ -15,7 +15,6 @@ import (
 	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
-	"github.com/rdhmuhammad/apitester/pkg/watcher"
 	"github.com/rdhmuhammad/apitester/shared/base"
 	"go.etcd.io/bbolt"
 )
@@ -25,11 +24,17 @@ var (
 	rawHostRegex = regexp.MustCompile(`^((?:https?://)?)\{\{([^}]+)\}\}`)
 )
 
+type RefreshListener func(refresh bool)
+
 type Usecase struct {
 	*base.Port
-	watcher        *watcher.FileWatcher
 	testSuiteRepo  db.RepositoryInterface[domain.TestSuite]
 	automationRepo db.RepositoryInterface[domain.Automation]
+	onRefresh      RefreshListener
+}
+
+func (u *Usecase) SetOnRefresh(listener RefreshListener) {
+	u.onRefresh = listener
 }
 
 func NewUsecase(
@@ -47,16 +52,35 @@ func NewUsecase(
 		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for collection usecase: %v", err)
 	}
 
-	fw := watcher.New(lg)
-	if selected := port.FindSelectedCollection(context.Background()); selected != nil {
-		fw.Watch(selected.Path)
-	}
-
-	return &Usecase{
+	u := &Usecase{
 		Port:           port,
-		watcher:        fw,
 		testSuiteRepo:  testSuiteRepo,
 		automationRepo: automationRepo,
+	}
+
+	if u.Watcher != nil {
+		u.Watcher.OnChanges(u.NotifyChanges)
+	}
+	return u
+}
+
+func (u *Usecase) NotifyChanges(data []byte) {
+	currentHash := u.Version(data)
+
+	selected := u.FindSelectedCollection(context.Background())
+	if selected == nil {
+		return
+	}
+
+	latest, err := u.LatestHistory(context.Background(), selected.ID)
+	if err != nil {
+		return
+	}
+
+	if latest == nil || latest.NewHash != currentHash {
+		if u.onRefresh != nil {
+			u.onRefresh(true)
+		}
 	}
 }
 
@@ -127,6 +151,8 @@ func (u *Usecase) CreateCollection(ctx context.Context, req CreateCollectionRequ
 		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
 	}
 
+	u.NotifyWatcher(req.Path, updatedContent)
+
 	return collection, nil
 }
 
@@ -181,7 +207,9 @@ func (u *Usecase) SelectCollection(ctx context.Context, id string) (domain.Colle
 		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	u.watcher.Watch(selected.Path)
+	if u.Watcher != nil {
+		u.Watcher.Watch(selected.Path)
+	}
 
 	return *selected, nil
 }
@@ -290,7 +318,7 @@ func (u *Usecase) UpdateAuth(ctx context.Context, req UpdateCollectionAuthReques
 	}
 
 	var newAuth *CollectionAuth
-	_, err := u.Update(ctx, selected.ID, "", "update_collection_auth", "auth", func(oldContent []byte) (any, any, []byte, error) {
+	saved, err := u.Update(ctx, selected.ID, "", "update_collection_auth", "auth", func(oldContent []byte) (any, any, []byte, error) {
 		var docs DocsContent
 		if err := json.Unmarshal(oldContent, &docs); err != nil {
 			return nil, nil, nil, localerror.InvalidData("Invalid collection.json file")
@@ -309,6 +337,8 @@ func (u *Usecase) UpdateAuth(ctx context.Context, req UpdateCollectionAuthReques
 	if err != nil {
 		return nil, u.ErrHandler.ErrorReturn(err)
 	}
+
+	u.NotifyWatcher(selected.Path, saved)
 
 	return newAuth, nil
 }
@@ -338,6 +368,8 @@ func (u *Usecase) UpdatePreScript(ctx context.Context, req UpdatePreScriptReques
 	if err != nil {
 		return UpdatePreScriptResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
+	u.NotifyWatcher(selected.Path, saved)
 
 	return UpdatePreScriptResponse{
 		Script:  strings.Join(newScript.Exec, "\n"),
@@ -419,6 +451,8 @@ func (u *Usecase) UpdateVariable(ctx context.Context, variableID string, req Upd
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
+	u.NotifyWatcher(selected.Path, saved)
+
 	return CreateVariableResponse{Variable: updatedVar, Version: u.Version(saved)}, nil
 }
 
@@ -454,6 +488,8 @@ func (u *Usecase) DeleteVariable(ctx context.Context, variableID string) (Create
 	if err != nil {
 		return CreateVariableResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
+
+	u.NotifyWatcher(selected.Path, saved)
 
 	return CreateVariableResponse{Variable: deleted, Version: u.Version(saved)}, nil
 }
@@ -784,16 +820,7 @@ func (u *Usecase) markCollectionSelected(ctx context.Context, all []domain.Colle
 }
 
 func (u *Usecase) notifyWatcher(path string, saved []byte) {
-	if u.watcher != nil && u.watcher.State != nil {
-		if info, statErr := os.Stat(path); statErr == nil {
-			u.watcher.State.Update(string(saved), info.ModTime())
-		} else {
-			u.watcher.State.Update(string(saved), time.Now())
-		}
-		if info, statErr := os.Stat(path); statErr == nil && info.ModTime().IsZero() {
-			u.watcher.State.Update(string(saved), time.Now())
-		}
-	}
+	u.NotifyWatcher(path, saved)
 }
 
 // Struct methods for DocsContent
