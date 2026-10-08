@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input.tsx"
+import { VariableInput } from "./VariableInput.tsx"
 import { Button } from "@/components/ui/button.tsx"
 import { cn } from "@/lib/utils.ts"
 import { Plus, ToggleLeft, ToggleRight, Trash2 } from "lucide-react"
@@ -90,7 +91,7 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
                         className="col-span-3 h-8"
                         disabled={item.disabled}
                     />
-                    <Input
+                    <VariableInput
                         value={item.value}
                         onChange={(event) =>
                             updateQueryItem({ ...item, value: event.target.value })
@@ -134,13 +135,13 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
                 </div>
             ))}
             <div className="grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center">
-                <Input
+                <VariableInput
                     value={newParamKey}
                     onChange={(event) => setNewParamKey(event.target.value)}
                     className="col-span-3 h-8"
                     placeholder="key"
                 />
-                <Input
+                <VariableInput
                     value={newParamValue}
                     onChange={(event) => setNewParamValue(event.target.value)}
                     className="col-span-3 h-8"
@@ -223,7 +224,7 @@ const PathVariableRow: React.FC<PathVariableRowProps> = ({ item, onChange }) => 
     return (
         <div className="grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center">
             <Input value={item.key} readOnly className="col-span-4 h-8" />
-            <Input
+            <VariableInput
                 value={localValue}
                 onChange={handleChange}
                 onBlur={handleBlur}

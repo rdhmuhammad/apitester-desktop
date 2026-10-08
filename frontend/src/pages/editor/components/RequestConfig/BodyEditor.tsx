@@ -1,16 +1,20 @@
-import {Card} from "@/components/ui/card.tsx";
-import {SearchIcon, ToggleLeft, ToggleRight, Trash2, Plus} from "lucide-react";
+import {ToggleLeft, ToggleRight, Trash2, Plus} from "lucide-react";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import CustomToast from "@/components/common/toast";
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {cn} from "@/lib/utils.ts";
 import {linter, type Diagnostic} from "@codemirror/lint";
-import React, {useMemo, useRef, useState} from "react";
+import React, {useCallback, useMemo, useRef, useState} from "react";
 import {useDebouncedCallback} from "use-debounce";
 import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import {setFile, removeFile} from "@/lib/fileStore.ts";
 import type {RequestBody} from "@/pages/editor/types/api.ts";
+import {useCollectionVariables} from "@/layout/hooks/useCollectionVariables.ts";
+import {VariableDialog} from "./VariableDialog.tsx";
+import {VariableInput} from "./VariableInput.tsx";
+import {createVariableExtensions, type VariableTriggerInfo} from "./codeMirrorVariableExtensions.ts";
+
+import {EditorView} from "@codemirror/view";
 
 export type ContentType = "application/json" | "multipart/form-data";
 
@@ -51,46 +55,68 @@ export const BodyEditor: React.FC<IBodyEditor> = (
     }) => {
 
     const selectBody = body
+    const { variables } = useCollectionVariables()
     const jsonDiagnostic = useMemo(() => getJsonDiagnostic(selectBody?.raw ?? ""), [selectBody?.raw])
     const jsonLinter = useMemo(() => linter((view) => {
         const diagnostic = getJsonDiagnostic(view.state.doc.toString())
         return diagnostic ? [diagnostic] : []
     }, {delay: 200}), [])
-    const jsonExtensions = useMemo(() => [jsonLinter], [jsonLinter])
-    const debouncedJsonChange = useDebouncedCallback(onJsonChange, 400)
 
-    type MenuState = {
-        open: boolean;
-        x: number;
-        y: number;
-        selectedText: string;
-    }
-
-    const [menu, setMenu] = useState<MenuState>({
+    const [cmDialogState, setCmDialogState] = useState<{
+        open: boolean
+        x: number
+        y: number
+        filter: string
+        from: number
+        to: number
+        view: EditorView | null
+    }>({
         open: false,
         x: 0,
         y: 0,
-        selectedText: ""
+        filter: "",
+        from: 0,
+        to: 0,
+        view: null,
     })
 
-    const onClosePopup = () => {
-        setMenu((m) => (m.open ? {...m, open: false} : m))
+    const onCmTrigger = useCallback((info: VariableTriggerInfo) => {
+        setCmDialogState({
+            open: true,
+            x: info.x,
+            y: info.y,
+            filter: info.filter,
+            from: info.from,
+            to: info.to,
+            view: info.view,
+        })
+    }, [])
+
+    const onCmDismiss = useCallback(() => {
+        setCmDialogState((prev) => (prev.open ? { ...prev, open: false } : prev))
+    }, [])
+
+    const handleCmSelectVariable = (key: string) => {
+        if (cmDialogState.view) {
+            cmDialogState.view.dispatch({
+                changes: {
+                    from: cmDialogState.from,
+                    to: cmDialogState.to,
+                    insert: `{{${key}}}`,
+                },
+                selection: { anchor: cmDialogState.from + key.length + 4 },
+            })
+            cmDialogState.view.focus()
+        }
+        setCmDialogState((prev) => ({ ...prev, open: false }))
     }
 
-    interface IVariable {
-        key: string;
-        value: string;
-    }
+    const cmVarExtensions = useMemo(() => {
+        return createVariableExtensions(variables, onCmTrigger, onCmDismiss)
+    }, [variables, onCmTrigger, onCmDismiss])
 
-    const [variable] = useState<IVariable[]>([
-        {key: "userId", value: "1"},
-        {key: "token", value: "k1lkedlqk"}
-    ])
-    const [searchVariable, setSearchVariable] = useState("")
-
-    const filteredVariables = variable.filter((item) =>
-        item.key.toLowerCase().includes(searchVariable.toLowerCase())
-    );
+    const jsonExtensions = useMemo(() => [jsonLinter, ...cmVarExtensions], [jsonLinter, cmVarExtensions])
+    const debouncedJsonChange = useDebouncedCallback(onJsonChange, 400)
 
     const toggleMultipartField = (field: keyof ItemUrl, pId: string) => {
         const body = (selectBody?.formdata ?? []).map((item) => {
@@ -149,7 +175,6 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                 <div className="relative rounded-lg overflow-hidden">
                     <div
                         className="h-[280px] min-h-[280px] resize-y overflow-hidden rounded-lg border border-border"
-                        onClick={menu.open ? onClosePopup : undefined}
                     >
                         <SandpackScriptEditor
                             value={selectBody?.raw ?? ""}
@@ -157,14 +182,6 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                             fileName="request-body.json"
                             className="h-full"
                             extensions={jsonExtensions}
-                            onSelectionContextMenu={(selectedText, position) => {
-                                setMenu({
-                                    open: true,
-                                    x: position.x,
-                                    y: position.y,
-                                    selectedText
-                                })
-                            }}
                         />
                     </div>
                     {jsonDiagnostic && (
@@ -172,44 +189,13 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                             Invalid JSON: {jsonDiagnostic.message}
                         </p>
                     )}
-                    {
-                        menu.open && (
-                            <Card className="fixed p-2 min-h-[80px]"
-                                  style={{
-                                      top: menu.y,
-                                      left: menu.x,
-                                      zIndex: 1000,
-                                  }}
-                            >
-                                <div className="inline-flex items-center rounded-md border px-2 h-[25px]">
-                                    <SearchIcon size={14}/>
-                                    <Input className=" border-0 rounded-none shadow-none focus-visible:ring-0"
-                                           size={10}
-                                           placeholder="Find variable"
-                                           value={searchVariable}
-                                           onChange={(e) => {
-                                               setSearchVariable(e.target.value)
-                                           }}
-                                    />
-                                </div>
-                                <div className="mt-3 flex flex-col px-1">
-                                    {filteredVariables.map((vr) => (
-                                        <Button variant="ghost" size="sm" key={vr.key}
-                                                onClick={event => {
-                                                    event.preventDefault()
-                                                    CustomToast.success("Success modify variable data")
-                                                    setMenu((menu) => ({...menu, open: false}))
-                                                }}
-                                                className="flex h-6 w-full items-center justify-start hover:bg-accent">
-                                                    <span
-                                                        className="mr-1 h-[12px] w-[12px] rounded-full bg-emerald-400"></span>
-                                            <div className="text-sm leading-none">{vr.key}</div>
-                                        </Button>
-                                    ))}
-                                </div>
-                            </Card>
-                        )
-                    }
+                    <VariableDialog
+                        open={cmDialogState.open}
+                        position={{ x: cmDialogState.x, y: cmDialogState.y }}
+                        initialSearch={cmDialogState.filter}
+                        onSelect={handleCmSelectVariable}
+                        onClose={() => setCmDialogState((prev) => ({ ...prev, open: false }))}
+                    />
                 </div>
             )
         case "multipart/form-data":
@@ -229,7 +215,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                  item.disabled && "opacity-50"
                              )}>
                             <div className="col-span-3">
-                                <Input
+                                <VariableInput
                                     value={item.key}
                                     onChange={(e) => updateFormdataField(item.id!, "key", e.target.value)}
                                     className="h-8"
@@ -266,13 +252,11 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                             </label>
                                         </div>
                                     ) : (
-                                        <Input
+                                        <VariableInput
                                             value={item.value}
                                             onChange={(event) => updateFormdataField(item.id!, "value", event.target.value)}
-                                            className={cn(
-                                                "h-8 flex-1 border-0 bg-transparent rounded-none shadow-none focus-visible:ring-0 focus-visible:border-0",
-                                                "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                                            )}
+                                            className="h-8 flex-1"
+                                            inputClassName="border-0 bg-transparent rounded-none shadow-none focus-visible:ring-0 focus-visible:border-0"
                                             disabled={item.disabled}
                                             placeholder="value"
                                         />
@@ -332,7 +316,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                     ))}
                     <div className="grid grid-cols-12 border-t border-border px-3 py-2 items-center">
                         <div className="col-span-3">
-                            <Input
+                            <VariableInput
                                 value={newFdKey}
                                 onChange={(e) => setNewFdKey(e.target.value)}
                                 className="h-8"
@@ -369,16 +353,14 @@ export const BodyEditor: React.FC<IBodyEditor> = (
                                             </label>
                                         </div>
                                     ) : (
-                                        <Input
+                                        <VariableInput
                                             onChange={(event) => {
                                                 setNewFdValue(event.target.value)
                                                 setNewFdValueType("text")
                                             }}
                                             value={newFdValue}
-                                            className={cn(
-                                                "h-8 flex-1 border-0 bg-transparent rounded-none shadow-none focus-visible:ring-0 focus-visible:border-0",
-                                                "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                                            )}
+                                            className="h-8 flex-1"
+                                            inputClassName="border-0 bg-transparent rounded-none shadow-none focus-visible:ring-0 focus-visible:border-0"
                                             placeholder="value"
                                         />
                                     )}

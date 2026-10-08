@@ -116,6 +116,13 @@ export const CollectionServices = {
         return response.data.data ?? []
     },
 
+    searchVariables: async (key?: string): Promise<string[]> => {
+        const response = await axios.get<Response<string[]>>('/collection/variables/search', {
+            params: key ? { key } : undefined,
+        })
+        return response.data.data ?? []
+    },
+
     getPreScript: async (): Promise<string> => {
         const response = await axios.get<Response<string>>('/collection/pre-script')
         return response.data.data ?? ""

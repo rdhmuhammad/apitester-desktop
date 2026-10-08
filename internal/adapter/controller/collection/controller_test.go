@@ -16,9 +16,11 @@ import (
 )
 
 type collectionUsecaseStub struct {
-	authToReturn    *service.CollectionAuth
-	authErrToReturn error
-	getAuthPassedID []string
+	authToReturn       *service.CollectionAuth
+	authErrToReturn    error
+	getAuthPassedID    []string
+	searchKeysToReturn []string
+	searchErrToReturn  error
 }
 
 func (s *collectionUsecaseStub) Read(ctx context.Context, id string) (service.ReadResponse, error) {
@@ -44,6 +46,12 @@ func (s *collectionUsecaseStub) GetActiveCollection(ctx context.Context) (servic
 }
 func (s *collectionUsecaseStub) GetVariables(ctx context.Context) ([]service.CollectionVar, error) {
 	return nil, nil
+}
+func (s *collectionUsecaseStub) SearchVariables(ctx context.Context, key string) ([]string, error) {
+	if s.searchKeysToReturn != nil {
+		return s.searchKeysToReturn, s.searchErrToReturn
+	}
+	return []string{"userId", "username"}, nil
 }
 func (s *collectionUsecaseStub) GetPreScript(ctx context.Context) (string, error) {
 	return "", nil
@@ -260,5 +268,33 @@ func TestSelectBaseURLRoute(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+}
+
+func TestSearchVariablesRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stub := &collectionUsecaseStub{
+		searchKeysToReturn: []string{"userId", "username", "useLanguage"},
+	}
+	controller := Controller{usecase: stub, mapper: mapper.NewMapper()}
+	router := gin.New()
+	controller.Route(router.Group(""))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/collection/variables/search?key=use", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+
+	var response struct {
+		Data []string `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(response.Data) != 3 {
+		t.Fatalf("expected 3 keys, got %d", len(response.Data))
 	}
 }

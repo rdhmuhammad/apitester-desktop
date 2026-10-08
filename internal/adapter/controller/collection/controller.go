@@ -22,6 +22,7 @@ type Usecase interface {
 	SelectCollection(ctx context.Context, id string) (domain.Collection, error)
 	GetActiveCollection(ctx context.Context) (service.ActiveCollectionResponse, error)
 	GetVariables(ctx context.Context) ([]service.CollectionVar, error)
+	SearchVariables(ctx context.Context, key string) ([]string, error)
 	GetPreScript(ctx context.Context) (string, error)
 	UpdatePreScript(ctx context.Context, req service.UpdatePreScriptRequest) (service.UpdatePreScriptResponse, error)
 	CreateVariable(ctx context.Context, req service.CreateVariableRequest) (service.CreateVariableResponse, error)
@@ -99,6 +100,18 @@ func (ctrl Controller) GetVariables(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection variables retrieved"), err)
 }
 
+func (ctrl Controller) SearchVariables(c *gin.Context) {
+	key := c.Query("key")
+	if key == "" {
+		key = c.Query("query")
+	}
+	if key == "" {
+		key = c.Query("q")
+	}
+	res, err := ctrl.usecase.SearchVariables(c.Request.Context(), key)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection variables searched"), err)
+}
+
 func (ctrl Controller) GetPreScript(c *gin.Context) {
 	res, err := ctrl.usecase.GetPreScript(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection pre-request script retrieved"), err)
@@ -173,6 +186,8 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	collection := rg.Group("/collection")
 	collection.GET("/list", ctrl.ListCollections)
 	collection.GET("/variables", ctrl.GetVariables)
+	collection.GET("/variables/search", ctrl.SearchVariables)
+	collection.GET("/variable/search", ctrl.SearchVariables)
 	collection.GET("/pre-script", ctrl.GetPreScript)
 	collection.GET("/auth", ctrl.GetAuth)
 	collection.PUT("/auth", ctrl.UpdateAuth)

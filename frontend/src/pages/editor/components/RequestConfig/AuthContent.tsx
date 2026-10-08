@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {ShieldCheck} from "lucide-react";
 import {Input} from "@/components/ui/input.tsx";
+import {VariableInput} from "./VariableInput.tsx";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
 import {useQueryClient} from "@tanstack/react-query";
 import {useDebouncedCallback} from "use-debounce";
@@ -33,7 +34,7 @@ export const AuthDropdownOps: React.FC<AuthValueProps> = ({authType, bearerValue
             return (
                 <div>
                     <p className="text-sm font-medium text-foreground">Bearer Token</p>
-                    <Input
+                    <VariableInput
                         type="password"
                         value={bearerValue ?? ""}
                         onChange={(e) => onBearerChange?.(e.target.value)}

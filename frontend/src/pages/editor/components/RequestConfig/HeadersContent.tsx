@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button.tsx"
 import { Input } from "@/components/ui/input.tsx"
+import { VariableInput } from "./VariableInput.tsx"
 import { cn } from "@/lib/utils.ts"
 import { Eye, EyeOff, Plus, ToggleLeft, ToggleRight, Trash2 } from "lucide-react"
 import { useAppSelector } from "@/app/store/hooks.ts"
@@ -106,7 +107,7 @@ export const HeadersContent: React.FC<HeadersContentProps> = ({
                             className="col-span-5 h-8"
                             disabled={item.disabled}
                         />
-                        <Input
+                        <VariableInput
                             value={item.value}
                             onChange={(event) =>
                                 updateHeaderItem({ ...item, value: event.target.value })
@@ -141,13 +142,13 @@ export const HeadersContent: React.FC<HeadersContentProps> = ({
                     </div>
                 ))}
                 <div className="grid grid-cols-12 border-t border-border px-3 py-2 items-center">
-                    <Input
+                    <VariableInput
                         value={newHeaderKey}
                         onChange={(event) => setNewHeaderKey(event.target.value)}
                         className="col-span-5 h-8"
                         placeholder="header key"
                     />
-                    <Input
+                    <VariableInput
                         value={newHeaderValue}
                         onChange={(event) => setNewHeaderValue(event.target.value)}
                         className="col-span-5 ml-3 h-8"

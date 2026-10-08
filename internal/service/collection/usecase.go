@@ -271,6 +271,31 @@ func (u *Usecase) GetVariables(ctx context.Context) ([]CollectionVar, error) {
 	return docsContent.Variable, nil
 }
 
+func (u *Usecase) SearchVariables(ctx context.Context, key string) ([]string, error) {
+	variables, err := u.GetVariables(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	searchKey := strings.ToLower(strings.TrimSpace(key))
+	seen := make(map[string]bool)
+	var result []string
+	for _, v := range variables {
+		trimmed := strings.TrimSpace(v.Key)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		if searchKey == "" || strings.Contains(strings.ToLower(trimmed), searchKey) {
+			seen[trimmed] = true
+			result = append(result, trimmed)
+		}
+	}
+	if result == nil {
+		result = []string{}
+	}
+	return result, nil
+}
+
 func (u *Usecase) GetPreScript(ctx context.Context) (string, error) {
 	selected := u.FindSelectedCollection(ctx)
 	if selected == nil {
