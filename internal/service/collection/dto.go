@@ -276,9 +276,9 @@ type CollectionVar struct {
 }
 
 type CreateVariableRequest struct {
-	Key   string `json:"key" binding:"required"`
-	Value string `json:"value"`
-	Type  string `json:"type"`
+	Key      string `json:"key" binding:"required"`
+	Value    string `json:"value"`
+	Category string `json:"category"`
 }
 
 type CreateVariableResponse struct {
@@ -301,4 +301,9 @@ type SelectBaseURLRequest struct {
 type SelectBaseURLResponse struct {
 	Variable CollectionVar `json:"variable"`
 	Version  string        `json:"version"`
+}
+
+type VariableSearchDTO struct {
+	Key  string `json:"key"`
+	Type string `json:"type"`
 }

@@ -40,7 +40,7 @@ export const resolvePathVariables = (
     variables: PathVariable[] = [],
     vars: Record<string, string>
 ): string =>
-    endpoint.replace(/(^|\/):(\w+)(?=[/?#]|$)/g, (match, prefix: string, key: string) => {
+    endpoint.split('?')[0].replace(/(^|\/):(\w+)(?=[/?#]|$)/g, (match, prefix: string, key: string) => {
         const variable = variables.find(v => v.key === key)
         const value = variable ? resolveVars(variable.value ?? "", vars) : ""
         return value ? `${prefix}${encodeURIComponent(value)}` : match
@@ -424,9 +424,28 @@ export const useRequestSender = () => {
         // Build env vars record from collection variables (isSelected BASE_URL is resolved inside)
         const varsObj = buildEnvVarsRecord(variables)
 
+        // Find all mock variables used in the request and fetch them
+        const reqStr = JSON.stringify(currentReq)
+        const mockMatches = Array.from(reqStr.matchAll(/\{\{(mock\.[^{}]+)\}\}/g))
+        const mockKeys = [...new Set(mockMatches.map(m => m[1]))]
+        if (mockKeys.length > 0) {
+            const RequestConfigServices = (await import("@/pages/editor/services/requestConfig.ts")).RequestConfigServices
+            await Promise.all(
+                mockKeys.map(async (key) => {
+                    try {
+                        const val = await RequestConfigServices.getMockData(key)
+                        varsObj[key] = val
+                    } catch {
+                        // ignore errors
+                    }
+                })
+            )
+        }
+
         // endpoint = selectedBaseUrl + request.url.raw (backend keeps raw url with path+query)
         const rawEndpoint = currentReq.url?.raw ?? ""
         const endpoint = resolvePathVariables(rawEndpoint, currentReq.url?.variable, varsObj)
+        console.log(endpoint)
 
         const contentType = currentReq.headers?.find(
             h => h?.key.toLowerCase() === 'content-type' && !h.disabled

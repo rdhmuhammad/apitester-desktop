@@ -13,6 +13,73 @@ export interface VariableInputProps
     inputClassName?: string
 }
 
+function VariableTooltipBadge({ 
+    token, 
+    inputRef, 
+    variablesMap 
+}: { 
+    token: {text: string, key?: string}, 
+    inputRef: React.RefObject<HTMLInputElement | null>,
+    variablesMap: Map<string, string>
+}) {
+    const varKey = token.key ?? ""
+    const isMock = varKey.startsWith("mock.")
+    const isFound = isMock || variablesMap.has(varKey)
+    const [resolvedValue, setResolvedValue] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const [isOpen, setIsOpen] = useState(false)
+
+    useEffect(() => {
+        if (isOpen && isFound && resolvedValue === null && !isLoading) {
+            setIsLoading(true)
+            import("@/layout/services/collection.ts").then((mod) => {
+                mod.CollectionServices.resolveVariable(varKey)
+                    .then(val => {
+                        setResolvedValue(val)
+                    })
+                    .finally(() => setIsLoading(false))
+            })
+        }
+    }, [isOpen, varKey, isFound, resolvedValue, isLoading])
+
+    return (
+        <Tooltip onOpenChange={setIsOpen}>
+            <TooltipTrigger asChild>
+                <span
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        inputRef.current?.focus()
+                    }}
+                    className={cn(
+                        "pointer-events-auto cursor-pointer rounded px-0.5 font-bold transition-colors inline-block",
+                        isFound
+                            ? "bg-emerald-500/70 text-emerald-950 dark:bg-emerald-500/70 dark:text-emerald-50"
+                            : "bg-rose-500/70 text-rose-950 dark:bg-rose-500/70 dark:text-rose-50"
+                    )}
+                >
+                    {token.text}
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+                {isFound ? (
+                    <div className="text-xs">
+                        <span className="font-semibold">{varKey}: </span>
+                        {isMock ? (
+                            <span className="text-blue-300">calculate during send request</span>
+                        ) : (
+                            <span>{isLoading ? "resolving..." : resolvedValue ?? variablesMap.get(varKey)}</span>
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-xs text-rose-300">
+                        Variable not found
+                    </div>
+                )}
+            </TooltipContent>
+        </Tooltip>
+    )
+}
+
 function getInputCursorCoordinates(
     input: HTMLInputElement,
     cursorIndex: number
@@ -279,42 +346,7 @@ export const VariableInput = React.forwardRef<HTMLInputElement, VariableInputPro
                                     )
                                 }
 
-                                const varKey = token.key ?? ""
-                                const isFound = variablesMap.has(varKey)
-                                const varVal = variablesMap.get(varKey)
-
-                                return (
-                                    <Tooltip key={index}>
-                                        <TooltipTrigger asChild>
-                                            <span
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    inputRef.current?.focus()
-                                                }}
-                                                className={cn(
-                                                    "pointer-events-auto cursor-pointer rounded px-0.5 font-bold transition-colors inline-block",
-                                                    isFound
-                                                        ? "bg-emerald-500/70 text-emerald-950 dark:bg-emerald-500/70 dark:text-emerald-50"
-                                                        : "bg-rose-500/70 text-rose-950 dark:bg-rose-500/70 dark:text-rose-50"
-                                                )}
-                                            >
-                                                {token.text}
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            {isFound ? (
-                                                <div className="text-xs">
-                                                    <span className="font-semibold">{varKey}: </span>
-                                                    <span>{varVal}</span>
-                                                </div>
-                                            ) : (
-                                                <div className="text-xs text-rose-300">
-                                                    Variable not found
-                                                </div>
-                                            )}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                )
+                                return <VariableTooltipBadge key={index} token={token} inputRef={inputRef} variablesMap={variablesMap} />
                             })}
                         </div>
                     )}

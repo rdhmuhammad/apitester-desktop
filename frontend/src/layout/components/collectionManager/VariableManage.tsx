@@ -29,7 +29,7 @@ const VariableManage: React.FC = () => {
             baseVersion: collection.version,
             key: createVariable.key.trim(),
             value: createVariable.value,
-            type: 'VARIABLE'
+            category: 'VARIABLE'
         })
         setDrafts((current) => ({
             ...current,
@@ -50,7 +50,7 @@ const VariableManage: React.FC = () => {
             baseVersion: collection.version,
             key: next.key.trim(),
             value: next.value,
-            type: variable.type || "VARIABLE",
+            category: variable.type || "VARIABLE",
         })
         setDrafts((current) => {
             const updated = {...current}

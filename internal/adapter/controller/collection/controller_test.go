@@ -47,11 +47,18 @@ func (s *collectionUsecaseStub) GetActiveCollection(ctx context.Context) (servic
 func (s *collectionUsecaseStub) GetVariables(ctx context.Context) ([]service.CollectionVar, error) {
 	return nil, nil
 }
-func (s *collectionUsecaseStub) SearchVariables(ctx context.Context, key string) ([]string, error) {
+func (s *collectionUsecaseStub) SearchVariables(ctx context.Context, key string) ([]service.VariableSearchDTO, error) {
 	if s.searchKeysToReturn != nil {
-		return s.searchKeysToReturn, s.searchErrToReturn
+		var ret []service.VariableSearchDTO
+		for _, k := range s.searchKeysToReturn {
+			ret = append(ret, service.VariableSearchDTO{Key: k, Type: "variable"})
+		}
+		return ret, s.searchErrToReturn
 	}
-	return []string{"userId", "username"}, nil
+	return []service.VariableSearchDTO{{Key: "userId", Type: "variable"}, {Key: "username", Type: "variable"}}, nil
+}
+func (s *collectionUsecaseStub) ResolveVariable(ctx context.Context, key string) (string, error) {
+	return "test", nil
 }
 func (s *collectionUsecaseStub) GetPreScript(ctx context.Context) (string, error) {
 	return "", nil
@@ -289,7 +296,7 @@ func TestSearchVariablesRoute(t *testing.T) {
 	}
 
 	var response struct {
-		Data []string `json:"data"`
+		Data []service.VariableSearchDTO `json:"data"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)

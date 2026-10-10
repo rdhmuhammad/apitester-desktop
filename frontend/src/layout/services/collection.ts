@@ -30,7 +30,7 @@ export interface CreateCollectionVariableRequest {
     baseVersion: string
     key: string
     value?: string
-    type?: string
+    category?: string
 }
 
 export interface CreateCollectionVariableResponse {
@@ -116,11 +116,18 @@ export const CollectionServices = {
         return response.data.data ?? []
     },
 
-    searchVariables: async (key?: string): Promise<string[]> => {
-        const response = await axios.get<Response<string[]>>('/collection/variables/search', {
+    searchVariables: async (key?: string): Promise<{key: string, type: string}[]> => {
+        const response = await axios.get<Response<{key: string, type: string}[]>>('/collection/variables/search', {
             params: key ? { key } : undefined,
         })
         return response.data.data ?? []
+    },
+    
+    resolveVariable: async (key: string): Promise<string> => {
+        const response = await axios.get<Response<string>>('/collection/variables/resolve', {
+            params: { key }
+        })
+        return response.data.data ?? ""
     },
 
     getPreScript: async (): Promise<string> => {

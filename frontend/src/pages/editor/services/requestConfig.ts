@@ -112,6 +112,12 @@ const emitRequestEvent = async <T extends Versioned>(
 }
 
 export const RequestConfigServices = {
+    getMockData: async (key: string): Promise<string> => {
+        const response = await axios.get<Response<string | number | boolean>>('/restrequest/mock-data', {
+            params: { key }
+        })
+        return String(response.data.data)
+    },
     create: async (collectionId: string): Promise<RestRequestResponse> => {
         const response = await axios.post<Response<RestRequestResponse>>(
             `/restrequest/create-request/${collectionId}`

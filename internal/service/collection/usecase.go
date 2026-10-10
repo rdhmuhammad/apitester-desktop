@@ -3,6 +3,7 @@ package collection
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rdhmuhammad/apitester/internal/domain"
+	"github.com/rdhmuhammad/apitester/internal/mockdata"
 	"github.com/rdhmuhammad/apitester/pkg/db"
 	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/pkg/localerror"
@@ -271,7 +273,7 @@ func (u *Usecase) GetVariables(ctx context.Context) ([]CollectionVar, error) {
 	return docsContent.Variable, nil
 }
 
-func (u *Usecase) SearchVariables(ctx context.Context, key string) ([]string, error) {
+func (u *Usecase) SearchVariables(ctx context.Context, key string) ([]VariableSearchDTO, error) {
 	variables, err := u.GetVariables(ctx)
 	if err != nil {
 		return nil, err
@@ -279,7 +281,7 @@ func (u *Usecase) SearchVariables(ctx context.Context, key string) ([]string, er
 
 	searchKey := strings.ToLower(strings.TrimSpace(key))
 	seen := make(map[string]bool)
-	var result []string
+	var result []VariableSearchDTO
 	for _, v := range variables {
 		trimmed := strings.TrimSpace(v.Key)
 		if trimmed == "" || seen[trimmed] {
@@ -287,13 +289,47 @@ func (u *Usecase) SearchVariables(ctx context.Context, key string) ([]string, er
 		}
 		if searchKey == "" || strings.Contains(strings.ToLower(trimmed), searchKey) {
 			seen[trimmed] = true
-			result = append(result, trimmed)
+			result = append(result, VariableSearchDTO{
+				Key:  trimmed,
+				Type: "variable",
+			})
 		}
 	}
+
+	for _, m := range mockdata.AvailableMocks {
+		if searchKey == "" || strings.Contains(strings.ToLower(m), searchKey) {
+			result = append(result, VariableSearchDTO{
+				Key:  m,
+				Type: "mock",
+			})
+		}
+	}
+
 	if result == nil {
-		result = []string{}
+		result = []VariableSearchDTO{}
 	}
 	return result, nil
+}
+
+func (u *Usecase) ResolveVariable(ctx context.Context, key string) (string, error) {
+	if strings.HasPrefix(key, "mock.") {
+		// Mock data previews don't have to be generated here since the tooltip just says "calculate during send request",
+		// or we can generate it for preview. Let's return a generated string just for preview, or empty since tooltip shows text.
+		val := mockdata.GenerateMockData(key)
+		return fmt.Sprintf("%v", val), nil
+	}
+
+	variables, err := u.GetVariables(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	for _, v := range variables {
+		if v.Key == key {
+			return v.Value, nil
+		}
+	}
+	return "", nil
 }
 
 func (u *Usecase) GetPreScript(ctx context.Context) (string, error) {
@@ -974,7 +1010,7 @@ func (d *DocsContent) AddVariable(req CreateVariableRequest) (CollectionVar, err
 		ID:    uuid.NewString(),
 		Key:   strings.TrimSpace(req.Key),
 		Value: req.Value,
-		Type:  req.Type,
+		Type:  req.Category,
 	}
 	if isBaseURLVar(newVar.Key) {
 		newVar.Category = "BASE_URL"

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rdhmuhammad/apitester/internal/mockdata"
 	service "github.com/rdhmuhammad/apitester/internal/service/restrequest"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 	"github.com/rdhmuhammad/apitester/pkg/mapper"
@@ -55,6 +56,7 @@ func (ctrl Controller) UpdateTree(c *gin.Context) {
 
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest := rg.Group("/restrequest")
+	restRequest.GET("/mock-data", ctrl.GetMockData)
 	restRequest.POST("/create-request/:collectionId", ctrl.CreateRequest)
 	restRequest.POST("/create-request", ctrl.CreateRequest)
 	restRequest.GET("/:collectionId/:requestId", ctrl.Get)
@@ -63,6 +65,12 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest.DELETE("/request/:requestId", ctrl.Delete)
 	restRequest.PUT("/tree/:collectionId", ctrl.UpdateTree)
 	restRequest.PUT("/tree", ctrl.UpdateTree)
+}
+
+func (ctrl Controller) GetMockData(c *gin.Context) {
+	key := c.Query("key")
+	val := mockdata.GenerateMockData(key)
+	ctrl.respond(c, payload.NewSuccessResponse(val, "Mock data generated"), nil)
 }
 
 func (ctrl Controller) respond(c *gin.Context, res *payload.Response, err error) {

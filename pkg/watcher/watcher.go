@@ -104,6 +104,10 @@ func (fw *FileWatcher) listen() {
 					continue
 				}
 
+				if content, _, _ := fw.State.Read(); string(data) == content {
+					continue
+				}
+
 				fw.mu.RLock()
 				callbacks := make([]func(data []byte), len(fw.onChanges))
 				copy(callbacks, fw.onChanges)

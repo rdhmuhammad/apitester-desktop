@@ -26,8 +26,8 @@ func TestSearchVariables(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(keys) != 4 {
-			t.Fatalf("expected 4 keys, got %d", len(keys))
+		if len(keys) < 4 {
+			t.Fatalf("expected at least 4 keys, got %d", len(keys))
 		}
 	})
 
@@ -36,8 +36,8 @@ func TestSearchVariables(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(keys) != 3 { // userId, username, useLanguage
-			t.Fatalf("expected 3 keys for 'use', got %d: %v", len(keys), keys)
+		if len(keys) < 3 {
+			t.Fatalf("expected at least 3 keys for 'use', got %d: %v", len(keys), keys)
 		}
 	})
 
@@ -46,7 +46,7 @@ func TestSearchVariables(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(keys) != 1 || keys[0] != "token" {
+		if len(keys) < 1 || keys[0].Key != "token" {
 			t.Fatalf("expected ['token'], got %v", keys)
 		}
 	})

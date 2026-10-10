@@ -285,9 +285,9 @@ const ResponseView: React.FC = () => {
             const headers = currResponse.headers
                 ? Object.entries(currResponse.headers).map(([key, value]) => ({ key, value }))
                 : []
-            const body = typeof currResponse.data === "string"
+            const body = prettyResponse || (typeof currResponse.data === "string"
                 ? currResponse.data
-                : JSON.stringify(currResponse.data)
+                : JSON.stringify(currResponse.data, null, 2))
 
             const saved = await saveResponse({
                 name: exampleName.trim(),

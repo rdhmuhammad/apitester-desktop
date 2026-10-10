@@ -28,7 +28,7 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
     const { variables } = useCollectionVariables()
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
-    const [remoteKeys, setRemoteKeys] = useState<string[]>([])
+    const [remoteKeys, setRemoteKeys] = useState<{key: string, type: string}[]>([])
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [, startTransition] = useTransition()
 
@@ -54,9 +54,9 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
                 if (isMounted) {
                     // Fallback to local filtering if remote fails
                     const filtered = variables
-                        .map((v) => v.key)
+                        .map((v) => ({ key: v.key, type: 'variable' }))
                         .filter((k) =>
-                            k.toLowerCase().includes(searchTerm.toLowerCase())
+                            k.key.toLowerCase().includes(searchTerm.toLowerCase())
                         )
                     setRemoteKeys(filtered)
                 }
@@ -70,10 +70,10 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
     // Determine the list of keys to display
     const displayedKeys = React.useMemo(() => {
         if (remoteKeys.length > 0) return remoteKeys
-        if (!searchTerm) return variables.map((v) => v.key).filter(Boolean)
+        if (!searchTerm) return variables.map((v) => ({ key: v.key, type: 'variable' })).filter(v => Boolean(v.key))
         return variables
-            .map((v) => v.key)
-            .filter((k) => k.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map((v) => ({ key: v.key, type: 'variable' }))
+            .filter((k) => k.key.toLowerCase().includes(searchTerm.toLowerCase()))
     }, [remoteKeys, searchTerm, variables])
 
     useEffect(() => {
@@ -112,7 +112,7 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
         } else if (e.key === "Enter") {
             if (displayedKeys[selectedIndex]) {
                 e.preventDefault()
-                onSelect(displayedKeys[selectedIndex])
+                onSelect(displayedKeys[selectedIndex].key)
                 return true
             }
         } else if (e.key === "Escape") {
@@ -182,23 +182,37 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
                         No variables found
                     </div>
                 ) : (
-                    displayedKeys.map((key, index) => {
+                    displayedKeys.map((item, index) => {
                         const isSelected = index === selectedIndex
                         return (
                             <button
-                                key={key}
+                                key={item.key}
                                 type="button"
-                                onClick={() => onSelect(key)}
+                                onClick={() => onSelect(item.key)}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 className={cn(
-                                    "flex items-center gap-2 w-full px-2 py-1.5 rounded text-left font-mono cursor-pointer transition-colors",
+                                    "flex items-center gap-2 w-full px-2 py-1.5 rounded text-left font-mono cursor-pointer transition-colors justify-between",
                                     isSelected
                                         ? "bg-accent text-accent-foreground font-semibold"
                                         : "hover:bg-accent/60 text-foreground"
                                 )}
                             >
-                                <span className="text-muted-foreground text-[10px] select-none shrink-0">•</span>
-                                <span className="truncate">{key}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground text-[10px] select-none shrink-0">?</span>
+                                    <span className="truncate">{item.key}</span>
+                                </div>
+                                {item.type && (
+                                    <span className={cn(
+                                        "text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1",
+                                        item.type === 'mock' ? "bg-blue-500/10 text-blue-500" : "bg-green-500/10 text-green-500"
+                                    )}>
+                                        <div className={cn(
+                                            "w-1 h-1 rounded-full",
+                                            item.type === 'mock' ? "bg-blue-500" : "bg-green-500"
+                                        )} />
+                                        {item.type}
+                                    </span>
+                                )}
                             </button>
                         )
                     })
