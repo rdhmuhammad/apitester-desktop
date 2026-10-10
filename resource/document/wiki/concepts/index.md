@@ -19,6 +19,7 @@
 ### Runtime & Architecture
 
 - [[concepts/base-url-lifecycle]] - End-to-end lifecycle, variable categorization, template resolution, and dispatch mechanism of baseUrl.
+- [[concepts/path-variable-lifecycle]] - How `:word` endpoint segments become path variables, are synced, edited, and resolved at send time.
 
 ## Related pages
 

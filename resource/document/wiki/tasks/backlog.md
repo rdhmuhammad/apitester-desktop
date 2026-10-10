@@ -2,19 +2,23 @@
 
 **Summary**: Living checklist of all pending, in-progress, and done tasks for the project. Updated by the agent when the user asks.
 **Sources**: User requests and session work.
-**Last updated**: 2026-10-02
+**Last updated**: 2026-10-08
 
 ---
 
 ## In Progress
 
-_No tasks currently in progress._
 
 ## Todo
 
 
 ## Done
 
+- [x] Mock data mechanism
+
+- [x] enhance-variable-display · Enhance Variable Display in Editor
+- [x] integrate-path-variable · integrate path variable to tab Params
+- [x] wiring-endpoint-update-tree · Wire the endpoint update tree with SidebarLayout Drag and Drop request
 - [x] enhance-save-example · Enhancing current save example feature
 
 ---
