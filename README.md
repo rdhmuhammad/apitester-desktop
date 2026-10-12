@@ -99,6 +99,8 @@ By automating API documentation generation and hosting, developers can spend les
 - 🚀 [Getting Started](#-getting-started)
     - 📦 [Prerequisites](#-prerequisites)
     - ▶️ [How to Run](#-how-to-run)
+    - 🧪 [How to Run Tests](#-how-to-run-tests)
+    - 📄 [How to Flatten Documentation](#-how-to-flatten-documentation)
 - 🧩 [Roadmap](#-roadmap)
 - 👨‍💻 [Contributing](#-contributing)
     - 🤷️ [Top contributors](#-top-contributors)
@@ -186,6 +188,37 @@ This project uses Playwright for testing the Electron GUI.
    npx playwright show-report testing/result/html-report
    ```
 
+### 📄 How to Flatten Documentation
+
+The documentation in `resource/document` can be flattened into a single Markdown file (`resource/flatten_result/document.md`) using [pyragify](https://github.com/ThomasBury/pyragify).
+
+#### 📦 Installation
+
+Install `pyragify` globally via pip:
+```bash
+pip install git+https://github.com/ThomasBury/pyragify.git
+# or if running on Python 3.14+:
+pip install --ignore-requires-python git+https://github.com/ThomasBury/pyragify.git
+```
+
+#### ▶️ How to Run Manually
+
+To regenerate and update the flattened documentation:
+
+1. Run `pyragify` directly from the repository root:
+   ```bash
+   pyragify
+   ```
+
+   This automatically uses [`config.yaml`](./config.yaml) configured to process `resource/document` and output to `resource/flatten_result`.
+
+2. Alternatively, run with command-line overrides:
+   ```bash
+   pyragify --repo-path resource/document --output-dir resource/flatten_result
+   ```
+
+The updated flattened document will be generated at `resource/flatten_result/document.md`.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ROADMAP -->
@@ -193,15 +226,19 @@ This project uses Playwright for testing the Electron GUI.
 The following items represent the planned direction of the 
 project and upcoming features currently under consideration.
 
-- [ ] Request page can open multiple request. and able to create new request
+- [x] Request page can open multiple request. and able to create new request
 - [ ] API Docs generator for Golang
-- [ ] API Docs generator for Java Spring
-- [ ] Folder Tree has the meets the following criteria
-  - [ ] Can show the new request.
-  - [ ] Can modify the position, name of folder and request.
-  - [ ] Can create, remove folder and request.
-- [ ] Login page for user and user management for admin
-- [ ] Collection change history from source pull
+- [x] API Docs generator for Java Spring
+- [x] Folder Tree has the meets the following criteria
+  - [x] Can show the new request.
+  - [x] Can modify the position, name of folder and request.
+  - [x] Can create, remove folder and request.
+- [ ] Feature Integration test with `.http file`
+- [ ] Feature automation, where user can define yaml file of automation deployment 
+- [ ] Collection change history
+- [ ] Add agentic AI that can perform these task
+	- [ ] Managing collection, integration test, automation
+	
 
 See the [project backlog](https://github.com/users/rdhmuhammad/projects/1) for a full list of proposed features.
 

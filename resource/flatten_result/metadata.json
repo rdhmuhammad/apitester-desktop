@@ -1,0 +1,422 @@
+{
+    "processed_files": [
+        {
+            "path": "wiki\\index.md",
+            "chunks": 11,
+            "size": 5016,
+            "lines": 68,
+            "words": 524
+        },
+        {
+            "path": "wiki\\log.md",
+            "chunks": 2,
+            "size": 22313,
+            "lines": 83,
+            "words": 2470
+        },
+        {
+            "path": "wiki\\concepts\\base-url-lifecycle.md",
+            "chunks": 8,
+            "size": 5919,
+            "lines": 67,
+            "words": 708
+        },
+        {
+            "path": "wiki\\concepts\\index.md",
+            "chunks": 6,
+            "size": 1422,
+            "lines": 27,
+            "words": 143
+        },
+        {
+            "path": "wiki\\concepts\\path-variable-lifecycle.md",
+            "chunks": 9,
+            "size": 2096,
+            "lines": 42,
+            "words": 279
+        },
+        {
+            "path": "wiki\\decisions\\collection-history-for-restrequest-mutations.md",
+            "chunks": 9,
+            "size": 5247,
+            "lines": 72,
+            "words": 712
+        },
+        {
+            "path": "wiki\\decisions\\debounced-request-config-mutations.md",
+            "chunks": 6,
+            "size": 4320,
+            "lines": 93,
+            "words": 536
+        },
+        {
+            "path": "wiki\\decisions\\desktop-production-build.md",
+            "chunks": 13,
+            "size": 5047,
+            "lines": 113,
+            "words": 550
+        },
+        {
+            "path": "wiki\\decisions\\file-backed-restrequest-editing.md",
+            "chunks": 7,
+            "size": 2994,
+            "lines": 47,
+            "words": 340
+        },
+        {
+            "path": "wiki\\decisions\\google-drive-service-account-sync.md",
+            "chunks": 15,
+            "size": 5959,
+            "lines": 110,
+            "words": 792
+        },
+        {
+            "path": "wiki\\decisions\\index.md",
+            "chunks": 3,
+            "size": 1407,
+            "lines": 20,
+            "words": 145
+        },
+        {
+            "path": "wiki\\decisions\\playwright-cumulative-test-caching.md",
+            "chunks": 5,
+            "size": 3049,
+            "lines": 47,
+            "words": 358
+        },
+        {
+            "path": "wiki\\decisions\\usecase-rules-of-engagement.md",
+            "chunks": 6,
+            "size": 2881,
+            "lines": 42,
+            "words": 364
+        },
+        {
+            "path": "wiki\\tasks\\backlog.md",
+            "chunks": 6,
+            "size": 729,
+            "lines": 33,
+            "words": 105
+        },
+        {
+            "path": "wiki\\patterns\\backend\\example-of-api-and-socket-registration.md",
+            "chunks": 7,
+            "size": 4341,
+            "lines": 109,
+            "words": 488
+        },
+        {
+            "path": "wiki\\patterns\\backend\\index.md",
+            "chunks": 3,
+            "size": 432,
+            "lines": 15,
+            "words": 40
+        },
+        {
+            "path": "wiki\\patterns\\controller\\controller-base-structure.md",
+            "chunks": 4,
+            "size": 1323,
+            "lines": 20,
+            "words": 159
+        },
+        {
+            "path": "wiki\\patterns\\controller\\controller-request-handling.md",
+            "chunks": 4,
+            "size": 1033,
+            "lines": 23,
+            "words": 125
+        },
+        {
+            "path": "wiki\\patterns\\controller\\controller-routing-and-middleware.md",
+            "chunks": 4,
+            "size": 1201,
+            "lines": 20,
+            "words": 151
+        },
+        {
+            "path": "wiki\\patterns\\controller\\example-of-module-controller.md",
+            "chunks": 8,
+            "size": 4997,
+            "lines": 116,
+            "words": 522
+        },
+        {
+            "path": "wiki\\patterns\\controller\\index.md",
+            "chunks": 3,
+            "size": 514,
+            "lines": 16,
+            "words": 38
+        },
+        {
+            "path": "wiki\\patterns\\frontend\\api-service-and-query-hook-wiring.md",
+            "chunks": 6,
+            "size": 4051,
+            "lines": 90,
+            "words": 447
+        },
+        {
+            "path": "wiki\\patterns\\frontend\\create-new-tabs-kind.md",
+            "chunks": 6,
+            "size": 2760,
+            "lines": 62,
+            "words": 332
+        },
+        {
+            "path": "wiki\\patterns\\frontend\\index.md",
+            "chunks": 4,
+            "size": 761,
+            "lines": 18,
+            "words": 50
+        },
+        {
+            "path": "wiki\\patterns\\frontend\\socket-io-service-and-hook-wiring.md",
+            "chunks": 8,
+            "size": 5417,
+            "lines": 119,
+            "words": 630
+        },
+        {
+            "path": "wiki\\patterns\\socket\\example-of-module-socket.md",
+            "chunks": 7,
+            "size": 3667,
+            "lines": 74,
+            "words": 436
+        },
+        {
+            "path": "wiki\\patterns\\socket\\index.md",
+            "chunks": 3,
+            "size": 562,
+            "lines": 17,
+            "words": 43
+        },
+        {
+            "path": "wiki\\patterns\\socket\\socket-base-composition.md",
+            "chunks": 4,
+            "size": 1218,
+            "lines": 25,
+            "words": 145
+        },
+        {
+            "path": "wiki\\patterns\\socket\\socket-error-handling.md",
+            "chunks": 4,
+            "size": 977,
+            "lines": 23,
+            "words": 130
+        },
+        {
+            "path": "wiki\\patterns\\socket\\socket-event-broadcasting.md",
+            "chunks": 4,
+            "size": 1073,
+            "lines": 20,
+            "words": 141
+        },
+        {
+            "path": "wiki\\patterns\\socket\\socket-room-lifecycle.md",
+            "chunks": 4,
+            "size": 1140,
+            "lines": 34,
+            "words": 165
+        },
+        {
+            "path": "wiki\\patterns\\usecase\\index.md",
+            "chunks": 3,
+            "size": 815,
+            "lines": 16,
+            "words": 75
+        },
+        {
+            "path": "wiki\\patterns\\usecase\\new-usecase-workflow.md",
+            "chunks": 7,
+            "size": 5438,
+            "lines": 125,
+            "words": 639
+        },
+        {
+            "path": "wiki\\patterns\\usecase\\usecase-rules-of-engagement.md",
+            "chunks": 15,
+            "size": 7596,
+            "lines": 183,
+            "words": 961
+        },
+        {
+            "path": "wiki\\concepts\\backend\\file-backed-editor-sync.md",
+            "chunks": 6,
+            "size": 2236,
+            "lines": 30,
+            "words": 308
+        },
+        {
+            "path": "wiki\\concepts\\backend\\postman-prerequest-script-dto.md",
+            "chunks": 14,
+            "size": 5934,
+            "lines": 146,
+            "words": 747
+        },
+        {
+            "path": "wiki\\concepts\\backend\\usecase-design-rules.md",
+            "chunks": 8,
+            "size": 2621,
+            "lines": 46,
+            "words": 322
+        },
+        {
+            "path": "wiki\\concepts\\frontend\\playwright-component-coverage.md",
+            "chunks": 14,
+            "size": 6683,
+            "lines": 119,
+            "words": 838
+        },
+        {
+            "path": "wiki\\concepts\\frontend\\redux-toolkit.md",
+            "chunks": 8,
+            "size": 2604,
+            "lines": 64,
+            "words": 355
+        },
+        {
+            "path": "raw\\concepts\\backend-tech-spec.md",
+            "chunks": 42,
+            "size": 31029,
+            "lines": 463,
+            "words": 3421
+        },
+        {
+            "path": "raw\\decisions\\Available Mock Category.md",
+            "chunks": 38,
+            "size": 9045,
+            "lines": 562,
+            "words": 967
+        },
+        {
+            "path": "raw\\decisions\\Save Example.md",
+            "chunks": 13,
+            "size": 10375,
+            "lines": 118,
+            "words": 822
+        },
+        {
+            "path": "raw\\decisions\\Test Suites.md",
+            "chunks": 3,
+            "size": 45,
+            "lines": 6,
+            "words": 11
+        },
+        {
+            "path": "raw\\tasks\\Enhance Variable Display in Editor.md",
+            "chunks": 5,
+            "size": 1912,
+            "lines": 39,
+            "words": 225
+        },
+        {
+            "path": "raw\\tasks\\Enhancing Save Example.md",
+            "chunks": 4,
+            "size": 1499,
+            "lines": 22,
+            "words": 150
+        },
+        {
+            "path": "raw\\tasks\\Integrate Path Variable.md",
+            "chunks": 4,
+            "size": 2172,
+            "lines": 33,
+            "words": 244
+        },
+        {
+            "path": "raw\\tasks\\Mock data mechanism.md",
+            "chunks": 4,
+            "size": 2161,
+            "lines": 21,
+            "words": 246
+        },
+        {
+            "path": "raw\\tasks\\Setup Playwright testing.md",
+            "chunks": 4,
+            "size": 620,
+            "lines": 14,
+            "words": 95
+        },
+        {
+            "path": "raw\\tasks\\Setup Skeleton load.md",
+            "chunks": 1,
+            "size": 1,
+            "lines": 1,
+            "words": 5
+        },
+        {
+            "path": "raw\\tasks\\Two ways document editing.md",
+            "chunks": 4,
+            "size": 1036,
+            "lines": 16,
+            "words": 136
+        },
+        {
+            "path": "raw\\tasks\\Wiring endpoint update tree.md",
+            "chunks": 4,
+            "size": 1088,
+            "lines": 21,
+            "words": 104
+        },
+        {
+            "path": "raw\\patterns\\backend\\Example of API and Socket Registration.md",
+            "chunks": 1,
+            "size": 9701,
+            "lines": 303,
+            "words": 772
+        },
+        {
+            "path": "raw\\patterns\\backend\\Example of Module Controller.md",
+            "chunks": 1,
+            "size": 4641,
+            "lines": 120,
+            "words": 272
+        },
+        {
+            "path": "raw\\patterns\\backend\\Example of Module Socket.md",
+            "chunks": 1,
+            "size": 6218,
+            "lines": 189,
+            "words": 436
+        },
+        {
+            "path": "raw\\patterns\\backend\\Usecase Rule of engagement.md",
+            "chunks": 2,
+            "size": 3677,
+            "lines": 83,
+            "words": 508
+        },
+        {
+            "path": "raw\\patterns\\frontend\\Pattern of wiring.md",
+            "chunks": 1,
+            "size": 4272,
+            "lines": 113,
+            "words": 371
+        },
+        {
+            "path": "raw\\patterns\\frontend\\Socket Client Integration.md",
+            "chunks": 1,
+            "size": 614,
+            "lines": 22,
+            "words": 72
+        },
+        {
+            "path": "raw\\concepts\\backend\\IDE Like File Editor Design.md",
+            "chunks": 34,
+            "size": 21841,
+            "lines": 1505,
+            "words": 2674
+        },
+        {
+            "path": "raw\\concepts\\frontend\\Redux Tool Kit.md",
+            "chunks": 23,
+            "size": 19235,
+            "lines": 1190,
+            "words": 2297
+        }
+    ],
+    "skipped_files": [],
+    "summary": {
+        "total_files_processed": 59,
+        "total_words": 30141
+    }
+}
