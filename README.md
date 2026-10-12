@@ -1,31 +1,13 @@
 <!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
 <a id="readme-top"></a>
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Don't forget to give the project a star!
-*** Thanks again! Now go create something AMAZING! :D
--->
-
-
 
 <!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![project_license][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
-
-
 
 <!-- PROJECT LOGO -->
 <br />
@@ -34,61 +16,60 @@
     <img src="https://raw.githubusercontent.com/rdhmuhammad/apitester/refs/heads/main/frontend/src/assets/images/logo.svg" alt="Logo" width="80" height="80">
   </a>
 
-<h3 align="center">API Tester</h3>
+<h3 align="center">API Tester Desktop</h3>
 
   <p align="center">
-    And integrate ecosystem for integration testing, read specification directly from code then run on gui like a postman
+    An integrated ecosystem for API development and testing: extract specifications directly from code, test endpoints via a modern desktop GUI, execute test scenarios, manage environments, and automate deployments.
     <br />
-    <a href="https://github.com/github_username/repo_name"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/rdhmuhammad/apitester"><strong>Explore the repository »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/github_username/repo_name">View Demo</a>
-    &middot;
     <a href="https://github.com/rdhmuhammad/apitester/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     &middot;
     <a href="https://github.com/rdhmuhammad/apitester/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
   </p>
 </div>
 
-
 <!-- ABOUT THE PROJECT -->
 ## 📖 About The Project
 
 <div align="center">
-    <img src="https://raw.githubusercontent.com/rdhmuhammad/apitester/refs/heads/main/resource/example_gui/request.png" width="250" alt="Example request">
-    <img src="https://raw.githubusercontent.com/rdhmuhammad/apitester/refs/heads/main/resource/example_gui/response.png" width="250" alt="Example response">
+    <img src="https://raw.githubusercontent.com/rdhmuhammad/apitester/refs/heads/main/resource/example_gui/request.png" width="380" alt="Example request">
+    <img src="https://raw.githubusercontent.com/rdhmuhammad/apitester/refs/heads/main/resource/example_gui/response.png" width="380" alt="Example response">
 </div>
 
+<br />
+
 Have you ever gotten tired of manually creating Postman requests every time you finish an endpoint?
-It gets even worse when you're working with endpoints that have massive request payloads like transaction APIs in e-commerce systems.
-Which often contain multiple nested objects, arrays, and dozens of fields that all need valid values.
-On top of that, you usually need to prepare several variations of the request to cover different test scenarios. 
-It can be repetitive, time-consuming, and honestly, pretty frustrating.
-<br>
-</br>
-Driven by these frustrations, my initial workaround was to delegate the task to agentic AI. While it worked, I felt that using AI for something highly repetitive and deterministic was a waste of resources. Many of these tasks can be automated without requiring an LLM at all.
+It gets even worse when you're working with endpoints that have massive request payloads like transaction APIs in e-commerce systems, which often contain multiple nested objects, arrays, and dozens of fields that all need valid values.
+On top of that, you usually need to prepare several variations of the request to cover different test scenarios. It can be repetitive, time-consuming, and honestly, pretty frustrating.
+
+Driven by these frustrations, my initial workaround was to delegate the task to agentic AI. While it worked, using AI for something highly repetitive and deterministic was a waste of resources. Many of these tasks can be automated without requiring an LLM at all.
 
 That's what motivated me to create this project.
 
-The goal of this project is to reduce repetitive work during development. The first milestone is to build a generator that scans all controllers in a project and automatically generates API documentation, such as a `postman.json` collection.
-The generated documentation can then be hosted using this project's ecosystem. You can run it on the same machine as your main service or deploy it to a dedicated server, it doesn't really matter. The only requirement is that the API tester can communicate with the target service through the generated API documentation.
-By automating API documentation generation and hosting, developers can spend less time maintaining test collections and more time building features.
+The goal of this project is to reduce repetitive work during development:
+1. **Automated Documentation & Generation**: Scan controllers in target services and automatically generate API documentation and collections (such as Postman-compatible collections).
+2. **Dedicated Desktop Client**: An Electron-based desktop application providing a Postman-like experience with multi-tab request editing, tree management, pre/post-request scripting sandbox, environment variable substitution, and real-time synchronization.
+3. **Automated Test Scenarios & Workflows**: Execute `.http` scenario test suites and manage Ansible automation playbooks and inventories directly inside the editor.
+4. **Zero-Setup Embedded Storage**: Powered by BoltDB (`bbolt`), eliminating the overhead of external database dependencies like MySQL or PostgreSQL.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
-
 ### Built With
 
-* ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white)
-* ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
-* ![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
-* ![Tailwind](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
-* ![Redux](https://img.shields.io/badge/redux-%23593d88.svg?style=for-the-badge&logo=redux&logoColor=white)
-* ![Go](https://img.shields.io/badge/Language-V1.23.0-00ADD8?style=for-the-badge&logo=go&logoColor=white)
-* ![Gin](https://img.shields.io/badge/Framework-Gin_Gonic-00ADD8?style=for-the-badge&logo=gin&logoColor=white)
-* ![GORM](https://img.shields.io/badge/ORM-GORM-00ADD8?style=for-the-badge)
-* ![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white)
+* [![TypeScript][typescript-shield]][typescript-url]
+* [![React 19][react-shield]][react-url]
+* [![Electron][electron-shield]][electron-url]
+* [![Vite 7][vite-shield]][vite-url]
+* [![Tailwind CSS v4][tailwind-shield]][tailwind-url]
+* [![Redux Toolkit][redux-shield]][redux-url]
+* [![Go 1.26][go-shield]][go-url]
+* [![Gin][gin-shield]][gin-url]
+* [![BoltDB][bbolt-shield]][bbolt-url]
+* [![Socket.IO][socketio-shield]][socketio-url]
+* [![Playwright][playwright-shield]][playwright-url]
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## 📚 Table of Contents
@@ -96,103 +77,196 @@ By automating API documentation generation and hosting, developers can spend les
 <details>
 <summary>Click to expand</summary>
 
+- 📁 [Project Structure](#-project-structure)
 - 🚀 [Getting Started](#-getting-started)
     - 📦 [Prerequisites](#-prerequisites)
-    - ▶️ [How to Run](#-how-to-run)
-    - 🧪 [How to Run Tests](#-how-to-run-tests)
-    - 📄 [How to Flatten Documentation](#-how-to-flatten-documentation)
+    - ▶️ [How to Run (Development)](#️-how-to-run-development)
+    - 🏗️ [Production Desktop Build & Installer](#️-production-desktop-build--installer)
+- 🧪 [How to Run Tests](#-how-to-run-tests)
+- 📄 [How to Flatten Documentation](#-how-to-flatten-documentation)
 - 🧩 [Roadmap](#-roadmap)
 - 👨‍💻 [Contributing](#-contributing)
-    - 🤷️ [Top contributors](#-top-contributors)
+    - 🤷‍♂️ [Top contributors](#️-top-contributors)
 - 🗃 [License](#-license)
 - ☎️ [Contact](#-contact)
 
 </details>
 
+<!-- PROJECT STRUCTURE -->
+## 📁 Project Structure
+
+```text
+apitester-desktop/
+├── cmd/
+│   ├── api/                    # Local HTTP & Socket.IO backend entry point
+│   └── windows/                # Windows Service backend wrapper entry point
+├── internal/
+│   ├── adapter/
+│   │   ├── controller/         # Gin REST controllers (collection, restrequest, tree, automation, testsuits)
+│   │   └── socket/             # Socket.IO event handlers and rooms
+│   ├── domain/                 # Core domain entities and models
+│   ├── mockdata/               # Dynamic mock data generators
+│   └── service/                # Business logic and usecases
+├── pkg/                        # Reusable packages (bbolt db, elog, cio socket, logger, watcher)
+├── shared/                     # Server lifecycle, dependency injection, and HTTP payload abstractions
+├── frontend/
+│   ├── electron/               # Electron main process, preload script, and window management
+│   ├── src/                    # React 19 UI (editor tabs, sidebar, test runners, redux state)
+│   └── testing/                # Playwright end-to-end test scenarios, reports, and sync scripts
+├── deployment/
+│   └── desktop/                # Desktop packaging staging and Inno Setup installer script (setup.iss)
+├── resource/
+│   ├── apidocs/                # Postman and API specification JSON collections
+│   ├── db/                     # Local BoltDB database storage
+│   ├── document/               # Project documentation, raw sources, and LLM wiki
+│   └── flatten_result/         # Pyragify flattened documentation output
+└── config.yaml                 # Pyragify documentation flattening configuration
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
 ## 🚀 Getting Started
-This project consists of two applications:
 
-* A Golang backend (To serve the api docs file)
-* A React frontend (GUI)
+Apitester Desktop consists of two coordinated components:
 
-For development, I usually run both applications locally with the required
-language runtimes and tools installed on my machine.
-
-If you prefer a containerized setup, I already include Docker Compose configuration. 
-This allows anyone to get the entire stack up and running quickly without manually 
-installing and configuring each dependency.
+1. **Golang Backend Service**: Serves the REST API and Socket.IO server, persisting all collections, requests, environments, and test suites in an embedded **BoltDB** key-value store (`bbolt`). It can be run via CLI (`cmd/api/main.go`) or registered as a background Windows Service (`cmd/windows/main.go`).
+2. **Electron Desktop Application**: A React 19 single-page application packaged with Electron, featuring frameless desktop navigation, CORS restriction bypass for local/remote API calls, and real-time bidirectional updates via Socket.IO.
 
 ### 📦 Prerequisites
-Before running the project **locally**, ensure the following tools are installed and available in your environment.
-> **Note**: This project is currently focused on the Golang ecosystem
-> because that's what I use in my day-to-day development. 
-> It started as a tool for my own needs, but I plan to gradually extend it to support
-> other languages and environments in the future.
-* **Golang**: Version [1.24.0](https://go.dev/dl/) or higher
-* **MySQL**: Version 8.0
-* **NodeJS**: Version 22.0
-* **PNPM**: Version [10.23.0](https://pnpm.io/10.x/installation#on-windows)
-* **Ansible**: playbooks and inventories are managed in the desktop editor. Execution is reserved for a future runner implementation.
 
-### ▶️ How to Run
+Before running the project locally, ensure the following tools are installed:
 
-1. Prepare your api docs file which following postman format e.g: `collection.json`
-   > **Note**: You normally won't need to create this file manually. 
-   > The intended workflow is to generate it automatically using 
-   > an API docs generator. Check out the generator repository for setup 
-   > instructions and more details[TODO].
-2. Place the file at `resource/apidocs/your_file_name.json`
-3. Copy ```env.example``` to ```env.[dev|stag|prod]```, choose your desired environment phase.
-4. Install Backend dependencies
+* **Golang**: Version `1.26.0` or higher ([download](https://go.dev/dl/))
+* **Node.js**: Version `22.0` or higher ([download](https://nodejs.org/))
+* **PNPM**: Version `10.x` ([installation guide](https://pnpm.io/installation))
+* **Inno Setup 6** *(Optional)*: Required only if you want to compile the Windows installer executable (`ISCC.exe`).
+* **Database**: **None required!** BoltDB is embedded and runs out-of-the-box with zero database daemon setup.
+
+### ▶️ How to Run (Development)
+
+#### 1. Setup Backend
+
+1. Ensure your initial collection file is located at `resource/apidocs/collection.json` (or your chosen path).
+2. Create your environment configuration file by copying `.env.example` to `.env.stag` or `.env.dev`:
    ```bash
-    go mod download
-    ```
-5. Start Backend application by running these command
-   ```bash
-   go run cmd/main.go --env .env.stag
+   cp .env.example .env.stag
    ```
-6. Set backend base url to `frontend/.env`
+3. Verify the environment variables in `.env.stag`:
    ```dotenv
-   VITE_API_URL=http://localhost:8999/api/v1
+   APP_PORT=8990
+   BOLT_DB_PATH=resource/db/collection.db
+   LOG_LEVEL=debug
    ```
-7. Install Frontend application dependencies
+4. Download dependencies and start the backend:
    ```bash
-   cd frontend
-   pnpm run install
-   ``` 
-8. Start Frontend application by running these command
-   ```bash
-   pnpm run dev
-   ``` 
+   go mod download
+   go run cmd/api/main.go --env .env.stag
+   ```
 
-### 🧪 How to Run Tests
+#### 2. Setup Frontend
 
-This project uses Playwright for testing the Electron GUI.
-
-1. Go to the frontend directory:
+1. Navigate to the `frontend` directory:
    ```bash
    cd frontend
    ```
-2. Build the electron app first:
+2. Configure frontend environment variables in `frontend/.env` (or copy from `frontend/.env.example`):
+   ```dotenv
+   VITE_API_URL=http://localhost:8990/api/v1
+   VITE_SOCKET_URL=http://localhost:8990
+   VITE_SOCKET_PATH=/socket.io
+   ```
+   *(Ensure the port matches `APP_PORT` from your backend configuration)*
+3. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+4. Run the application:
+   - **Electron Desktop App (Recommended)**:
+     ```bash
+     pnpm run dev:electron
+     ```
+   - **Vite Web Preview (Browser only)**:
+     ```bash
+     pnpm run dev
+     ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### 🏗️ Production Desktop Build & Installer
+
+To package Apitester into a standalone Windows installer (`Apitester-Setup.exe`):
+
+1. **Build Backend Service Binary**:
+   ```powershell
+   go build -ldflags="-s -w" -o deployment/desktop/build/apitester-backend.exe ./cmd/windows
+   ```
+
+2. **Build Electron Desktop Binary**:
+   ```powershell
+   cd frontend
+   pnpm run build:electron:dist
+   cd ..
+   Copy-Item "frontend/release/Apitester 0.0.1.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
+   ```
+
+3. **Compile Inno Setup Installer**:
+   ```powershell
+   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" deployment/desktop/setup.iss
+   ```
+
+The compiled installer will be output to `deployment/desktop/installer/Apitester-Setup.exe`. Upon installation, it places the application in `C:\Program Files\Apitester`, registers `apitester-backend.exe` as an automatic Windows Service via `sc.exe`, and creates desktop shortcuts for `apitester.exe`.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- TESTING -->
+## 🧪 How to Run Tests
+
+### Backend Unit & Integration Tests
+
+Run Go unit tests across all packages:
+```bash
+go test ./...
+```
+
+To run tests with verbose output:
+```bash
+go test -v ./...
+```
+
+### Frontend & Electron Playwright Tests
+
+End-to-end tests for the Electron desktop GUI are managed with Playwright:
+
+1. Navigate to `frontend`:
+   ```bash
+   cd frontend
+   ```
+2. Build the Electron application targets:
    ```bash
    pnpm run build:electron
    ```
-3. Run the Playwright tests (scenarios are defined in `testing/scenario`):
+3. Execute the Playwright test suite:
    ```bash
-   npx playwright test
+   pnpm test
    ```
-4. Check the results in `testing/result`. You can view the HTML summary report using:
+4. Open the interactive HTML test report:
    ```bash
-   npx playwright show-report testing/result/html-report
+   pnpm run test:report
+   ```
+5. *(Optional)* Clear scenario cache data:
+   ```bash
+   pnpm run test:cache:clear
    ```
 
-### 📄 How to Flatten Documentation
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-The documentation in `resource/document` can be flattened into a single Markdown file (`resource/flatten_result/document.md`) using [pyragify](https://github.com/ThomasBury/pyragify).
+<!-- DOCUMENTATION FLATTENING -->
+## 📄 How to Flatten Documentation
 
-#### 📦 Installation
+The documentation in `resource/document` can be flattened into a single consolidated Markdown file (`resource/flatten_result/document.md`) using [pyragify](https://github.com/ThomasBury/pyragify).
+
+### 📦 Installation
 
 Install `pyragify` globally via pip:
 ```bash
@@ -201,18 +275,15 @@ pip install git+https://github.com/ThomasBury/pyragify.git
 pip install --ignore-requires-python git+https://github.com/ThomasBury/pyragify.git
 ```
 
-#### ▶️ How to Run Manually
-
-To regenerate and update the flattened documentation:
+### ▶️ How to Run
 
 1. Run `pyragify` directly from the repository root:
    ```bash
    pyragify
    ```
+   This automatically applies [`config.yaml`](./config.yaml) to process `resource/document` and output to `resource/flatten_result`.
 
-   This automatically uses [`config.yaml`](./config.yaml) configured to process `resource/document` and output to `resource/flatten_result`.
-
-2. Alternatively, run with command-line overrides:
+2. Alternatively, specify manual command-line overrides:
    ```bash
    pyragify --repo-path resource/document --output-dir resource/flatten_result
    ```
@@ -223,69 +294,53 @@ The updated flattened document will be generated at `resource/flatten_result/doc
 
 <!-- ROADMAP -->
 ## 🧩 Roadmap
-The following items represent the planned direction of the 
-project and upcoming features currently under consideration.
 
-- [x] Request page can open multiple request. and able to create new request
-- [ ] API Docs generator for Golang
+- [x] Multi-tab request editor with support for opening, creating, and saving requests
+- [x] Folder & collection tree with drag-and-drop reordering, renaming, and CRUD operations
+- [x] Pre-request & post-response script execution sandbox with code editor
+- [x] Environment variable management with template substitution
+- [x] Embedded local storage with BoltDB (`bbolt`)
+- [x] Real-time updates with Socket.IO
+- [x] Automated test scenarios & `.http` file parser runner
+- [x] Automation deployment editor (Ansible playbooks & inventories)
+- [x] Collection mutation history and hash auditing
+- [x] Desktop packaging (Windows Service backend + Electron GUI + Inno Setup installer)
+- [x] Playwright end-to-end testing pipeline
 - [x] API Docs generator for Java Spring
-- [x] Folder Tree has the meets the following criteria
-  - [x] Can show the new request.
-  - [x] Can modify the position, name of folder and request.
-  - [x] Can create, remove folder and request.
-- [ ] Feature Integration test with `.http file`
-- [ ] Feature automation, where user can define yaml file of automation deployment 
-- [ ] Collection change history
-- [ ] Add agentic AI that can perform these task
-	- [ ] Managing collection, integration test, automation
-	
-
-See the [project backlog](https://github.com/users/rdhmuhammad/projects/1) for a full list of proposed features.
+- [ ] API Docs generator for Golang
+- [ ] Agentic AI assistant integration for collection and workflow automation
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
 
 <!-- CONTRIBUTING -->
 ## 👨‍💻 Contributing
-I'd love to see this project grow with help from the community. 
-If you'd like to contribute, please make sure to follow the protocols 
-and guidelines described below before opening a pull request.
 
-These rules aren't meant to be restrictive—they simply help keep the
-project organized, maintainable, and easy to review. If you have 
-questions, suggestions, or feature ideas, feel free to open an
-issue and start a discussion.
+Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-1. Send an email to rdhmuhammad57@gmail.com with the subject line: APITESTER CONTRIBUTE
-2. In the email, describe your idea, feature proposal, enhancement,
-   or any improvement you would like to contribute to the project.
-3. After reviewing the email, I will create a backlog item for the project so we
-   can track the progress and evaluate whether the contribution 
-   aligns with the project's primary goals and vision.
-4. Create your Feature Branch from the Issue which related to backlog (`git checkout -b feature/AmazingFeature`)
-5. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-6. Push to the Branch (`git push origin feature/AmazingFeature`)
-7. Open a Pull Request
+If you have a suggestion that would make this better, please fork the repo and create a pull request:
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'feat: Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+You can also submit issues, feature proposals, and bug reports through [GitHub Issues](https://github.com/rdhmuhammad/apitester/issues).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-### 🤷️ Top contributors
+### 🤷‍♂️ Top contributors
 
 <a href="https://github.com/rdhmuhammad/apitester/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=rdhmuhammad/apitester" alt="contrib.rocks image" />
 </a>
 
-
-
 <!-- LICENSE -->
 ## 🗃 License
 
-Distributed under the project_license. See `LICENSE.txt` for more information.
+Distributed under the MIT License. See [`LICENSE`](./LICENSE) for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
 
 <!-- CONTACT -->
 ## ☎️ Contact
@@ -296,9 +351,7 @@ Project Link: [https://github.com/rdhmuhammad/apitester](https://github.com/rdhm
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
 <!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 [contributors-shield]: https://img.shields.io/github/contributors/rdhmuhammad/apitester.svg?style=for-the-badge
 [contributors-url]: https://github.com/rdhmuhammad/apitester/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/rdhmuhammad/apitester.svg?style=for-the-badge
@@ -311,21 +364,26 @@ Project Link: [https://github.com/rdhmuhammad/apitester](https://github.com/rdhm
 [license-url]: https://github.com/rdhmuhammad/apitester/blob/main/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/ridhomuhammad57
-[product-screenshot]: images/screenshot.png
-<!-- Shields.io badges. You can a comprehensive list with many more badges at: https://github.com/inttter/md-badges -->
-[Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
-[Next-url]: https://nextjs.org/
-[React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
-[React-url]: https://reactjs.org/
-[Vue.js]: https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vuedotjs&logoColor=4FC08D
-[Vue-url]: https://vuejs.org/
-[Angular.io]: https://img.shields.io/badge/Angular-DD0031?style=for-the-badge&logo=angular&logoColor=white
-[Angular-url]: https://angular.io/
-[Svelte.dev]: https://img.shields.io/badge/Svelte-4A4A55?style=for-the-badge&logo=svelte&logoColor=FF3E00
-[Svelte-url]: https://svelte.dev/
-[Laravel.com]: https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white
-[Laravel-url]: https://laravel.com
-[Bootstrap.com]: https://img.shields.io/badge/Bootstrap-563D7C?style=for-the-badge&logo=bootstrap&logoColor=white
-[Bootstrap-url]: https://getbootstrap.com
-[JQuery.com]: https://img.shields.io/badge/jQuery-0769AD?style=for-the-badge&logo=jquery&logoColor=white
-[JQuery-url]: https://jquery.com 
+
+[typescript-shield]: https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white
+[typescript-url]: https://www.typescriptlang.org/
+[react-shield]: https://img.shields.io/badge/React_19-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB
+[react-url]: https://react.dev/
+[electron-shield]: https://img.shields.io/badge/Electron_35-%232B2E3A.svg?style=for-the-badge&logo=electron&logoColor=9FEAF9
+[electron-url]: https://www.electronjs.org/
+[vite-shield]: https://img.shields.io/badge/Vite_7-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white
+[vite-url]: https://vite.dev/
+[tailwind-shield]: https://img.shields.io/badge/Tailwind_CSS_v4-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white
+[tailwind-url]: https://tailwindcss.com/
+[redux-shield]: https://img.shields.io/badge/Redux_Toolkit-%23593d88.svg?style=for-the-badge&logo=redux&logoColor=white
+[redux-url]: https://redux-toolkit.js.org/
+[go-shield]: https://img.shields.io/badge/Go_1.26-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white
+[go-url]: https://go.dev/
+[gin-shield]: https://img.shields.io/badge/Framework-Gin_Gonic-00ADD8?style=for-the-badge&logo=gin&logoColor=white
+[gin-url]: https://gin-gonic.com/
+[bbolt-shield]: https://img.shields.io/badge/DB-BoltDB-00599C?style=for-the-badge&logo=databricks&logoColor=white
+[bbolt-url]: https://github.com/etcd-io/bbolt
+[socketio-shield]: https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white
+[socketio-url]: https://socket.io/
+[playwright-shield]: https://img.shields.io/badge/Playwright-%232EAD33.svg?style=for-the-badge&logo=playwright&logoColor=white
+[playwright-url]: https://playwright.dev/
