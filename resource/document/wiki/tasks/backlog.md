@@ -9,10 +9,14 @@
 ## In Progress
 
 
+
+
 ## Todo
 
 
 ## Done
+
+- [x] Setup Playwright testing
 
 - [x] Mock data mechanism
 

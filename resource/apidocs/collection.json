@@ -1,583 +1,1865 @@
 {
   "info": {
-    "_postman_id": "126ea653-15ff-430b-abae-f21d7aebc109",
-    "name": "Phisiobook API",
-    "description": "Complete API collection for Phisiobook backend",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "30434881"
+    "_postman_id": "d0d1516c-df67-4d81-9ca2-35c7bfde41c3",
+    "name": "PosFly x AsliLoyal 2.0",
+    "description": "",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "User Register",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\",\n  \"password\": \"SecurePassword123!\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/register",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ]
-            },
-            "description": "Register a new user account"
-          },
-          "response": []
-        },
-        {
-          "name": "User Login",
-          "event": [
+      "funIden": "",
+      "name": "Businesses List",
+      "request": {
+        "funIden": "",
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "/api/v1/partner/business/:test/:ini?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
+          "host": [
+            "{{host}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "partner",
+            "business",
+            ":test",
+            ":ini"
+          ],
+          "query": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.token) {",
-                  "    pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
+              "id": "aea3c2b0-3c4d-4b42-978e-bd50935601a1",
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "id": "84ca1e89-fafc-4509-aca9-50c92cd8753f",
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "id": "4e139a88-ac06-40c5-b451-431ae1df1c65",
+              "key": "order",
+              "value": "desc"
+            },
+            {
+              "id": "91fa3b3d-3fdb-4d01-bff0-aa42f4ae5b55",
+              "key": "orderBy",
+              "value": "createdAt"
             }
           ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Login for mobile/user application"
-          },
-          "response": []
-        },
-        {
-          "name": "User Logout",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/auth/logout",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth",
-                "logout"
-              ]
-            },
-            "description": "Logout user (requires authentication)"
-          },
-          "response": []
-        },
-        {
-          "name": "Employee Register",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Jane Smith\",\n  \"email\": \"jane.smith@phisiobook.com\",\n  \"phone\": \"+1234567891\",\n  \"password\": \"SecurePassword123!\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/employee/register",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "employee",
-                "register"
-              ]
-            },
-            "description": "Register a new employee/therapist account"
-          },
-          "response": []
-        },
-        {
-          "name": "Employee Login",
-          "event": [
+          "variable": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.token) {",
-                  "    pm.collectionVariables.set(\"token\", jsonData.data.token);",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
+              "id": "ca6440da-dc87-4a28-a8c0-1b4d4793c5e7",
+              "key": "test",
+              "value": "hai"
+            },
+            {
+              "id": "492cfb76-4f92-401e-af53-8f8a381f8312",
+              "key": "ini",
+              "value": "hehgggggg"
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePassword123!\"\n}\n"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login/admin",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth",
-                "login",
-                "admin"
-              ]
-            },
-            "description": "Login for dashboard/employee application"
-          },
-          "response": []
-        },
-        {
-          "name": "Employee Logout",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/employee/logout",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "employee",
-                "logout"
-              ]
-            },
-            "description": "Logout employee (requires authentication)"
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Account",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"otp\": 123456\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth-user/verify-acc",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth-user",
-                "verify-acc"
-              ]
-            },
-            "description": "Verify account using OTP sent to email"
-          },
-          "response": []
-        },
-        {
-          "name": "Resend OTP",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"name\": \"John Doe\",\n  \"content\": \"\",\n  \"subject\": \"Verify Your Account\",\n  \"userId\": 1\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth-user/resend-otp",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth-user",
-                "resend-otp"
-              ]
-            },
-            "description": "Resend OTP verification code to email"
-          },
-          "response": []
+          ]
         }
-      ],
-      "description": "Authentication and user management endpoints"
-    },
-    {
-      "name": "Health",
-      "item": [
+      },
+      "response": [
         {
-          "name": "Health Check",
-          "request": {
+          "id": "ec3779ca-cf7c-403a-ad86-399f7e6b3de6",
+          "name": "200",
+          "originalRequest": {
+            "funIden": "",
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/health/status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "health",
-                "status"
-              ]
+            "auth": {
+              "type": "",
+              "authSource": "none"
             },
-            "description": "Check system health status including database, cache, and storage connections"
-          },
-          "response": []
-        }
-      ],
-      "description": "System health check endpoints"
-    },
-    {
-      "name": "Homepage",
-      "item": [
-        {
-          "name": "Get Summary Home",
-          "request": {
-            "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/homepage/summary",
+              "raw": "/api/v1/partner/business/:test/:ini?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
               "host": [
-                "{{base_url}}"
+                "{{host}}"
               ],
               "path": [
-                "homepage",
-                "summary"
-              ]
-            },
-            "description": "Get homepage summary data"
-          },
-          "response": []
-        }
-      ],
-      "description": "Homepage related endpoints"
-    },
-    {
-      "name": "Chat",
-      "item": [
-        {
-          "name": "Chat Room",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/chat/room",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "chat",
-                "room"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Chat History",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/chat/history?roomId=bgyq9r",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "chat",
-                "history"
+                "api",
+                "v1",
+                "partner",
+                "business",
+                ":test",
+                ":ini"
               ],
               "query": [
                 {
-                  "key": "roomId",
-                  "value": "bgyq9r"
-                }
-              ]
-            }
-          },
-          "response": []
-        }
-      ],
-      "description": "Chat and messaging endpoints for real-time communication"
-    },
-    {
-      "name": "Booking",
-      "item": [
-        {
-          "name": "Dropdown City",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/booking/dropdown-cities",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "booking",
-                "dropdown-cities"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Adjust Price",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/booking/adjust-price/:therapistCode",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "booking",
-                "adjust-price",
-                ":therapistCode"
-              ],
-              "variable": [
-                {
-                  "key": "therapistCode",
-                  "value": "THR-001"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Reschedule",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"dateTime\": \"2026-05-22T03:31:04+07:00\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/booking/reschedule/:bookingCode",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "booking",
-                "reschedule",
-                ":bookingCode"
-              ],
-              "variable": [
-                {
-                  "key": "bookingCode",
-                  "value": ""
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Dropdown Therapist",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/booking/dropdown-therapist/:cityId",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "booking",
-                "dropdown-therapist",
-                ":cityId"
-              ],
-              "variable": [
-                {
-                  "key": "cityId",
-                  "value": "1"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Create Booking",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"city_id\": 1,\r\n  \"dateTime\": \"2026-05-15 10:00:00\",\r\n  \"therapistCode\": \"THR-001\",\r\n  \"payment_method\": \"cash\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/booking/create",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "booking",
-                "create"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "History",
-      "item": [
-        {
-          "name": "Get History",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/history/list?page=1&size=10&search&status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "history",
-                "list"
-              ],
-              "query": [
-                {
+                  "id": "aea3c2b0-3c4d-4b42-978e-bd50935601a1",
                   "key": "page",
                   "value": "1"
                 },
                 {
-                  "key": "size",
+                  "id": "84ca1e89-fafc-4509-aca9-50c92cd8753f",
+                  "key": "limit",
                   "value": "10"
                 },
                 {
-                  "key": "search",
-                  "value": null
+                  "id": "4e139a88-ac06-40c5-b451-431ae1df1c65",
+                  "key": "order",
+                  "value": "desc"
                 },
                 {
-                  "key": "status",
-                  "value": null
+                  "id": "91fa3b3d-3fdb-4d01-bff0-aa42f4ae5b55",
+                  "key": "orderBy",
+                  "value": "createdAt"
+                }
+              ],
+              "variable": [
+                {
+                  "id": "ca6440da-dc87-4a28-a8c0-1b4d4793c5e7",
+                  "key": "test",
+                  "value": "hai"
+                },
+                {
+                  "id": "492cfb76-4f92-401e-af53-8f8a381f8312",
+                  "key": "ini",
+                  "value": "hehgggggg"
                 }
               ]
             }
           },
-          "response": []
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "id": "7b5b05cc-d6f8-454b-a0ce-2d185d31ca36",
+              "key": "Content-Type",
+              "value": "application/json",
+              "disabled": false
+            }
+          ],
+          "body": "{\n  \"\"\n}"
         }
-      ]
+      ],
+      "id": "f428cddb-1e19-4cef-937d-378887cdaa21"
+    },
+    {
+      "funIden": "",
+      "name": "Businesses List",
+      "item": [
+        {
+          "funIden": "",
+          "name": "Businesses Detail",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/partner/business/c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "business",
+                "c7d85b3c-7b0f-42ce-a452-b22c3b94bf15"
+              ],
+              "query": [
+                {
+                  "id": "a8917f6a-7a24-4826-a75d-3a1269fb1360",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "36700098-cbf3-4d70-a5fe-105433eb4c71"
+        }
+      ],
+      "id": "aff5a0af-c6e1-4e20-aa9a-45fb1fe57c65"
+    },
+    {
+      "funIden": "",
+      "name": "Outlets List",
+      "item": [
+        {
+          "funIden": "",
+          "name": "Outlets List",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "id": "be01c56a-874e-46a0-9f23-54bc617a00ce",
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ],
+              "authSource": "onrequest"
+            },
+            "header": [
+              {
+                "id": "515aedae-f7a0-4600-ae10-b8f6f6479fe3",
+                "key": "Authorization",
+                "value": "Bearer ",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "/api/v1/partner/outlet?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "outlet"
+              ],
+              "query": [
+                {
+                  "id": "b58e5574-1024-4e0e-b951-0b5026bab2d4",
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "id": "1acb7015-e5cf-4b1f-ab7d-4c090a08a185",
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "id": "b861f59f-91d2-48da-b35e-66bc49d18719",
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "id": "9bb38487-6a89-491c-9fc6-5100ecfd7dc2",
+                  "key": "orderBy",
+                  "value": "createdAt"
+                },
+                {
+                  "id": "e2c092a0-2314-4ff0-855f-ed72a033e8cb",
+                  "key": "businessId",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "92791acd-5a5a-4c75-b249-8211036b62c3",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "id": "cc4a0bb3-d4fc-4785-ae86-66588c45d13f",
+              "name": "200",
+              "originalRequest": {
+                "funIden": "",
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "id": "be01c56a-874e-46a0-9f23-54bc617a00ce",
+                      "key": "token",
+                      "value": "",
+                      "type": "string"
+                    }
+                  ],
+                  "authSource": "onrequest"
+                },
+                "header": [
+                  {
+                    "id": "515aedae-f7a0-4600-ae10-b8f6f6479fe3",
+                    "key": "Authorization",
+                    "value": "Bearer ",
+                    "disabled": false
+                  }
+                ],
+                "url": {
+                  "raw": "/api/v1/partner/outlet?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
+                  "host": [
+                    "{{host}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "partner",
+                    "outlet"
+                  ],
+                  "query": [
+                    {
+                      "id": "b58e5574-1024-4e0e-b951-0b5026bab2d4",
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "id": "1acb7015-e5cf-4b1f-ab7d-4c090a08a185",
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "id": "b861f59f-91d2-48da-b35e-66bc49d18719",
+                      "key": "order",
+                      "value": "desc"
+                    },
+                    {
+                      "id": "9bb38487-6a89-491c-9fc6-5100ecfd7dc2",
+                      "key": "orderBy",
+                      "value": "createdAt"
+                    },
+                    {
+                      "id": "e2c092a0-2314-4ff0-855f-ed72a033e8cb",
+                      "key": "businessId",
+                      "value": "",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "id": "92791acd-5a5a-4c75-b249-8211036b62c3",
+                      "key": "name",
+                      "value": "",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "id": "",
+                  "key": "access-control-allow-credentials",
+                  "value": "true",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "access-control-allow-headers",
+                  "value": "*",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "access-control-allow-methods",
+                  "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "access-control-allow-origin",
+                  "value": "*",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "access-control-expose-headers",
+                  "value": "*",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "content-encoding",
+                  "value": "gzip",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "content-security-policy",
+                  "value": "default-src 'self';base-uri 'self';block-all-mixed-content;font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "cross-origin-embedder-policy",
+                  "value": "require-corp",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "cross-origin-opener-policy",
+                  "value": "same-origin",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "cross-origin-resource-policy",
+                  "value": "cross-origin",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "date",
+                  "value": "Fri, 09 Oct 2026 08:54:10 GMT",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "etag",
+                  "value": "W/\"e95-3ugnoxQtXfO23paT7LBXbENXaB4\"",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "expect-ct",
+                  "value": "max-age=0",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "origin-agent-cluster",
+                  "value": "?1",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "referrer-policy",
+                  "value": "no-referrer",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "strict-transport-security",
+                  "value": "max-age=15552000; includeSubDomains",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "vary",
+                  "value": "Accept-Encoding",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-content-type-options",
+                  "value": "nosniff",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-dns-prefetch-control",
+                  "value": "off",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-download-options",
+                  "value": "noopen",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-frame-options",
+                  "value": "SAMEORIGIN",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-permitted-cross-domain-policies",
+                  "value": "none",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-ratelimit-limit",
+                  "value": "100000",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-ratelimit-remaining",
+                  "value": "99875",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-ratelimit-reset",
+                  "value": "1791536059",
+                  "disabled": false
+                },
+                {
+                  "id": "",
+                  "key": "x-xss-protection",
+                  "value": "0",
+                  "disabled": false
+                }
+              ],
+              "body": "{\n  \"data\": {\n    \"meta\": {\n      \"totalData\": 2,\n      \"totalPage\": 1,\n      \"page\": 1,\n      \"limit\": 10,\n      \"orderBy\": \"createdAt\",\n      \"order\": \"desc\"\n    },\n    \"data\": [\n      {\n        \"id\": \"d2f1a765-ce09-4ebb-a428-9ec7401bd188\",\n        \"businessId\": \"c7d85b3c-7b0f-42ce-a452-b22c3b94bf15\",\n        \"name\": \"Beezy Bulungan\",\n        \"address\": \"Bulungan\",\n        \"serviceFeeType\": \"fix_amount\",\n        \"serviceFeePercentage\": \"0.00\",\n        \"serviceFeeFixAmount\": \"0\",\n        \"taxName\": \"Tax\",\n        \"taxPercentage\": \"0.00\",\n        \"type\": null,\n        \"isTable\": false,\n        \"layoutModel\": null,\n        \"orderType\": null,\n        \"isOfflineMode\": false,\n        \"isManualDiscount\": true,\n        \"isVoucherDiscount\": false,\n        \"isListDiscount\": false,\n        \"orderMethods\": [\n          \"dine_in\",\n          \"takeaway\"\n        ],\n        \"isShowDirectPayment\": true,\n        \"isShowSplitBill\": false,\n        \"isSharingRevenueFromProduct\": true,\n        \"sharingRevenueFromProductType\": \"\",\n        \"sharingRevenueFromProductPercentage\": \"0.00\",\n        \"sharingRevenueFromProductFixAmount\": \"0\",\n        \"qrBaseUrl\": null,\n        \"promoBaseUrl\": null,\n        \"isCentralCashierReport\": false,\n        \"isShowSearchAddon\": false,\n        \"isDailyReport\": true,\n        \"isCashback\": true,\n        \"imageMediaId\": null,\n        \"imageFile\": null,\n        \"imageType\": null,\n        \"bannerMediaId\": null,\n        \"bannerFile\": null,\n        \"bannerType\": null,\n        \"menuPdfFile\": \"https://s3.tixfly.id/tixfly-media/tixfly-pos/20261009/06e76a60-0027-4c30-8dec-a784ee6d7299.pdf\",\n        \"menuPdfType\": \"application/pdf\",\n        \"paymentMethods\": [\n          {\n            \"id\": \"3d6f1688-672a-49b9-8a97-cdd5c66ebee7\",\n            \"businessId\": \"c7d85b3c-7b0f-42ce-a452-b22c3b94bf15\",\n            \"outletId\": \"d2f1a765-ce09-4ebb-a428-9ec7401bd188\",\n            \"name\": \"AsliLoyal\",\n            \"bank\": \"ASLI\",\n            \"accountNumber\": \"-\",\n            \"accountName\": \"Beezy\",\n            \"iconUrl\": \"https://s3.tixfly.id/tixfly-media/tixfly-pos/20260629/af58f417-5300-4532-aa9b-3f8cf08890ce.png\",\n            \"staticQrisUrl\": null,\n            \"isCloseloop\": false,\n            \"isCash\": false,\n            \"isInHouseGuest\": false,\n            \"isFacepay\": true,\n            \"isDynamicQris\": false,\n            \"isStaticQris\": false,\n            \"active\": true,\n            \"createdAt\": \"2026-06-29T05:04:53.635Z\",\n            \"updatedAt\": \"2026-07-03T05:50:44.960Z\"\n          }\n        ],\n        \"createdAt\": \"2026-06-29T05:04:14.048Z\",\n        \"updatedAt\": \"2026-10-09T07:30:11.825Z\"\n      },\n      {\n        \"id\": \"8f4ef39d-f983-441a-90de-7a9b047ff691\",\n        \"businessId\": \"e557bcbc-c3e3-4cf1-bcd8-57842adb349f\",\n        \"name\": \"Beezy Demo\",\n        \"address\": \"Bulungan\",\n        \"serviceFeeType\": \"fix_amount\",\n        \"serviceFeePercentage\": \"0.00\",\n        \"serviceFeeFixAmount\": \"0\",\n        \"taxName\": \"Tax\",\n        \"taxPercentage\": \"0.00\",\n        \"type\": null,\n        \"isTable\": false,\n        \"layoutModel\": null,\n        \"orderType\": null,\n        \"isOfflineMode\": false,\n        \"isManualDiscount\": true,\n        \"isVoucherDiscount\": false,\n        \"isListDiscount\": false,\n        \"orderMethods\": [\n          \"dine_in\",\n          \"takeaway\"\n        ],\n        \"isShowDirectPayment\": true,\n        \"isShowSplitBill\": true,\n        \"isSharingRevenueFromProduct\": true,\n        \"sharingRevenueFromProductType\": \"\",\n        \"sharingRevenueFromProductPercentage\": \"0.00\",\n        \"sharingRevenueFromProductFixAmount\": \"0\",\n        \"qrBaseUrl\": null,\n        \"promoBaseUrl\": null,\n        \"isCentralCashierReport\": false,\n        \"isShowSearchAddon\": false,\n        \"isDailyReport\": false,\n        \"isCashback\": false,\n        \"imageMediaId\": \"1aa26f8b-63ca-4e77-94bb-29d73a0b5f47\",\n        \"imageFile\": \"https://s3.tixfly.id/tixfly-media/tixfly-pos/20260924/5dc9e06c-e4ee-4162-9638-53c6af2a5325.png\",\n        \"imageType\": \"image/png\",\n        \"bannerMediaId\": \"b73a2b84-20a1-40e4-bebd-1193e0eb2e8f\",\n        \"bannerFile\": \"https://s3.tixfly.id/tixfly-media/tixfly-pos/20260924/84f0d47b-5518-458a-b871-57163990ee5d.jpg\",\n        \"bannerType\": \"image/jpeg\",\n        \"menuPdfFile\": null,\n        \"menuPdfType\": null,\n        \"paymentMethods\": [\n          {\n            \"id\": \"5fc34188-e5e4-46b1-a70d-e278bdd623fc\",\n            \"businessId\": \"e557bcbc-c3e3-4cf1-bcd8-57842adb349f\",\n            \"outletId\": \"8f4ef39d-f983-441a-90de-7a9b047ff691\",\n            \"name\": \"AsliLoyal\",\n            \"bank\": \"Asli\",\n            \"accountNumber\": \"-\",\n            \"accountName\": \"Beezy\",\n            \"iconUrl\": \"https://s3.tixfly.id/tixfly-media/tixfly-pos/20260623/20b78956-0ca5-411f-8eb5-80c8425ef024.png\",\n            \"staticQrisUrl\": null,\n            \"isCloseloop\": false,\n            \"isCash\": false,\n            \"isInHouseGuest\": false,\n            \"isFacepay\": true,\n            \"isDynamicQris\": false,\n            \"isStaticQris\": false,\n            \"active\": true,\n            \"createdAt\": \"2026-06-23T13:18:54.169Z\",\n            \"updatedAt\": \"2026-06-24T07:04:03.304Z\"\n          }\n        ],\n        \"createdAt\": \"2026-06-23T12:53:14.438Z\",\n        \"updatedAt\": \"2026-09-24T11:53:53.153Z\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"version\": \"1.0.0\"\n  }\n}"
+            }
+          ],
+          "id": "60916c3d-9940-4d48-82e0-fcf83883cb15"
+        },
+        {
+          "funIden": "",
+          "name": "Outlets Detail",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/partner/outlet/a9d94ab3-0ff5-4e19-a8b5-cb4e6f54b92c",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "outlet",
+                "a9d94ab3-0ff5-4e19-a8b5-cb4e6f54b92c"
+              ],
+              "query": [
+                {
+                  "id": "750e2b4f-a416-4090-a747-eb0d8e43e473",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "3860ba59-da99-4c96-ad17-5c9a1940e500"
+        }
+      ],
+      "id": "f9f3aa7c-4277-47b4-a87d-be7067671227"
+    },
+    {
+      "funIden": "",
+      "name": "Categories List",
+      "item": [
+        {
+          "funIden": "",
+          "name": "Categories List",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/partner/category?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "category"
+              ],
+              "query": [
+                {
+                  "id": "46515da5-316e-4cae-801f-e8dcca069e17",
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "id": "8789f823-ad78-4c3b-9531-d57f7ba18c1c",
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "id": "661dcf6a-67d7-406f-9392-b93fc50d8bff",
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "id": "50497743-7204-4e1c-b81e-edb9875c356f",
+                  "key": "orderBy",
+                  "value": "createdAt"
+                },
+                {
+                  "id": "39924300-c8ce-4d65-b7fa-c1fe1b33de87",
+                  "key": "businessId",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "dd106458-b38d-4f9c-83a4-7b2e446a9b08",
+                  "key": "outletId",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "dca1bbdb-d52c-400e-9a12-e378fd424c3c",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "e98b849e-76e0-4170-9ab9-28b38dbad83f"
+        },
+        {
+          "funIden": "",
+          "name": "Categories Detail",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/partner/category/aac56d7a-6534-4ab8-a648-7e4620774e1d",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "category",
+                "aac56d7a-6534-4ab8-a648-7e4620774e1d"
+              ],
+              "query": [
+                {
+                  "id": "699d4abf-3a56-4adf-82c7-f47597747389",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "f7c7eda9-621e-4b22-91a6-3f42f356dcf1"
+        }
+      ],
+      "id": "2ce89e2c-5403-4eee-b9e6-71b259b2cf97"
+    },
+    {
+      "funIden": "",
+      "name": "Items List",
+      "item": [
+        {
+          "funIden": "",
+          "name": "Items List",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "/api/v1/partner/item?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt\u0026outletId=8f4ef39d-f983-441a-90de-7a9b047ff691\u0026isOnline=true",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "item"
+              ],
+              "query": [
+                {
+                  "id": "c241874b-a338-49a3-9583-765d5d14d86d",
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "id": "6d88bdea-1793-4593-b8b3-16db7302795f",
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "id": "fb80c190-d463-4d86-bb8b-ebf6f6428db3",
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "id": "c92ae8e0-27ef-4a5a-868e-da0ae63190d9",
+                  "key": "orderBy",
+                  "value": "createdAt"
+                },
+                {
+                  "id": "9f74f101-80bc-4544-b4a5-3f62793451f3",
+                  "key": "businessId",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "322fdb49-804b-4a69-bb55-0e7e03724bc6",
+                  "key": "outletId",
+                  "value": "8f4ef39d-f983-441a-90de-7a9b047ff691",
+                  "type": "text"
+                },
+                {
+                  "id": "0b2b45da-9375-4be5-82c8-ff085dc69cf5",
+                  "key": "categoryId",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "cca32a75-1467-4f26-b877-80ad2a1311a9",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "6398d279-f6a6-46e0-a3dd-46f4acb2f2c7",
+                  "key": "isOnline",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "id": "c27b4d24-3cda-443b-b30b-b5bb48d8b4c6"
+        },
+        {
+          "funIden": "",
+          "name": "Items Detail",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/partner/item/3b01ad56-3854-489d-bcc6-30c24ed3c8a6",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "item",
+                "3b01ad56-3854-489d-bcc6-30c24ed3c8a6"
+              ],
+              "query": [
+                {
+                  "id": "007dd0f8-7d81-4d44-b76d-3f720c41f737",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "11e82f88-6d47-4e79-a4b3-ed98e7061f7b"
+        }
+      ],
+      "id": "0de4babb-fc24-416c-9617-aedac8faf82d"
+    },
+    {
+      "funIden": "",
+      "name": "Transactions",
+      "item": [
+        {
+          "funIden": "",
+          "name": "Get Transaction List",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/order/find-all?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt\u0026businessId=c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "order",
+                "find-all"
+              ],
+              "query": [
+                {
+                  "id": "d971949d-da9a-4694-b6ef-037aa524c231",
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "id": "9fe2a206-f2c6-4b62-9648-3fc2c2a8f92e",
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "id": "014e1d31-cd8b-4f93-b4e6-99223f89ce39",
+                  "key": "order",
+                  "value": "desc"
+                },
+                {
+                  "id": "e9795661-d3e1-46a4-b6aa-e088169449de",
+                  "key": "orderBy",
+                  "value": "createdAt"
+                },
+                {
+                  "id": "507cc531-5962-442b-a0e9-a6fcccc3850e",
+                  "key": "businessId",
+                  "value": "c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "id": "2d9064d7-9f51-432e-ac2f-813a134225be"
+        },
+        {
+          "funIden": "",
+          "name": "Create New Transaction",
+          "request": {
+            "funIden": "",
+            "method": "POST",
+            "header": [
+              {
+                "id": "",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"outletId\": \"d2f1a765-ce09-4ebb-a428-9ec7401bd188\",\n    \"customerName\": \"Lutfi\",\n    \"customerPhoneNumber\": \"085763666634\",\n    \"customerEmail\": null,\n    \"orderType\": \"reguler\",\n    \"orderMethod\": \"reguler\",\n    \"tableId\": null,\n    \"tableIds\": null\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/order/create",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "order",
+                "create"
+              ],
+              "query": null
+            }
+          },
+          "id": "78c80d7c-0a68-4986-bc0e-3a29637b2491"
+        },
+        {
+          "funIden": "",
+          "name": "Get Cart Data",
+          "request": {
+            "funIden": "",
+            "method": "GET",
+            "header": [
+              {
+                "id": "",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/order/cart-list/{{order_id}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "order",
+                "cart-list",
+                "{{order_id}}"
+              ],
+              "query": null
+            }
+          },
+          "id": "a3b0882e-ae8e-4e27-8cf4-4e9bba060050"
+        },
+        {
+          "funIden": "",
+          "name": "Add Item To Cart",
+          "request": {
+            "funIden": "",
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "id": "",
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ],
+              "authSource": ""
+            },
+            "header": [
+              {
+                "id": "a1b6f6ef-504d-4d6b-ad53-0605a4ec41c1",
+                "key": "accept",
+                "value": "*/*",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"itemId\": \"c87bd611-8d46-430b-b26c-a6b52b05e0cb\",\n      \"itemVariantId\": null,\n      \"qty\": 1,\n      \"note\": null,\n      \"addons\": null\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/checkout/add-to-cart/{{order_id}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "checkout",
+                "add-to-cart",
+                "{{order_id}}"
+              ],
+              "query": [
+                {
+                  "id": "cbd807d6-5d51-4885-814f-6ec3047e04d0",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "47d0fe42-8238-4c53-9509-36fcf4928066",
+                  "key": "keyword",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "7c405435-4b8e-4723-a02b-bc218cb579d5"
+        },
+        {
+          "funIden": "",
+          "name": "Update Cart Qty",
+          "request": {
+            "funIden": "",
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "id": "",
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ],
+              "authSource": ""
+            },
+            "header": [
+              {
+                "id": "97f162a7-574e-4683-9927-9690d4720500",
+                "key": "accept",
+                "value": "*/*",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderDetailId\": \"10c12371-c55d-43b2-b897-fd2a5110bbeb\",\n  \"qty\": 3,\n  \"isUpdateBatchOrder\": false\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/order/cart-update",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "order",
+                "cart-update"
+              ],
+              "query": [
+                {
+                  "id": "c6a9b837-fc2a-4cb5-a3cf-f827db5b2f7b",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "7f252a22-7067-4fc4-bb8f-94f7216e7dc7",
+                  "key": "keyword",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "c33e0370-6299-4a4a-a6b0-e7b985be1af5"
+        },
+        {
+          "funIden": "",
+          "name": "Payment",
+          "request": {
+            "funIden": "",
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "id": "",
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ],
+              "authSource": ""
+            },
+            "header": [
+              {
+                "id": "87cad6ce-8ee0-44ec-b7f9-83bd9ee597af",
+                "key": "accept",
+                "value": "*/*",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"splitCount\": 1,\n  \"isSplitBill\": false,\n  \"tableId\": null,\n  \"tableIds\": [],\n  \"customerId\": null,\n  \"customerName\": \"Lutfi\",\n  \"customerPhoneNumber\": \"6285763666634\",\n  \"orderType\": \"reguler\",\n  \"payments\": [\n    {\n      \"orderId\": \"2cc3589f-e969-46b1-a116-a05160e392ea\",\n      \"paymentMethodId\": \"3d6f1688-672a-49b9-8a97-cdd5c66ebee7\",\n      \"paymentRef\": null,\n      \"roomNumber\": null,\n      \"cashReceived\": null,\n      \"cashReturned\": null,\n      \"discountPercentage\": null,\n      \"discountAmount\": null,\n      \"promoCodeId\": null,\n      \"promoCode\": null,\n      \"paymentDetails\": null\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/payment",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "payment"
+              ],
+              "query": [
+                {
+                  "id": "702e8130-1e6f-45fc-8c81-92d7532277bf",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "d5440d5d-2cd8-4f4a-b847-cb1c8cb7d42e",
+                  "key": "keyword",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "8f489897-c841-4f4b-9015-e8152c535560"
+        },
+        {
+          "funIden": "",
+          "name": "Cancel Order",
+          "request": {
+            "funIden": "",
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "id": "",
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ],
+              "authSource": ""
+            },
+            "header": [
+              {
+                "id": "db1f5a88-199d-4743-8e6c-26abea8555a8",
+                "key": "accept",
+                "value": "*/*",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"544bbb23-0f8d-4210-b5a2-99f43eafe4ae\",\n  \"cancellationReason\": null\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/partner/transaction/cancel-order",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "partner",
+                "transaction",
+                "cancel-order"
+              ],
+              "query": [
+                {
+                  "id": "fc636fcd-81b3-45ef-b10c-ff0e6e9d2bfe",
+                  "key": "name",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "id": "9f523314-8629-488b-b352-33eef6c60c9d",
+                  "key": "keyword",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "id": "f72f5de2-d7b9-4d68-9536-38b647ee4477"
+        }
+      ],
+      "id": "5705ab8e-c918-48ed-80bf-d5cbf42f575a"
+    },
+    {
+      "funIden": "",
+      "name": "Check Signature",
+      "request": {
+        "funIden": "",
+        "method": "POST",
+        "header": [
+          {
+            "id": "a8567ae5-e058-46be-8d6e-e55054a9ac47",
+            "key": "accept",
+            "value": "*/*",
+            "disabled": false
+          },
+          {
+            "id": "875fdf7e-f910-4db6-87ae-2d2ecd5cc9af",
+            "key": "timestamp",
+            "value": "{{mock.date}}",
+            "disabled": false
+          },
+          {
+            "id": "a76633ad-dfcc-433b-b886-712dd2c89f8a",
+            "key": "email",
+            "value": "{{mock.address}}",
+            "disabled": false
+          },
+          {
+            "id": "65c6f658-a1bf-4827-b722-a5771ca9c9fd",
+            "key": "Content-Type",
+            "value": "application/json",
+            "disabled": false
+          },
+          {
+            "id": "1a674a21-a168-4bba-b63b-6ac20e081dfa",
+            "key": "value new",
+            "value": "",
+            "disabled": false
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"0821862666743\",\n  \"username\": \"ridho muhammad \"\n}\n"
+        },
+        "url": {
+          "raw": "/api/v1/adjustment/verify-signature/:test/:test?teh={{mock.firstName}}",
+          "host": [
+            "{{host}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "adjustment",
+            "verify-signature",
+            ":test",
+            ":test"
+          ],
+          "query": [
+            {
+              "id": "59220696-f59b-45bb-93c8-edc0abcd0a6f",
+              "key": "teh",
+              "value": "{{mock.firstName}}"
+            }
+          ],
+          "variable": [
+            {
+              "id": "dde7b7d2-a067-4611-b645-0c0c158d268b",
+              "key": "test",
+              "value": "ahai"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "id": "5bd6cda8-e726-4e79-8b0d-a60236e61e57",
+          "name": "200",
+          "originalRequest": {
+            "funIden": "",
+            "method": "POST",
+            "header": [
+              {
+                "id": "a8567ae5-e058-46be-8d6e-e55054a9ac47",
+                "key": "accept",
+                "value": "*/*",
+                "disabled": false
+              },
+              {
+                "id": "875fdf7e-f910-4db6-87ae-2d2ecd5cc9af",
+                "key": "timestamp",
+                "value": "{{mock.date}}",
+                "disabled": false
+              },
+              {
+                "id": "a76633ad-dfcc-433b-b886-712dd2c89f8a",
+                "key": "email",
+                "value": "{{mock.email}}",
+                "disabled": false
+              },
+              {
+                "id": "65c6f658-a1bf-4827-b722-a5771ca9c9fd",
+                "key": "Content-Type",
+                "value": "application/json",
+                "disabled": false
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"08218349\"\n}\n"
+            },
+            "url": {
+              "raw": "/api/v1/adjustment/verify-signature?teh={{mock.firstName}}",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "adjustment",
+                "verify-signature"
+              ],
+              "query": [
+                {
+                  "id": "86de55c2-85b6-416b-ab53-185b5873d470",
+                  "key": "teh",
+                  "value": "{{mock.firstName}}"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "id": "42306113-9c06-4379-8701-bb8ddd8dc670",
+              "key": "Content-Type",
+              "value": "application/json",
+              "disabled": false
+            }
+          ],
+          "body": "{\n  \"data\": {\n    \"message\": \"Signature is valid!\",\n    \"email\": \"0\",\n    \"phone\": \"08218349\",\n    \"data\": {\n      \"email\": \"0\",\n      \"phone\": \"08218349\"\n    }\n  },\n  \"meta\": {\n    \"version\": \"1.0.0\"\n  }\n}"
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "id": "2ff6d976-a6b0-49b5-a72a-392002bffc1d"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "header": [],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "/api/v1/users?page=1\u0026limit=20",
+          "host": [],
+          "path": [
+            "api",
+            "v1",
+            "users"
+          ],
+          "query": [
+            {
+              "id": "ce0efdd9-f4a2-4205-95a7-3a50ca9d4143",
+              "key": "page",
+              "value": "1",
+              "description": "page number"
+            },
+            {
+              "id": "89b8ce79-a7d5-450b-b262-a25ea18d59c2",
+              "key": "limit",
+              "value": "20",
+              "description": "items limit"
+            }
+          ]
+        }
+      },
+      "id": "22963ad4-51bf-4c24-8fcb-e01000ec5ee4"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "auth": {
+          "type": "",
+          "authSource": "inherit"
+        },
+        "header": [
+          {
+            "id": "e76cdf28-8a3c-4e87-99ce-384f5625a2bc",
+            "key": "Authorization",
+            "value": "Bearer parent-bearer-token-123",
+            "disabled": false
+          }
+        ],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "/test-auth-endpoint",
+          "host": [],
+          "path": [
+            "test-auth-endpoint"
+          ],
+          "query": []
+        }
+      },
+      "id": "f7723b57-46ad-4487-a41e-bb53355cddd5"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "header": [],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "",
+          "host": [],
+          "path": [],
+          "query": []
+        }
+      },
+      "id": "075a8c15-80a5-470e-89a8-e2db9926d611"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "header": [
+          {
+            "id": "f54e5311-53fb-4eb0-9f44-43dfd77d786f",
+            "key": "{{mock.firstName}}",
+            "value": "{{mock.uuid}}",
+            "disabled": false
+          }
+        ],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "",
+          "host": [],
+          "path": [],
+          "query": []
+        }
+      },
+      "id": "5e97c9a6-1f52-4d7e-a89b-7f88c6a28f37"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "auth": {
+          "type": "",
+          "authSource": "inherit"
+        },
+        "header": [
+          {
+            "id": "a9856ed5-fce2-4e43-bec7-4ad091374d99",
+            "key": "Authorization",
+            "value": "Bearer parent-bearer-token-123",
+            "disabled": false
+          }
+        ],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "/test-auth-endpoint",
+          "host": [],
+          "path": [
+            "test-auth-endpoint"
+          ],
+          "query": []
+        }
+      },
+      "id": "73381ed7-eb1d-4b11-b141-c2de10e9cc91"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "header": [],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "",
+          "host": [],
+          "path": [],
+          "query": []
+        }
+      },
+      "id": "70128387-b249-4138-99be-681b4585c6c4"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "header": [],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "/api/v1/users",
+          "host": [],
+          "path": [
+            "api",
+            "v1",
+            "users"
+          ],
+          "query": []
+        }
+      },
+      "id": "5c0a4ef9-f0b0-40c5-a495-e83e9d12072a"
+    },
+    {
+      "funIden": "",
+      "name": "",
+      "request": {
+        "funIden": "",
+        "method": "",
+        "header": [
+          {
+            "id": "0bd731b6-7959-4692-b871-6b1c6dcf6668",
+            "key": "{{mock.firstName}}",
+            "value": "{{mock.uuid}}",
+            "disabled": false
+          }
+        ],
+        "body": {
+          "mode": "",
+          "raw": ""
+        },
+        "url": {
+          "raw": "",
+          "host": [],
+          "path": [],
+          "query": []
+        }
+      },
+      "id": "9084b1d1-04bd-430a-be6e-507168e3c49a"
     }
   ],
   "auth": {
     "type": "bearer",
     "bearer": [
       {
+        "id": "7a8c16c4-475c-4bf4-8725-344afe38f747",
         "key": "token",
-        "value": "{{token}}",
+        "value": "parent-bearer-token-123",
         "type": "string"
       }
     ]
   },
+  "variable": [
+    {
+      "id": "f5786b67-b3fc-4e8e-aa66-b9762ad812b9",
+      "key": "base_url",
+      "category": "BASE_URL",
+      "value": "https://posfly-api.tixfly.id",
+      "type": "string",
+      "isSelected": false
+    },
+    {
+      "id": "af04682a-96ca-4a27-906e-e3cf1c210b2e",
+      "key": "userId",
+      "category": "",
+      "value": "a boy is founded dead",
+      "type": "string",
+      "isSelected": false
+    },
+    {
+      "id": "22e0c3be-3091-427f-b1a4-5d7b25bf0f78",
+      "key": "VAR_BTN_1791798866137",
+      "category": "",
+      "value": "VAL_BTN_1791798866137",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "ba6bbb42-5c6f-4463-ad68-f5f8e21cf51e",
+      "key": "VAR_EDIT_1791798880733",
+      "category": "",
+      "value": "VAL_ORIG_1791798880733",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "548ad9d6-16ba-4962-967e-20c23abf7bc1",
+      "key": "VAR_DEL_1791798894647",
+      "category": "",
+      "value": "VAL_DEL_1791798894647",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "f65a75ca-725f-4636-8387-f81103b8e9d5",
+      "key": "VAR_BTN_1791798989959",
+      "category": "",
+      "value": "VAL_BTN_1791798989959",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "8c81aae3-9096-471e-8f47-6180c02c3fdf",
+      "key": "VAR_EDIT_1791799000178",
+      "category": "",
+      "value": "VAL_ORIG_1791799000178",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "9b34f155-9adb-4c09-80f2-e6988cfade90",
+      "key": "VAR_DEL_1791799009063",
+      "category": "",
+      "value": "VAL_DEL_1791799009063",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "0a38c4e6-2fc5-40c3-beb7-99113ab9e6f9",
+      "key": "VAR_BTN_1791799071142",
+      "category": "",
+      "value": "VAL_BTN_1791799071142",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "c362b4a8-78c8-4ea7-a5d7-45e67008af3f",
+      "key": "VAR_EDIT_1791799080390",
+      "category": "",
+      "value": "VAL_ORIG_1791799080390",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "350ef3ef-9a1f-47a3-b36c-9c65de55a22c",
+      "key": "VAR_DEL_1791799089780",
+      "category": "",
+      "value": "VAL_DEL_1791799089780",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "057a2e7b-5347-46c6-975a-973c56ad964b",
+      "key": "VAR_BTN_1791799173906",
+      "category": "",
+      "value": "VAL_BTN_1791799173906",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "0daeaf3d-a773-482a-9ffb-b4a7dc07621b",
+      "key": "VAR_ENTER_1791799173906",
+      "category": "",
+      "value": "VAL_ENTER_1791799173906",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "fd414ac6-5d47-4cdc-9277-2f989f97dea8",
+      "key": "VAR_EDIT_1791799176640_MODIFIED",
+      "category": "",
+      "value": "VAL_ORIG_1791799176640_MODIFIED",
+      "type": "string",
+      "isSelected": false
+    },
+    {
+      "id": "e050302a-3ebe-44ab-8ab9-6b071a849532",
+      "key": "VAR_BTN_1791799400820",
+      "category": "",
+      "value": "VAL_BTN_1791799400820",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "b7762f6a-8d0c-41e7-8ea8-9447a8caec00",
+      "key": "VAR_ENTER_1791799400820",
+      "category": "",
+      "value": "VAL_ENTER_1791799400820",
+      "type": "VARIABLE",
+      "isSelected": false
+    },
+    {
+      "id": "d932f5c2-682c-4630-bcd2-80bd9cdb5e63",
+      "key": "VAR_EDIT_1791799404863_MODIFIED",
+      "category": "",
+      "value": "VAL_ORIG_1791799404863_MODIFIED",
+      "type": "string",
+      "isSelected": false
+    }
+  ],
   "event": [
     {
       "listen": "prerequest",
       "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
         "exec": [
-          ""
-        ]
+          "// ==============================",
+          "// INIT HEADER VALUES",
+          "// ==============================",
+          "const headerKeyValue = {",
+          "    timestamp: new Date().getTime(),",
+          "    email: \"0\"",
+          "};",
+          "",
+          "// ==============================",
+          "// NORMALIZE FUNCTION (MATCH JAVA)",
+          "// ==============================",
+          "function normalize(obj) {",
+          "    if (obj === null || obj === undefined) return \"\";",
+          "",
+          "    // ✅ ADD THIS BLOCK HERE",
+          "    if (typeof obj === \"number\") {",
+          "        return Number.isInteger(obj) ? obj.toString() : Math.floor(obj).toString();",
+          "    }",
+          "",
+          "    // ARRAY",
+          "    if (Array.isArray(obj)) {",
+          "        let result = \"[\";",
+          "        obj.forEach((item, index) =\u003e {",
+          "            result += normalize(item);",
+          "            if (index !== obj.length - 1) result += \",\";",
+          "        });",
+          "        result += \"]\";",
+          "        return result;",
+          "    }",
+          "",
+          "    // OBJECT",
+          "    if (typeof obj === \"object\") {",
+          "        let keys = Object.keys(obj).sort();",
+          "        let result = \"{\";",
+          "",
+          "        keys.forEach((key, index) =\u003e {",
+          "            if (key === \"image\") {",
+          "                result += key + \":\";",
+          "            } else {",
+          "                result += key + \":\" + normalize(obj[key]);",
+          "            }",
+          "",
+          "            if (index !== keys.length - 1) result += \",\";",
+          "        });",
+          "",
+          "        result += \"}\";",
+          "        return result;",
+          "    }",
+          "",
+          "    return String(obj);",
+          "}",
+          "",
+          "// ==============================",
+          "// BUILD SIGNATURE STRING (JSON)",
+          "// ==============================",
+          "function constructBodyJSON() {",
+          "    let bodyRaw = pm.request.body.raw;",
+          "    let map = {};",
+          "",
+          "    // MUST MATCH JAVA",
+          "    map[\"timestamp\"] = String(headerKeyValue.timestamp);",
+          "    map[\"email\"] = headerKeyValue.email;",
+          "",
+          "    if (bodyRaw) {",
+          "        let raw = JSON.parse(bodyRaw);",
+          "",
+          "        Object.keys(raw).forEach(key =\u003e {",
+          "            if (key === \"image\") {",
+          "                map[key] = \"\";",
+          "            } else {",
+          "                map[key] = normalize(raw[key]);",
+          "            }",
+          "        });",
+          "    }",
+          "",
+          "    // SORT (LIKE TREEMAP)",
+          "    let sortedKeys = Object.keys(map).sort();",
+          "",
+          "    let finalString = \"\";",
+          "    sortedKeys.forEach(k =\u003e {",
+          "        finalString += k + map[k];",
+          "    });",
+          "",
+          "    return finalString;",
+          "}",
+          "",
+          "// ==============================",
+          "// BUILD SIGNATURE STRING (FORMDATA)",
+          "// ==============================",
+          "function constructBodyMultipart() {",
+          "    let map = {};",
+          "",
+          "    map[\"timestamp\"] = String(headerKeyValue.timestamp);",
+          "    map[\"email\"] = headerKeyValue.email;",
+          "",
+          "    let formdata = pm.request.body.formdata;",
+          "",
+          "    if (formdata) {",
+          "        formdata.each(item =\u003e {",
+          "            if (item.disabled) return;",
+          "",
+          "            if (item.type === \"file\") {",
+          "                map[item.key] = \"\";",
+          "            } else {",
+          "                map[item.key] = String(item.value);",
+          "            }",
+          "        });",
+          "    }",
+          "",
+          "    let sortedKeys = Object.keys(map).sort();",
+          "",
+          "    let finalString = \"\";",
+          "    sortedKeys.forEach(k =\u003e {",
+          "        finalString += k + map[k];",
+          "    });",
+          "",
+          "    return finalString;",
+          "}",
+          "",
+          "// ==============================",
+          "// MAIN EXECUTION",
+          "// ==============================",
+          "let keys = \"\";",
+          "",
+          "if (pm.request.body \u0026\u0026 pm.request.body.mode === \"raw\") {",
+          "    keys = constructBodyJSON();",
+          "} ",
+          "else if (pm.request.body \u0026\u0026 pm.request.body.mode === \"formdata\") {",
+          "    keys = constructBodyMultipart();",
+          "} ",
+          "else {",
+          "    // fallback",
+          "    keys = \"email\" + headerKeyValue.email + \"timestamp\" + headerKeyValue.timestamp;",
+          "}",
+          "",
+          "// ==============================",
+          "// DEBUG (VERY IMPORTANT)",
+          "// ==============================",
+          "console.log(\"STRING BEFORE HASH:\", keys);",
+          "",
+          "// ==============================",
+          "// GENERATE SIGNATURE",
+          "// ==============================",
+          "headerKeyValue.sig = CryptoJS.SHA1(keys).toString(CryptoJS.enc.Hex);",
+          "",
+          "console.log(\"SIGNATURE:\", headerKeyValue.sig);",
+          "",
+          "// ==============================",
+          "// SET HEADERS",
+          "// ==============================",
+          "request.headers.push({ key: \"timestamp\", value: String(headerKeyValue.timestamp) });",
+          "request.headers.push({ key: \"email\", value: headerKeyValue.email });",
+          "request.headers.push({ key: \"sig\", value: headerKeyValue.sig });"
+        ],
+        "type": "text/javascript"
       }
     },
     {
       "listen": "test",
       "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
         "exec": [
           ""
-        ]
+        ],
+        "type": "text/javascript"
       }
-    }
-  ],
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8990/api/v1"
-    },
-    {
-      "key": "token",
-      "value": ""
     }
   ]
 }

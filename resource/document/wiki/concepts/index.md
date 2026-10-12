@@ -9,6 +9,7 @@
 ### Frontend
 
 - [[concepts/frontend/redux-toolkit]] - Modern Redux Toolkit structure, state boundaries, and data flow.
+- [[concepts/frontend/playwright-component-coverage]] - Black-box E2E limitations, static test-to-component mapping, and automated resolution alternatives.
 
 ### Backend
 

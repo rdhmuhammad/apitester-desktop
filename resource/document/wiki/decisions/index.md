@@ -11,6 +11,9 @@
 - [[decisions/collection-history-for-restrequest-mutations]] - Append-only audit records with old and new content hashes for successful mutations.
 - [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.
 - [[decisions/usecase-rules-of-engagement]] - Standardized usecase method complexity, error reporting, struct encapsulation, and execution context limits.
+- [[decisions/google-drive-service-account-sync]] - Architecture, security permissions, and step-by-step setup for syncing Playwright test reports to Google Drive.
+- [[decisions/playwright-cumulative-test-caching]] - Incremental test scenario caching pipeline to prevent RAM exhaustion and preserve cumulative reports.
+
 
 ## Related pages
 

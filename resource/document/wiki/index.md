@@ -47,8 +47,11 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[decisions/collection-history-for-restrequest-mutations]] - `collection_history` audit records preserving old and new content hashes for successful mutations.
 - [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.
 - [[decisions/usecase-rules-of-engagement]] - Standardized usecase method complexity, error reporting, struct encapsulation, and execution context limits.
+- [[decisions/google-drive-service-account-sync]] - Architecture, security permissions, and step-by-step setup for syncing Playwright test reports to Google Drive.
+- [[decisions/playwright-cumulative-test-caching]] - Cumulative test scenario caching pipeline to prevent RAM exhaustion during testing and retain comprehensive reports.
 
 ## Concepts
+
 
 - [[concepts/index]] - Reusable domain and codebase concepts.
 - [[concepts/base-url-lifecycle]] - End-to-end lifecycle, variable categorization, template resolution, and dispatch mechanism of baseUrl.
@@ -57,6 +60,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[concepts/backend/postman-prerequest-script-dto]] - Postman pre-request script data transfer object specification across collection schema and sandbox runtime.
 - [[concepts/backend/usecase-design-rules]] - Reusable structural standards for usecase orchestration, error boundaries, parameter encapsulation, and execution lifecycles.
 - [[concepts/frontend/redux-toolkit]] - Modern Redux Toolkit structure, state boundaries, and data flow.
+- [[concepts/frontend/playwright-component-coverage]] - Black-box E2E limitations, static test-to-component mapping, and automated resolution alternatives.
 
 ## Tasks
 
