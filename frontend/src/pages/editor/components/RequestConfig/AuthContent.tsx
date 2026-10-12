@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {ShieldCheck} from "lucide-react";
 import {Input} from "@/components/ui/input.tsx";
 import {VariableInput} from "./VariableInput.tsx";
@@ -19,9 +19,17 @@ interface AuthValueProps {
     authType: AuthType;
     bearerValue?: string;
     onBearerChange?: (value: string) => void;
+    onBlur?: () => void;
+    onFocus?: () => void;
 }
 
-export const AuthDropdownOps: React.FC<AuthValueProps> = ({authType, bearerValue, onBearerChange}) => {
+export const AuthDropdownOps: React.FC<AuthValueProps> = ({
+    authType,
+    bearerValue,
+    onBearerChange,
+    onBlur,
+    onFocus,
+}) => {
     switch (authType) {
         case "none":
             return (
@@ -38,6 +46,8 @@ export const AuthDropdownOps: React.FC<AuthValueProps> = ({authType, bearerValue
                         type="password"
                         value={bearerValue ?? ""}
                         onChange={(e) => onBearerChange?.(e.target.value)}
+                        onBlur={onBlur}
+                        onFocus={onFocus}
                         placeholder="Enter bearer token..."
                     />
                 </div>
@@ -130,13 +140,28 @@ export const AuthContent: React.FC<AuthContentProps> = ({
     const [authType, setAuthType] = useState<AuthType>("none")
     const [bearerToken, setBearerToken] = useState("")
 
+    const currentRequestIdRef = useRef(request?.id)
+    const isFocusedRef = useRef(false)
+    const requestRef = useRef(request)
+    requestRef.current = request
+
     useEffect(() => {
         const resolved = resolveAuthFromRequest(request)
         setAuthType(resolved.type)
-        setBearerToken(resolved.token)
+
+        const isNewRequest = request?.id !== currentRequestIdRef.current
+        currentRequestIdRef.current = request?.id
+
+        if (isNewRequest) {
+            debouncedUpdateBearer.cancel()
+            setBearerToken(resolved.token)
+        } else if (!isFocusedRef.current && !debouncedUpdateBearer.isPending()) {
+            setBearerToken(resolved.token)
+        }
     }, [request?.id, request?.auth])
 
     const handleAuthTypeChange = async (newType: AuthType) => {
+        debouncedUpdateBearer.cancel()
         setAuthType(newType)
 
         if (newType === "onrequest") {
@@ -264,7 +289,7 @@ export const AuthContent: React.FC<AuthContentProps> = ({
             ],
         })
 
-        const currentHeaders = request?.headers ?? []
+        const currentHeaders = requestRef.current?.headers ?? []
         const hasAuthHeader = currentHeaders.some(
             (item) => item.key.trim().toLowerCase() === "authorization"
         )
@@ -283,9 +308,24 @@ export const AuthContent: React.FC<AuthContentProps> = ({
         }
     }, 400)
 
+    useEffect(() => {
+        return () => {
+            debouncedUpdateBearer.flush()
+        }
+    }, [debouncedUpdateBearer])
+
     const handleBearerChange = (value: string) => {
         setBearerToken(value)
         debouncedUpdateBearer(value)
+    }
+
+    const handleBlur = () => {
+        isFocusedRef.current = false
+        debouncedUpdateBearer.flush()
+    }
+
+    const handleFocus = () => {
+        isFocusedRef.current = true
     }
 
     return (
@@ -307,6 +347,8 @@ export const AuthContent: React.FC<AuthContentProps> = ({
                 authType={authType}
                 bearerValue={bearerToken}
                 onBearerChange={handleBearerChange}
+                onBlur={handleBlur}
+                onFocus={handleFocus}
             />
             <div className="md:col-span-2 rounded-md border text-sm">
                 <AuthLabel authType={authType}/>

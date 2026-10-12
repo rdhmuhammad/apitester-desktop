@@ -506,6 +506,9 @@ function SyncScript({ value, onChange, fileName }: {
     const code = sandpack.files[filePath]?.code
     const lastCodeRef = useRef(code ?? "")
     const previousValueRef = useRef(value)
+    // Values emitted by the editor that the parent may still echo back via `value`.
+    // While typing fast, `value` lags behind `code`; those stale echoes must not overwrite the editor.
+    const pendingEchoesRef = useRef<string[]>([])
     const onChangeRef = useRef(onChange)
     const updateFileRef = useRef(sandpack.updateFile)
     onChangeRef.current = onChange
@@ -514,19 +517,31 @@ function SyncScript({ value, onChange, fileName }: {
     useEffect(() => {
         if (code !== undefined && code !== lastCodeRef.current) {
             lastCodeRef.current = code
+            const pending = pendingEchoesRef.current
+            pending.push(code)
+            if (pending.length > 100) pending.shift()
             onChangeRef.current(code)
         }
     }, [code])
 
     useEffect(() => {
         if (value === previousValueRef.current) return
-
         previousValueRef.current = value
-        if (value === code) return
 
+        const pending = pendingEchoesRef.current
+        const echoIndex = pending.indexOf(value)
+        if (echoIndex !== -1) {
+            // Echo of our own (possibly stale) emission — drop it and anything older.
+            pending.splice(0, echoIndex + 1)
+            return
+        }
+
+        // Genuine external change.
+        pending.length = 0
+        if (value === lastCodeRef.current) return
         lastCodeRef.current = value
         updateFileRef.current(filePath, value)
-    }, [code, filePath, value])
+    }, [filePath, value])
 
     return null
 }

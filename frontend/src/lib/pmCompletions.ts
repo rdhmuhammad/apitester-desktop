@@ -3,9 +3,131 @@ import type { Completion, CompletionContext, CompletionResult } from "@codemirro
 interface ApiEntry {
     label: string
     detail: string
+    type?: Completion["type"]
     apply?: string
     children?: ApiEntry[]
 }
+
+const itemUrlChildren: ApiEntry[] = [
+    { label: "id", detail: "string" },
+    { label: "key", detail: "string" },
+    { label: "value", detail: "string" },
+    { label: "description", detail: "string" },
+    { label: "disabled", detail: "boolean" },
+    { label: "type", detail: "string" },
+    { label: "src", detail: "string" },
+]
+
+const pathVariableChildren: ApiEntry[] = [
+    { label: "id", detail: "string" },
+    { label: "key", detail: "string" },
+    { label: "value", detail: "string" },
+]
+
+const exampleResponseChildren: ApiEntry[] = [
+    { label: "id", detail: "string" },
+    { label: "name", detail: "string" },
+    { label: "status", detail: "string" },
+    { label: "code", detail: "number" },
+    { label: "body", detail: "string" },
+    { label: "header", detail: "ItemUrl[]", children: itemUrlChildren },
+    {
+        label: "cookie",
+        detail: "ResponseCookie[]",
+        children: [
+            { label: "key", detail: "string" },
+            { label: "value", detail: "string" },
+            { label: "domain", detail: "string" },
+            { label: "path", detail: "string" },
+            { label: "secure", detail: "boolean" },
+            { label: "httpOnly", detail: "boolean" },
+        ],
+    },
+    { label: "_postman_previewlanguage", detail: "string | null" },
+]
+
+export const requestApi: ApiEntry[] = [
+    {
+        label: "id",
+        detail: "string",
+    },
+    {
+        label: "name",
+        detail: "string",
+    },
+    {
+        label: "method",
+        detail: "string (e.g. GET, POST, PUT, DELETE)",
+    },
+    {
+        label: "url",
+        detail: "RequestURL",
+        children: [
+            { label: "raw", detail: "string (full URL string)" },
+            { label: "host", detail: "string[]" },
+            { label: "path", detail: "string[]" },
+            {
+                label: "query",
+                detail: "ItemUrl[]",
+                children: itemUrlChildren,
+            },
+            {
+                label: "variable",
+                detail: "PathVariable[]",
+                children: pathVariableChildren,
+            },
+        ],
+    },
+    {
+        label: "headers",
+        detail: "ItemUrl[]",
+        children: itemUrlChildren,
+    },
+    {
+        label: "query",
+        detail: "ItemUrl[]",
+        children: itemUrlChildren,
+    },
+    {
+        label: "body",
+        detail: "RequestBody",
+        children: [
+            { label: "mode", detail: '"raw" | "formdata"' },
+            { label: "raw", detail: "string" },
+            {
+                label: "formdata",
+                detail: "ItemUrl[]",
+                children: itemUrlChildren,
+            },
+        ],
+    },
+    {
+        label: "auth",
+        detail: "ReqAuth",
+        children: [
+            { label: "type", detail: "string" },
+            {
+                label: "bearer",
+                detail: "ItemUrl[]",
+                children: itemUrlChildren,
+            },
+            { label: "authSource", detail: '"inherit" | "onrequest" | "none" | string' },
+        ],
+    },
+    {
+        label: "script",
+        detail: "string",
+    },
+    {
+        label: "responses",
+        detail: "ExampleResponse[]",
+        children: exampleResponseChildren,
+    },
+    {
+        label: "version",
+        detail: "string",
+    },
+]
 
 const pmApi: ApiEntry[] = [
     {
@@ -28,6 +150,21 @@ const pmApi: ApiEntry[] = [
             { label: "unset(key)", detail: "(key: string) => void", apply: "unset(\"$1\")" },
             { label: "clear()", detail: "() => void", apply: "clear()" },
         ],
+    },
+    {
+        label: "variables",
+        detail: "pm.variables",
+        children: [
+            { label: "get(key)", detail: "(key: string) => string | undefined", apply: "get(\"$1\")" },
+            { label: "set(key, value)", detail: "(key: string, value: string) => void", apply: "set(\"$1\", \"$2\")" },
+            { label: "unset(key)", detail: "(key: string) => void", apply: "unset(\"$1\")" },
+            { label: "toObject()", detail: "() => Record<string, string>", apply: "toObject()" },
+        ],
+    },
+    {
+        label: "request",
+        detail: "pm.request (RestRequestResponse)",
+        children: requestApi,
     },
     {
         label: "expect",
@@ -89,7 +226,7 @@ const expectChain: ApiEntry[] = [
 function toCompletions(entries: ApiEntry[]): Completion[] {
     return entries.map((e) => ({
         label: e.label,
-        type: e.children ? "property" : "function",
+        type: e.type ?? (e.children ? "property" : (e.label.includes("(") || e.apply?.includes("(") ? "function" : "property")),
         detail: e.detail,
         apply: e.apply ?? e.label,
     }))
@@ -173,4 +310,55 @@ export function resCompletionSource(context: CompletionContext): CompletionResul
     }
 
     return null
+}
+
+export function requestCompletionSource(context: CompletionContext): CompletionResult | null {
+    // If typing request at top level
+    const topWord = context.matchBefore(/(?<![\w$])req(?:uest)?$/i)
+    if (topWord && !context.matchBefore(/(?<![\w$])request\./)) {
+        return {
+            from: topWord.from,
+            options: [
+                {
+                    label: "request",
+                    type: "variable",
+                    detail: "RestRequestResponse (request payload)",
+                    apply: "request",
+                    boost: 10,
+                },
+            ],
+        }
+    }
+
+    const word = context.matchBefore(/(?<![\w$])request(?:\.[\w$]+|\[\d*\])*\.?[\w$]*/i)
+    if (!word) return null
+
+    const text = word.text
+    if (text === "request" || text === "request.") {
+        return { from: word.to, options: toCompletions(requestApi) }
+    }
+
+    const segments = text.split(".")
+    const afterRequest = segments.slice(1)
+    const trailingDot = text.endsWith(".")
+    const lookupPath = trailingDot ? afterRequest.slice(0, -1) : afterRequest.slice(0, -1)
+
+    let current: ApiEntry[] = requestApi
+    for (const seg of lookupPath) {
+        if (!seg) continue
+        const cleanSeg = seg.replace(/\[\d*\]/g, "")
+        const found = current.find((e) => e.label === cleanSeg)
+        if (!found || !found.children) return null
+        current = found.children
+    }
+
+    const lastSeg = trailingDot ? "" : (afterRequest[afterRequest.length - 1] ?? "")
+    const cleanLastSeg = lastSeg.replace(/\[\d*\]/g, "")
+    const filtered = cleanLastSeg ? current.filter((e) => e.label.startsWith(cleanLastSeg)) : current
+    if (filtered.length === 0) return null
+
+    return {
+        from: word.to - lastSeg.length,
+        options: toCompletions(filtered),
+    }
 }

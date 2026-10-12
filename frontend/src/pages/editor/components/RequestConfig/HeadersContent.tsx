@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button.tsx"
 import { Input } from "@/components/ui/input.tsx"
 import { VariableInput } from "./VariableInput.tsx"
@@ -10,11 +10,112 @@ import { useQueryClient } from "@tanstack/react-query"
 import { type Collection } from "@/layout/services/collection"
 import { useRequestConfig } from "@/pages/editor/hooks/useRequestConfig.ts"
 import type { ItemUrl } from "@/pages/editor/types/api.ts"
+import { useDebouncedCallback } from "use-debounce"
 
 export interface HeadersContentProps {
     headers?: ItemUrl[]
     updateHeaders?: (headers: ItemUrl[]) => void
     className?: string
+}
+
+interface HeaderItemRowProps {
+    item: ItemUrl
+    onUpdate: (item: ItemUrl) => void
+    onDelete: (id?: string) => void
+}
+
+const HeaderItemRow: React.FC<HeaderItemRowProps> = ({ item, onUpdate, onDelete }) => {
+    const [localValue, setLocalValue] = useState(item.value ?? "")
+    const isFocusedRef = useRef(false)
+
+    useEffect(() => {
+        if (!isFocusedRef.current && !debouncedOnUpdate.isPending()) {
+            setLocalValue(item.value ?? "")
+        }
+    }, [item.value])
+
+    const debouncedOnUpdate = useDebouncedCallback((val: string) => {
+        onUpdate({ ...item, value: val })
+    }, 300)
+
+    useEffect(() => {
+        return () => {
+            debouncedOnUpdate.flush()
+        }
+    }, [debouncedOnUpdate])
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const val = event.target.value
+        setLocalValue(val)
+        debouncedOnUpdate(val)
+    }
+
+    const handleFocus = () => {
+        isFocusedRef.current = true
+    }
+
+    const handleBlur = () => {
+        isFocusedRef.current = false
+        debouncedOnUpdate.flush()
+    }
+
+    const handleToggle = () => {
+        debouncedOnUpdate.cancel()
+        onUpdate({ ...item, value: localValue, disabled: !item.disabled })
+    }
+
+    const handleDelete = () => {
+        debouncedOnUpdate.cancel()
+        onDelete(item.id)
+    }
+
+    return (
+        <div
+            className={cn(
+                "grid grid-cols-12 border-t border-border px-3 py-2 items-center",
+                item.disabled && "opacity-50"
+            )}
+        >
+            <Input
+                value={item.key}
+                readOnly
+                className="col-span-5 h-8"
+                disabled={item.disabled}
+            />
+            <VariableInput
+                value={localValue}
+                onChange={handleChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                className="col-span-5 ml-3 h-8"
+                disabled={item.disabled}
+            />
+            <div className="col-span-2 ml-3 flex justify-end gap-1">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggle}
+                    className="h-8 w-8 p-0"
+                >
+                    {item.disabled ? (
+                        <ToggleLeft className="h-4 w-4 text-slate-400" />
+                    ) : (
+                        <ToggleRight className="h-4 w-4 text-emerald-600" />
+                    )}
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="h-8 w-8 p-0 text-red-500"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    )
 }
 
 export const HeadersContent: React.FC<HeadersContentProps> = ({
@@ -37,20 +138,22 @@ export const HeadersContent: React.FC<HeadersContentProps> = ({
     const [newHeaderValue, setNewHeaderValue] = useState("")
     const [showSysHeader, setShowSysHeader] = useState(false)
 
+    const headersRef = useRef(headers)
+    headersRef.current = headers
+
     const headerShow = showSysHeader
         ? headers
         : headers.filter((item) => !["user-agent", "accept"].includes(item.key.toLowerCase()))
 
-    const updateHeaderItem = (next: ItemUrl) =>
-        updateHeaders(headers.map((item) => (item.id === next.id ? next : item)))
+    const updateHeaderItem = useCallback((next: ItemUrl) => {
+        const current = headersRef.current
+        updateHeaders(current.map((item) => (item.id === next.id ? next : item)))
+    }, [updateHeaders])
 
-    const handleToggleHeader = (item: ItemUrl) => {
-        updateHeaderItem({ ...item, disabled: !item.disabled })
-    }
-
-    const handleDeleteHeader = (id?: string) => {
-        updateHeaders(headers.filter((entry) => entry.id !== id))
-    }
+    const handleDeleteHeader = useCallback((id?: string) => {
+        const current = headersRef.current
+        updateHeaders(current.filter((entry) => entry.id !== id))
+    }, [updateHeaders])
 
     const handleAddHeader = () => {
         if (!newHeaderKey.trim()) return
@@ -94,52 +197,12 @@ export const HeadersContent: React.FC<HeadersContentProps> = ({
                     <span className="col-span-2" />
                 </div>
                 {headerShow.map((item) => (
-                    <div
+                    <HeaderItemRow
                         key={item.id ?? item.key}
-                        className={cn(
-                            "grid grid-cols-12 border-t border-border px-3 py-2 items-center",
-                            item.disabled && "opacity-50"
-                        )}
-                    >
-                        <Input
-                            value={item.key}
-                            readOnly
-                            className="col-span-5 h-8"
-                            disabled={item.disabled}
-                        />
-                        <VariableInput
-                            value={item.value}
-                            onChange={(event) =>
-                                updateHeaderItem({ ...item, value: event.target.value })
-                            }
-                            className="col-span-5 ml-3 h-8"
-                            disabled={item.disabled}
-                        />
-                        <div className="col-span-2 ml-3 flex justify-end gap-1">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleToggleHeader(item)}
-                                className="h-8 w-8 p-0"
-                            >
-                                {item.disabled ? (
-                                    <ToggleLeft className="h-4 w-4 text-slate-400" />
-                                ) : (
-                                    <ToggleRight className="h-4 w-4 text-emerald-600" />
-                                )}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteHeader(item.id)}
-                                className="h-8 w-8 p-0 text-red-500"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
+                        item={item}
+                        onUpdate={updateHeaderItem}
+                        onDelete={handleDeleteHeader}
+                    />
                 ))}
                 <div className="grid grid-cols-12 border-t border-border px-3 py-2 items-center">
                     <VariableInput

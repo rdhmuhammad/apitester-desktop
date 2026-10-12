@@ -16,7 +16,7 @@ import {runPreRequestScript} from "@/layout/hooks/useScriptRunner.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import type {ScriptLog} from "@/types/response.ts";
 import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts";
-import {pmCompletionSource, resCompletionSource} from "@/lib/pmCompletions.ts";
+import {pmCompletionSource, requestCompletionSource} from "@/lib/pmCompletions.ts";
 import {jsCompletionSource} from "@/lib/jsCompletions.ts";
 import {cryptoJsCompletionSource} from "@/lib/cryptoJsCompletions.ts";
 import {linter} from "@codemirror/lint";
@@ -66,7 +66,7 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
 
     useEffect(() => setScript(preScript), [preScript])
 
-    const completionSources = useMemo(() => [pmCompletionSource, resCompletionSource, jsCompletionSource, cryptoJsCompletionSource], [])
+    const completionSources = useMemo(() => [pmCompletionSource, requestCompletionSource, jsCompletionSource, cryptoJsCompletionSource], [])
     const scriptDiagnostic = useMemo(() => getJavaScriptDiagnostic(script), [script])
     const scriptLinter = useMemo(() => linter((view) => {
         const diagnostic = getJavaScriptDiagnostic(view.state.doc.toString())

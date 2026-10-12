@@ -250,7 +250,6 @@ const RequestHeader: React.FC = () => {
                 baseVersion: collectionData.version,
                 key: getNextBaseUrlKey(),
                 value: trimmed,
-                type: "string",
             })
             setNewBaseUrl("")
             setIsAddingBaseUrl(false)

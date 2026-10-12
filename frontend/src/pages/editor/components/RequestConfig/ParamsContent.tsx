@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { Input } from "@/components/ui/input.tsx"
 import { VariableInput } from "./VariableInput.tsx"
 import { Button } from "@/components/ui/button.tsx"
@@ -16,6 +16,137 @@ export interface ParamsContentProps {
     query?: ItemUrl[]
     updateQuery?: (query: ItemUrl[]) => void
     className?: string
+}
+
+interface QueryParamRowProps {
+    item: ItemUrl
+    onChange: (next: ItemUrl) => void
+    onDelete: (id?: string) => void
+}
+
+const QueryParamRow: React.FC<QueryParamRowProps> = ({
+    item,
+    onChange,
+    onDelete,
+}) => {
+    const [localValue, setLocalValue] = useState(item.value ?? "")
+    const [localDescription, setLocalDescription] = useState(item.description ?? "")
+    const isFocusedRef = useRef(false)
+
+    useEffect(() => {
+        if (!isFocusedRef.current && !debouncedOnChange.isPending()) {
+            setLocalValue(item.value ?? "")
+        }
+    }, [item.value])
+
+    useEffect(() => {
+        if (!isFocusedRef.current && !debouncedOnChange.isPending()) {
+            setLocalDescription(item.description ?? "")
+        }
+    }, [item.description])
+
+    const debouncedOnChange = useDebouncedCallback((val: string, desc: string) => {
+        onChange({ ...item, value: val, description: desc })
+    }, 300)
+
+    useEffect(() => {
+        return () => {
+            debouncedOnChange.flush()
+        }
+    }, [debouncedOnChange])
+
+    const handleValueChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const val = event.target.value
+        setLocalValue(val)
+        debouncedOnChange(val, localDescription)
+    }
+
+    const handleDescriptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const desc = event.target.value
+        setLocalDescription(desc)
+        debouncedOnChange(localValue, desc)
+    }
+
+    const handleFocus = () => {
+        isFocusedRef.current = true
+    }
+
+    const handleBlur = () => {
+        isFocusedRef.current = false
+        debouncedOnChange.flush()
+    }
+
+    const handleToggle = () => {
+        debouncedOnChange.cancel()
+        onChange({
+            ...item,
+            value: localValue,
+            description: localDescription,
+            disabled: !item.disabled,
+        })
+    }
+
+    const handleDelete = () => {
+        debouncedOnChange.cancel()
+        onDelete(item.id)
+    }
+
+    return (
+        <div
+            className={cn(
+                "grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center",
+                item.disabled && "opacity-50"
+            )}
+        >
+            <Input
+                value={item.key}
+                readOnly
+                className="col-span-3 h-8"
+                disabled={item.disabled}
+            />
+            <VariableInput
+                value={localValue}
+                onChange={handleValueChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                className="col-span-3 h-8"
+                disabled={item.disabled}
+            />
+            <Input
+                value={localDescription}
+                onChange={handleDescriptionChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                className="col-span-4 h-8 text-xs"
+                disabled={item.disabled}
+                placeholder="description"
+            />
+            <div className="col-span-2 flex justify-end gap-1">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggle}
+                    className="h-8 w-8 p-0"
+                >
+                    {item.disabled ? (
+                        <ToggleLeft className="h-4 w-4 text-slate-400" />
+                    ) : (
+                        <ToggleRight className="h-4 w-4 text-emerald-600" />
+                    )}
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="h-8 w-8 p-0 text-red-500"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    )
 }
 
 export const ParamsContent: React.FC<ParamsContentProps> = ({
@@ -39,16 +170,18 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
     const [newParamValue, setNewParamValue] = useState("")
     const [newParamDesc, setNewParamDesc] = useState("")
 
-    const updateQueryItem = (next: ItemUrl) =>
-        updateQuery(query.map((item) => (item.id === next.id ? next : item)))
+    const queryRef = useRef(query)
+    queryRef.current = query
 
-    const handleToggleParam = (item: ItemUrl) => {
-        updateQueryItem({ ...item, disabled: !item.disabled })
-    }
+    const updateQueryItem = useCallback((next: ItemUrl) => {
+        const current = queryRef.current
+        updateQuery(current.map((item) => (item.id === next.id ? next : item)))
+    }, [updateQuery])
 
-    const handleDeleteParam = (id?: string) => {
-        updateQuery(query.filter((entry) => entry.id !== id))
-    }
+    const handleDeleteParam = useCallback((id?: string) => {
+        const current = queryRef.current
+        updateQuery(current.filter((entry) => entry.id !== id))
+    }, [updateQuery])
 
     const handleAddParam = () => {
         if (!newParamKey.trim()) return
@@ -78,61 +211,12 @@ export const ParamsContent: React.FC<ParamsContentProps> = ({
                 <span className="col-span-2" />
             </div>
             {query.map((item) => (
-                <div
+                <QueryParamRow
                     key={item.id ?? item.key}
-                    className={cn(
-                        "grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center",
-                        item.disabled && "opacity-50"
-                    )}
-                >
-                    <Input
-                        value={item.key}
-                        readOnly
-                        className="col-span-3 h-8"
-                        disabled={item.disabled}
-                    />
-                    <VariableInput
-                        value={item.value}
-                        onChange={(event) =>
-                            updateQueryItem({ ...item, value: event.target.value })
-                        }
-                        className="col-span-3 h-8"
-                        disabled={item.disabled}
-                    />
-                    <Input
-                        value={item.description ?? ""}
-                        onChange={(event) =>
-                            updateQueryItem({ ...item, description: event.target.value })
-                        }
-                        className="col-span-4 h-8 text-xs"
-                        disabled={item.disabled}
-                        placeholder="description"
-                    />
-                    <div className="col-span-2 flex justify-end gap-1">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleToggleParam(item)}
-                            className="h-8 w-8 p-0"
-                        >
-                            {item.disabled ? (
-                                <ToggleLeft className="h-4 w-4 text-slate-400" />
-                            ) : (
-                                <ToggleRight className="h-4 w-4 text-emerald-600" />
-                            )}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteParam(item.id)}
-                            className="h-8 w-8 p-0 text-red-500"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
+                    item={item}
+                    onChange={updateQueryItem}
+                    onDelete={handleDeleteParam}
+                />
             ))}
             <div className="grid grid-cols-12 gap-x-2 border-t border-border px-3 py-2 items-center">
                 <VariableInput
@@ -196,9 +280,12 @@ interface PathVariableRowProps {
 
 const PathVariableRow: React.FC<PathVariableRowProps> = ({ item, onChange }) => {
     const [localValue, setLocalValue] = useState(item.value ?? "")
+    const isFocusedRef = useRef(false)
 
     useEffect(() => {
-        setLocalValue(item.value ?? "")
+        if (!isFocusedRef.current && !debouncedOnChange.isPending()) {
+            setLocalValue(item.value ?? "")
+        }
     }, [item.value])
 
     const debouncedOnChange = useDebouncedCallback((val: string) => {
@@ -217,7 +304,12 @@ const PathVariableRow: React.FC<PathVariableRowProps> = ({ item, onChange }) => 
         debouncedOnChange(val)
     }
 
+    const handleFocus = () => {
+        isFocusedRef.current = true
+    }
+
     const handleBlur = () => {
+        isFocusedRef.current = false
         debouncedOnChange.flush()
     }
 
@@ -227,6 +319,7 @@ const PathVariableRow: React.FC<PathVariableRowProps> = ({ item, onChange }) => 
             <VariableInput
                 value={localValue}
                 onChange={handleChange}
+                onFocus={handleFocus}
                 onBlur={handleBlur}
                 className="col-span-8 h-8"
                 placeholder="value"
