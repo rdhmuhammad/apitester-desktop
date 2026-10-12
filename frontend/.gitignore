@@ -27,3 +27,11 @@ release
 dist-electron
 build
 .env
+*service-account*.json
+*gdrive-key*.json
+gdrive-config.json
+credentials.json
+oauth*.json
+token.json
+testing/result
+blob-report

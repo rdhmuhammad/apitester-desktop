@@ -165,6 +165,27 @@ Before running the project **locally**, ensure the following tools are installed
    pnpm run dev
    ``` 
 
+### 🧪 How to Run Tests
+
+This project uses Playwright for testing the Electron GUI.
+
+1. Go to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Build the electron app first:
+   ```bash
+   pnpm run build:electron
+   ```
+3. Run the Playwright tests (scenarios are defined in `testing/scenario`):
+   ```bash
+   npx playwright test
+   ```
+4. Check the results in `testing/result`. You can view the HTML summary report using:
+   ```bash
+   npx playwright show-report testing/result/html-report
+   ```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ROADMAP -->
