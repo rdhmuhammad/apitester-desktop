@@ -30,6 +30,7 @@ type RefreshListener func(refresh bool)
 
 type Usecase struct {
 	*base.Port
+	projectRepo    db.RepositoryInterface[domain.Project]
 	testSuiteRepo  db.RepositoryInterface[domain.TestSuite]
 	automationRepo db.RepositoryInterface[domain.Automation]
 	onRefresh      RefreshListener
@@ -45,6 +46,10 @@ func NewUsecase(
 ) *Usecase {
 	port := base.NewPort(lg, database)
 
+	projectRepo, err := db.NewRepository[domain.Project](database, db.WithBucketName("Project"))
+	if err != nil {
+		elog.Panicf(elog.EIDGenericError, "failed to initialize project repo for collection usecase: %v", err)
+	}
 	testSuiteRepo, err := db.NewRepository[domain.TestSuite](database, db.WithBucketName("TestSuite"))
 	if err != nil {
 		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for collection usecase: %v", err)
@@ -56,6 +61,7 @@ func NewUsecase(
 
 	u := &Usecase{
 		Port:           port,
+		projectRepo:    projectRepo,
 		testSuiteRepo:  testSuiteRepo,
 		automationRepo: automationRepo,
 	}
@@ -122,38 +128,22 @@ func (u *Usecase) Read(ctx context.Context, id string) (ReadResponse, error) {
 }
 
 func (u *Usecase) CreateCollection(ctx context.Context, req CreateCollectionRequest) (domain.Collection, error) {
-	if strings.TrimSpace(req.Path) == "" {
-		return domain.Collection{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Local path is empty"))
+	filePath, err := resolveNewCollectionFilePath(req)
+	if err != nil {
+		return domain.Collection{}, err
 	}
 
-	fileBytes, err := os.ReadFile(req.Path)
+	updatedContent, err := writeDefaultCollectionFile(filePath, req.Name)
 	if err != nil {
 		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
-	var docsContent DocsContent
-	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
-		return domain.Collection{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Collection content is not valid, " + err.Error()))
-	}
-
-	docsContent.PrepareCreate()
-
-	updatedContent, err := json.MarshalIndent(docsContent, "", "  ")
-	if err != nil {
-		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	if err := os.WriteFile(req.Path, updatedContent, 0644); err != nil {
-		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	collection := u.newCollectionEntity(req)
+	collection := u.newCollectionEntity(req, filePath)
 	if err := u.CollectionRepo.Create(ctx, collection.ID, &collection); err != nil {
 		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	u.NotifyWatcher(req.Path, updatedContent)
+	u.NotifyWatcher(filePath, updatedContent)
 
 	return collection, nil
 }
@@ -188,14 +178,22 @@ func (u *Usecase) DeleteCollection(ctx context.Context, id string) error {
 	}
 
 	if collection == nil {
-		return u.ErrHandler.ErrorReturn(localerror.InvalidData("Collection not found"))
+		return localerror.InvalidData("Collection not found")
 	}
 
 	if err := u.deleteModules(ctx, collection); err != nil {
 		return u.ErrHandler.ErrorReturn(err)
 	}
 
-	return u.CollectionRepo.Delete(ctx, id)
+	if err := removeCollectionFile(collection.Path); err != nil {
+		return u.ErrHandler.ErrorReturn(err)
+	}
+
+	if err := u.CollectionRepo.Delete(ctx, id); err != nil {
+		return u.ErrHandler.ErrorReturn(err)
+	}
+
+	return nil
 }
 
 func (u *Usecase) SelectCollection(ctx context.Context, id string) (domain.Collection, error) {
@@ -206,6 +204,10 @@ func (u *Usecase) SelectCollection(ctx context.Context, id string) (domain.Colle
 
 	selected, err := u.markCollectionSelected(ctx, all, id)
 	if err != nil {
+		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	if err := u.markProjectSelected(ctx, selected.ProjectID); err != nil {
 		return domain.Collection{}, u.ErrHandler.ErrorReturn(err)
 	}
 
@@ -235,6 +237,7 @@ func (u *Usecase) GetActiveCollection(ctx context.Context) (ActiveCollectionResp
 
 	return ActiveCollectionResponse{
 		ID:           selected.ID,
+		ProjectID:    selected.ProjectID,
 		Name:         selected.Name,
 		Description:  docsContent.Info.Description,
 		Version:      u.Version([]byte(content)),
@@ -794,12 +797,71 @@ func updateRequestHostAndRaw(req *Request, newHost string) {
 	req.URL.Host = []string{newHost}
 }
 
-func (u *Usecase) newCollectionEntity(req CreateCollectionRequest) domain.Collection {
+func resolveNewCollectionFilePath(req CreateCollectionRequest) (string, error) {
+	if strings.TrimSpace(req.Name) == "" {
+		return "", localerror.InvalidData("Collection name is required")
+	}
+	if strings.TrimSpace(req.Path) == "" {
+		return "", localerror.InvalidData("Local path is empty")
+	}
+
+	info, err := os.Stat(req.Path)
+	if err != nil {
+		return "", localerror.InvalidData("Folder path is not valid: " + err.Error())
+	}
+	if !info.IsDir() {
+		return "", localerror.InvalidData("Path must be a directory")
+	}
+
+	filePath := filepath.Join(req.Path, sanitizeCollectionFileName(req.Name))
+	if _, err := os.Stat(filePath); err == nil {
+		return "", localerror.InvalidData("Collection file already exists")
+	}
+	return filePath, nil
+}
+
+func sanitizeCollectionFileName(name string) string {
+	cleaned := strings.TrimSpace(name)
+	for _, ch := range []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"} {
+		cleaned = strings.ReplaceAll(cleaned, ch, "_")
+	}
+	if !strings.HasSuffix(strings.ToLower(cleaned), ".json") {
+		cleaned += ".json"
+	}
+	return cleaned
+}
+
+func writeDefaultCollectionFile(filePath, name string) ([]byte, error) {
+	docsContent := NewDefaultDocsContent(name)
+	docsContent.PrepareCreate()
+
+	updatedContent, err := json.MarshalIndent(docsContent, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(filePath, updatedContent, 0644); err != nil {
+		return nil, err
+	}
+	return updatedContent, nil
+}
+
+func removeCollectionFile(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func (u *Usecase) newCollectionEntity(req CreateCollectionRequest, filePath string) domain.Collection {
 	now := time.Now()
 	return domain.Collection{
 		ID:           uuid.NewString(),
-		Name:         req.Name,
-		Path:         req.Path,
+		ProjectID:    req.ProjectID,
+		Name:         strings.TrimSpace(req.Name),
+		Path:         filePath,
 		IsSelected:   false,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -878,6 +940,23 @@ func (u *Usecase) markCollectionSelected(ctx context.Context, all []domain.Colle
 		return nil, localerror.InvalidData("Collection not found")
 	}
 	return selected, nil
+}
+
+func (u *Usecase) markProjectSelected(ctx context.Context, projectID string) error {
+	if u.projectRepo == nil || strings.TrimSpace(projectID) == "" {
+		return nil
+	}
+	projects, err := u.projectRepo.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range projects {
+		p.IsSelected = (p.ID == projectID)
+		if err := u.projectRepo.Update(ctx, p.ID, &p); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (u *Usecase) notifyWatcher(path string, saved []byte) {

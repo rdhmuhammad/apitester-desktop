@@ -59,6 +59,13 @@ ipcMain.handle("open-file-dialog", async () => {
     return result
 })
 
+ipcMain.handle("open-folder-dialog", async () => {
+    const result = await dialog.showOpenDialog(mainWindow!, {
+        properties: ["openDirectory"],
+    })
+    return result
+})
+
 ipcMain.on("window-minimize", () => {
     mainWindow?.minimize()
 })

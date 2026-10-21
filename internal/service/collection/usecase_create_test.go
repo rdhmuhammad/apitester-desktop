@@ -7,15 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/rdhmuhammad/apitester/internal/domain"
 	"github.com/rdhmuhammad/apitester/pkg/db"
 	"github.com/rdhmuhammad/apitester/pkg/logger"
 )
 
-func TestCreateCollection_OnlySetIDIfEmpty(t *testing.T) {
-	t.Setenv("LOG_LEVEL", "disabled")
-	tempDir := t.TempDir()
-	collectionPath := filepath.Join(tempDir, "test_collection.json")
-
+func TestPrepareCreate_OnlySetIDIfEmpty(t *testing.T) {
 	initialDocs := DocsContent{
 		Info: CollectionInfo{
 			Name: "Test Collection",
@@ -75,13 +72,39 @@ func TestCreateCollection_OnlySetIDIfEmpty(t *testing.T) {
 		},
 	}
 
-	content, err := json.MarshalIndent(initialDocs, "", "  ")
-	if err != nil {
-		t.Fatal(err)
+	initialDocs.PrepareCreate()
+
+	if initialDocs.Item[0].ID != "existing-item-id-1" {
+		t.Errorf("expected item[0].ID to be 'existing-item-id-1', got '%s'", initialDocs.Item[0].ID)
 	}
-	if err := os.WriteFile(collectionPath, content, 0644); err != nil {
-		t.Fatal(err)
+	if initialDocs.Item[1].ID == "" {
+		t.Errorf("expected item[1].ID to be generated, got empty")
 	}
+	req := initialDocs.Item[0].Request
+	if req.Header[0].Id != "existing-hdr-1" || req.Header[1].Id == "" {
+		t.Errorf("unexpected header IDs: %+v", req.Header)
+	}
+	if req.URL.Query[0].Id != "existing-query-1" || req.URL.Query[1].Id == "" {
+		t.Errorf("unexpected query IDs: %+v", req.URL.Query)
+	}
+	if req.Body.FormData[0].Id != "existing-form-1" || req.Body.FormData[1].Id == "" {
+		t.Errorf("unexpected formData IDs: %+v", req.Body.FormData)
+	}
+	resp := initialDocs.Item[0].Response[0]
+	if resp.Header[0].Id != "existing-resp-hdr-1" || resp.Header[1].Id == "" {
+		t.Errorf("unexpected response header IDs: %+v", resp.Header)
+	}
+	if initialDocs.Variable[0].ID != "existing-var-1" || initialDocs.Variable[0].Category != "BASE_URL" {
+		t.Errorf("unexpected variable[0]: %+v", initialDocs.Variable[0])
+	}
+	if initialDocs.Variable[1].ID == "" || initialDocs.Variable[1].Category != "" {
+		t.Errorf("unexpected variable[1]: %+v", initialDocs.Variable[1])
+	}
+}
+
+func TestCreateDeleteAndSelectCollection(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	tempDir := t.TempDir()
 
 	boltDB, err := db.NewBoltDB(filepath.Join(tempDir, "test.db"))
 	if err != nil {
@@ -94,94 +117,71 @@ func TestCreateCollection_OnlySetIDIfEmpty(t *testing.T) {
 	lg := logger.DefaultLogger().Build()
 	usecase := NewUsecase(&lg, boltDB.DB())
 
+	proj1 := domain.Project{ID: "proj-1", Name: "Project 1", Path: tempDir, IsSelected: false}
+	proj2 := domain.Project{ID: "proj-2", Name: "Project 2", Path: tempDir, IsSelected: true}
+	if err := usecase.projectRepo.Create(context.Background(), proj1.ID, &proj1); err != nil {
+		t.Fatal(err)
+	}
+	if err := usecase.projectRepo.Create(context.Background(), proj2.ID, &proj2); err != nil {
+		t.Fatal(err)
+	}
+
 	col, err := usecase.CreateCollection(context.Background(), CreateCollectionRequest{
-		Name: "Test Collection",
-		Path: collectionPath,
+		ProjectID: proj1.ID,
+		Name:      "Orders Service",
+		Path:      tempDir,
 	})
 	if err != nil {
 		t.Fatalf("CreateCollection failed: %v", err)
 	}
-	if col.ID == "" {
-		t.Fatal("expected collection ID not empty")
+	if col.ID == "" || col.ProjectID != proj1.ID {
+		t.Fatalf("unexpected created collection: %+v", col)
 	}
 
-	// Read back the saved file on disk
-	fileBytes, err := os.ReadFile(collectionPath)
+	expectedFile := filepath.Join(tempDir, "Orders Service.json")
+	if col.Path != expectedFile {
+		t.Fatalf("expected path %q, got %q", expectedFile, col.Path)
+	}
+
+	fileBytes, err := os.ReadFile(col.Path)
 	if err != nil {
-		t.Fatalf("reading collection file failed: %v", err)
+		t.Fatalf("expected created collection file on disk: %v", err)
 	}
-
 	var savedDocs DocsContent
 	if err := json.Unmarshal(fileBytes, &savedDocs); err != nil {
 		t.Fatalf("unmarshal saved docs failed: %v", err)
 	}
-
-	// 1. Verify item with existing ID is preserved
-	if savedDocs.Item[0].ID != "existing-item-id-1" {
-		t.Errorf("expected item[0].ID to be 'existing-item-id-1', got '%s'", savedDocs.Item[0].ID)
-	}
-	// 2. Verify item with empty ID gets a new UUID
-	if savedDocs.Item[1].ID == "" {
-		t.Errorf("expected item[1].ID to be generated, got empty")
+	if savedDocs.Info.Name != "Orders Service" || !savedDocs.IsValidCollection() {
+		t.Fatalf("unexpected saved docs content: %+v", savedDocs)
 	}
 
-	// 3. Verify request headers
-	req := savedDocs.Item[0].Request
-	if req.Header[0].Id != "existing-hdr-1" {
-		t.Errorf("expected header[0].Id to be 'existing-hdr-1', got '%s'", req.Header[0].Id)
-	}
-	if req.Header[1].Id == "" {
-		t.Errorf("expected header[1].Id to be generated, got empty")
-	}
-
-	// 4. Verify query params
-	if req.URL.Query[0].Id != "existing-query-1" {
-		t.Errorf("expected query[0].Id to be 'existing-query-1', got '%s'", req.URL.Query[0].Id)
-	}
-	if req.URL.Query[1].Id == "" {
-		t.Errorf("expected query[1].Id to be generated, got empty")
-	}
-
-	// 5. Verify form-data
-	if req.Body.FormData[0].Id != "existing-form-1" {
-		t.Errorf("expected formData[0].Id to be 'existing-form-1', got '%s'", req.Body.FormData[0].Id)
-	}
-	if req.Body.FormData[1].Id == "" {
-		t.Errorf("expected formData[1].Id to be generated, got empty")
-	}
-
-	// 6. Verify response headers
-	resp := savedDocs.Item[0].Response[0]
-	if resp.Header[0].Id != "existing-resp-hdr-1" {
-		t.Errorf("expected response header[0].Id to be 'existing-resp-hdr-1', got '%s'", resp.Header[0].Id)
-	}
-	if resp.Header[1].Id == "" {
-		t.Errorf("expected response header[1].Id to be generated, got empty")
-	}
-
-	// 7. Verify variables
-	if savedDocs.Variable[0].ID != "existing-var-1" {
-		t.Errorf("expected variable[0].ID to be 'existing-var-1', got '%s'", savedDocs.Variable[0].ID)
-	}
-	if savedDocs.Variable[0].Category != "BASE_URL" {
-		t.Errorf("expected variable[0].Category to be 'BASE_URL', got '%s'", savedDocs.Variable[0].Category)
-	}
-	if savedDocs.Variable[1].ID == "" {
-		t.Errorf("expected variable[1].ID to be generated, got empty")
-	}
-	if savedDocs.Variable[1].Category != "" {
-		t.Errorf("expected variable[1].Category to be empty, got '%s'", savedDocs.Variable[1].Category)
-	}
-
-	// 8. Test Read does not mutate or regenerate IDs
-	readResp, err := usecase.Read(context.Background(), col.ID)
+	// SelectCollection should select both the collection and its parent project
+	selected, err := usecase.SelectCollection(context.Background(), col.ID)
 	if err != nil {
-		t.Fatalf("Read failed: %v", err)
+		t.Fatalf("SelectCollection failed: %v", err)
 	}
-	if readResp.Content.Item[0].ID != "existing-item-id-1" {
-		t.Errorf("Read altered item[0].ID: got %s", readResp.Content.Item[0].ID)
+	if !selected.IsSelected {
+		t.Fatalf("expected collection to be selected")
 	}
-	if readResp.Content.Item[1].ID != savedDocs.Item[1].ID {
-		t.Errorf("Read altered item[1].ID: expected %s, got %s", savedDocs.Item[1].ID, readResp.Content.Item[1].ID)
+
+	updatedProj1, _ := usecase.projectRepo.View(context.Background(), proj1.ID)
+	updatedProj2, _ := usecase.projectRepo.View(context.Background(), proj2.ID)
+	if updatedProj1 == nil || !updatedProj1.IsSelected {
+		t.Fatalf("expected parent project proj-1 to be selected")
+	}
+	if updatedProj2 == nil || updatedProj2.IsSelected {
+		t.Fatalf("expected other project proj-2 to be deselected")
+	}
+
+	// DeleteCollection should remove both DB record and file on disk
+	if err := usecase.DeleteCollection(context.Background(), col.ID); err != nil {
+		t.Fatalf("DeleteCollection failed: %v", err)
+	}
+	if _, err := os.Stat(col.Path); !os.IsNotExist(err) {
+		t.Fatalf("expected collection file %q to be deleted from disk, stat err: %v", col.Path, err)
+	}
+	deletedView, _ := usecase.CollectionRepo.View(context.Background(), col.ID)
+	if deletedView != nil {
+		t.Fatalf("expected collection DB record to be deleted")
 	}
 }

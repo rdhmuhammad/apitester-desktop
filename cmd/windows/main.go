@@ -14,6 +14,7 @@ import (
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/collection"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/environment"
+	"github.com/rdhmuhammad/apitester/internal/adapter/controller/project"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/restrequest"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/testsuits"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/tree"
@@ -39,6 +40,7 @@ func (w *WinService) Execute(args []string, r <-chan svc.ChangeRequest, status c
 	w.api = api.Default()
 	w.api.Register(func(conn api.Conns) []api.Router {
 		return []api.Router{
+			project.NewController(conn.Logger, conn.DB),
 			collection.NewController(conn.Logger, conn.DB),
 			tree.NewController(conn.Logger, conn.DB),
 			restrequest.NewController(conn.Logger, conn.DB),

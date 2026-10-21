@@ -1,5 +1,6 @@
 interface ElectronAPI {
     openFileDialog(): Promise<{canceled: boolean; filePaths: string[]}>
+    openFolderDialog(): Promise<{canceled: boolean; filePaths: string[]}>
     minimizeWindow(): void
     maximizeWindow(): void
     closeWindow(): void

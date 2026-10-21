@@ -5,8 +5,18 @@ import (
 	"time"
 )
 
+type Project struct {
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	IsSelected bool      `json:"is_selected"`
+	Path       string    `json:"path"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type Collection struct {
 	ID           string    `json:"id"`
+	ProjectID    string    `json:"project_id"`
 	Name         string    `json:"name"`
 	IsSelected   bool      `json:"is_selected"`
 	Path         string    `json:"path"`

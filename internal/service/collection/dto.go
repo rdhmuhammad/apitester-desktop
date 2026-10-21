@@ -2,6 +2,7 @@ package collection
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ type ReadResponse struct {
 
 type ActiveCollectionResponse struct {
 	ID           string    `json:"id"`
+	ProjectID    string    `json:"project_id"`
 	Name         string    `json:"name"`
 	Description  string    `json:"description"`
 	Version      string    `json:"version"`
@@ -35,6 +37,31 @@ type DocsContent struct {
 	Auth     *CollectionAuth   `json:"auth,omitempty"`
 	Variable []CollectionVar   `json:"variable"`
 	Event    []CollectionEvent `json:"event"`
+}
+
+func NewDefaultDocsContent(name string) DocsContent {
+	return DocsContent{
+		Info: CollectionInfo{
+			PostmanID: uuid.NewString(),
+			Name:      strings.TrimSpace(name),
+			Schema:    "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		},
+		Item:     []CollectionItem{},
+		Variable: []CollectionVar{},
+		Event:    []CollectionEvent{},
+	}
+}
+
+func (d *DocsContent) IsValidCollection() bool {
+	return strings.TrimSpace(d.Info.Schema) != "" || (strings.TrimSpace(d.Info.Name) != "" && d.Item != nil)
+}
+
+func (d *DocsContent) CollectionName(filePath string) string {
+	if name := strings.TrimSpace(d.Info.Name); name != "" {
+		return name
+	}
+	base := filepath.Base(filePath)
+	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
 type CollectionInfo struct {
@@ -251,8 +278,9 @@ type UpdatePreScriptResponse struct {
 }
 
 type CreateCollectionRequest struct {
-	Name string `json:"name" binding:"required"`
-	Path string `json:"path" binding:"required"`
+	ProjectID string `json:"project_id"`
+	Name      string `json:"name" binding:"required"`
+	Path      string `json:"path" binding:"required"`
 }
 
 type UpdateCollectionRequest struct {

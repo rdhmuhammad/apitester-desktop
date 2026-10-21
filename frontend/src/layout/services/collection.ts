@@ -6,6 +6,7 @@ import {socketCollection} from "@/pages/editor/services/mainSocket.ts";
 
 export interface Collection {
     id: string
+    project_id: string
     name: string
     is_selected: boolean
     description: string
@@ -13,6 +14,16 @@ export interface Collection {
     path: string
     testsuite_id: string
     automation_id: string
+    updated_at: string
+    created_at: string
+}
+
+export interface Project {
+    id: string
+    name: string
+    is_selected: boolean
+    path: string
+    collections: Collection[]
     updated_at: string
     created_at: string
 }
@@ -81,13 +92,37 @@ export interface SelectBaseURLResponse {
 
 
 export const CollectionServices = {
+    listProjects: async (): Promise<Project[]> => {
+        const response = await axios.get<Response<Project[]>>('/project/list')
+        return response.data.data ?? []
+    },
+
+    createProject: async (name: string, path: string): Promise<Project> => {
+        const response = await axios.post<Response<Project>>('/project/create', {name, path})
+        return response.data.data
+    },
+
+    updateProject: async (id: string, data: { name?: string; path?: string }): Promise<Project> => {
+        const response = await axios.put<Response<Project>>(`/project/${id}`, data)
+        return response.data.data
+    },
+
+    deleteProject: async (id: string): Promise<string> => {
+        const response = await axios.delete<Response<null>>(`/project/${id}`)
+        return response.data.message
+    },
+
     listCollections: async (): Promise<Collection[]> => {
         const response = await axios.get<Response<Collection[]>>('/collection/list')
         return response.data.data
     },
 
-    createCollection: async (name: string, path: string): Promise<Collection> => {
-        const response = await axios.post<Response<Collection>>('/collection/create', {name, path})
+    createCollection: async (name: string, path: string, projectId?: string): Promise<Collection> => {
+        const response = await axios.post<Response<Collection>>('/collection/create', {
+            project_id: projectId,
+            name,
+            path,
+        })
         return response.data.data
     },
 

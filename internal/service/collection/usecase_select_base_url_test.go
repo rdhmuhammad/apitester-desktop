@@ -4,11 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
-
-	"github.com/rdhmuhammad/apitester/pkg/db"
-	"github.com/rdhmuhammad/apitester/pkg/logger"
 )
 
 func TestDocsContent_PrepareVariables(t *testing.T) {
@@ -211,10 +207,6 @@ func TestDocsContent_SelectBaseURL(t *testing.T) {
 }
 
 func TestUsecase_SelectBaseURL(t *testing.T) {
-	t.Setenv("LOG_LEVEL", "disabled")
-	tempDir := t.TempDir()
-	collectionPath := filepath.Join(tempDir, "test_collection.json")
-
 	initialDocs := DocsContent{
 		Info: CollectionInfo{Name: "Test Collection"},
 		Item: []CollectionItem{
@@ -235,37 +227,7 @@ func TestUsecase_SelectBaseURL(t *testing.T) {
 			{ID: "2", Key: "base_url_2", Value: "https://api2.com", Category: "BASE_URL", IsSelected: false},
 		},
 	}
-	bytes, err := json.MarshalIndent(initialDocs, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(collectionPath, bytes, 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	boltDB, err := db.NewBoltDB(filepath.Join(tempDir, "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = boltDB.Close()
-	})
-
-	lg := logger.DefaultLogger().Build()
-	usecase := NewUsecase(&lg, boltDB.DB())
-
-	col, err := usecase.CreateCollection(context.Background(), CreateCollectionRequest{
-		Name: "Test Collection",
-		Path: collectionPath,
-	})
-	if err != nil {
-		t.Fatalf("CreateCollection failed: %v", err)
-	}
-
-	_, err = usecase.SelectCollection(context.Background(), col.ID)
-	if err != nil {
-		t.Fatalf("SelectCollection failed: %v", err)
-	}
+	usecase, col := setupTestCollectionUsecase(t, initialDocs, true)
 
 	res, err := usecase.SelectBaseURL(context.Background(), SelectBaseURLRequest{Value: "https://api2.com"})
 	if err != nil {
@@ -277,7 +239,7 @@ func TestUsecase_SelectBaseURL(t *testing.T) {
 	}
 
 	// Verify persistence in file
-	fileBytes, err := os.ReadFile(collectionPath)
+	fileBytes, err := os.ReadFile(col.Path)
 	if err != nil {
 		t.Fatalf("failed to read back file: %v", err)
 	}
