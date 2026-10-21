@@ -53,15 +53,22 @@ const editorTabsSlice = createSlice({
                 state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
             }
         },
-        renameEditorTab(state, action: PayloadAction<{id: string; label: string}>) {
+        renameEditorTab(state, action: PayloadAction<{id: string; newId?: string; label: string}>) {
             const tab = state.tabs.find(tab => tab.id === action.payload.id);
-            if (tab?.type === 'request') {
+            if (tab?.type === 'request' || tab?.type === 'document') {
                 tab.label = action.payload.label;
+                if (action.payload.newId && action.payload.newId !== tab.id) {
+                    const wasActive = state.activeTabId === tab.id;
+                    tab.id = action.payload.newId;
+                    if (wasActive) {
+                        state.activeTabId = action.payload.newId;
+                    }
+                }
             }
         },
-        updateEditorTab(state, action: PayloadAction<{id: string; label?: string; method?: ColtReqMethod}>) {
+        updateEditorTab(state, action: PayloadAction<{id: string; label?: string; method?: ColtReqMethod | 'DOC'}>) {
             const tab = state.tabs.find(tab => tab.id === action.payload.id);
-            if (tab?.type === 'request') {
+            if (tab?.type === 'request' || tab?.type === 'document') {
                 if (action.payload.label !== undefined) {
                     tab.label = action.payload.label;
                 }

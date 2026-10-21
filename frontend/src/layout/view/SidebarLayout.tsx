@@ -3,6 +3,7 @@ import {type ReactNode, useCallback, useEffect, useRef, useState} from "react";
 import {FileCode2, Folder, FolderGit2, LoaderCircle, Search} from "lucide-react";
 import TestScenarioSidebar from "@/layout/components/sidebar/TestScenarioSidebar.tsx";
 import AutomationSidebar from "@/layout/components/sidebar/AutomationSidebar.tsx";
+import DocumentationSidebar from "@/layout/components/sidebar/DocumentationSidebar.tsx";
 import DragNode, {type DropPosition} from "@/layout/components/sidebar/DragNode.tsx";
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
 import {toUpdateTreePayload, type RequestTree} from "@/layout/services/collection.ts";
@@ -515,6 +516,7 @@ const SidebarLayout: React.FC = () => {
                 </div>
                 <TestScenarioSidebar searchQuery={searchQuery}/>
                 <AutomationSidebar searchQuery={searchQuery}/>
+                <DocumentationSidebar searchQuery={searchQuery}/>
             </SidebarContent>
             <AlertDialog open={Boolean(nodeToDelete)} onOpenChange={(open) => !open && setNodeToDelete(null)}>
                 <AlertDialogContent>

@@ -5,6 +5,7 @@ interface ElectronAPI {
     maximizeWindow(): void
     closeWindow(): void
     isMaximized(): Promise<boolean>
+    openExternal(targetPathOrUrl: string): Promise<string>
 }
 
 interface Window {

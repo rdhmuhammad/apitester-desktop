@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
     maximizeWindow: () => ipcRenderer.send("window-maximize"),
     closeWindow: () => ipcRenderer.send("window-close"),
     isMaximized: () => ipcRenderer.invoke("window-is-maximized"),
+    openExternal: (targetPathOrUrl) => ipcRenderer.invoke("open-external", targetPathOrUrl),
 })

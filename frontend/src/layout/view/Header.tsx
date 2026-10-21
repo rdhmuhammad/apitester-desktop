@@ -4,6 +4,7 @@ import RequestHeader from "@/layout/components/header/RequestHeader.tsx";
 import TestScenarioEditorHeader from "@/layout/components/sidebar/TestScenarioEditorHeader.tsx";
 import AutomationEditorHeader from "@/layout/components/header/AutomationEditorHeader.tsx";
 import InventoryEditorHeader from "@/layout/components/header/InventoryEditorHeader.tsx";
+import DocumentEditorHeader from "@/layout/components/header/DocumentEditorHeader.tsx";
 
 const HeaderLayout: React.FC = () => {
     const activeEditorTab = useAppSelector(selectEditorActiveTab)
@@ -18,6 +19,8 @@ const HeaderLayout: React.FC = () => {
                     <AutomationEditorHeader/>
                 ) : activeEditorTab?.type === 'inventory' ? (
                     <InventoryEditorHeader/>
+                ) : activeEditorTab?.type === 'document' ? (
+                    <DocumentEditorHeader/>
                 ) : (
                     <RequestHeader />
                 )}

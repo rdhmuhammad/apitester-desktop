@@ -5,6 +5,7 @@ import WelcomeEditor from "@/pages/editor/components/WelcomeEditor.tsx";
 import TestScenarioEditor from "@/pages/editor/components/TestScenarioEditor.tsx";
 import AutomationEditor from "@/pages/editor/components/AutomationEditor.tsx";
 import InventoryEditor from "@/pages/editor/components/InventoryEditor.tsx";
+import DocumentEditor from "@/pages/editor/components/DocumentEditor.tsx";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {
@@ -17,7 +18,7 @@ import {
 // React & Utils Imports
 import {useCallback, useRef, useState} from "react";
 import {cn} from "@/lib/utils.ts";
-import {FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
+import {BookOpen, FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
 
 
 // Store Imports
@@ -36,10 +37,15 @@ import {
     requestConfigQueryKey,
     RequestConfigServices,
 } from "@/pages/editor/services/requestConfig.ts";
+import {
+    DocumentationServices,
+    documentContentQueryKey,
+    documentTreeQueryKey,
+} from "@/pages/editor/services/documentation.ts";
 import {useQueryClient} from "@tanstack/react-query";
 import CustomToast from "@/components/common/toast";
 
-const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
+const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV' | 'DOC', string> = {
     GET: "bg-emerald-100 text-emerald-700",
     POST: "bg-amber-100 text-amber-700",
     PUT: "bg-blue-100 text-blue-700",
@@ -48,6 +54,7 @@ const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV', string> = {
     TEST: "bg-indigo-100 text-indigo-700",
     AUTO: "bg-violet-100 text-violet-700",
     INV: "bg-amber-100 text-amber-700",
+    DOC: "bg-sky-100 text-sky-700",
 };
 
 const Editor: React.FC = () => {
@@ -64,6 +71,7 @@ const Editor: React.FC = () => {
     const [editingTabId, setEditingTabId] = useState<string | null>(null)
     const [editValue, setEditValue] = useState('')
     const [isCreatingRequest, setIsCreatingRequest] = useState(false)
+    const [isCreatingDocument, setIsCreatingDocument] = useState(false)
     const editInputRef = useRef<HTMLInputElement | null>(null)
 
     const handleCreateRequest = useCallback(async () => {
@@ -88,8 +96,30 @@ const Editor: React.FC = () => {
         }
     }, [collectionId, dispatch, isCreatingRequest, queryClient])
 
+    const handleCreateDocument = useCallback(async () => {
+        if (isCreatingDocument) return
+
+        setIsCreatingDocument(true)
+        try {
+            const doc = await DocumentationServices.createDocument()
+            queryClient.setQueryData(documentContentQueryKey(doc.id), doc)
+            dispatch(openEditorTab({
+                id: doc.id,
+                label: doc.name || 'Untitled.md',
+                method: 'DOC',
+                type: 'document',
+            }))
+            await queryClient.invalidateQueries({queryKey: documentTreeQueryKey})
+            CustomToast.success("Document created")
+        } catch (error) {
+            CustomToast.error(error instanceof Error ? error.message : "Failed to create document")
+        } finally {
+            setIsCreatingDocument(false)
+        }
+    }, [dispatch, isCreatingDocument, queryClient])
+
     const startEditing = useCallback((tab: EditorTab) => {
-        if (tab.type !== 'request') return
+        if (tab.type !== 'request' && tab.type !== 'document') return
         setEditingTabId(tab.id)
         setEditValue(tab.label)
         setTimeout(() => editInputRef.current?.select(), 0)
@@ -118,12 +148,23 @@ const Editor: React.FC = () => {
             } catch (err) {
                 console.error("Failed to rename request:", err)
             }
+        } else if (tab?.type === 'document' && name && name !== tab.label && targetTabId) {
+            try {
+                const doc = await DocumentationServices.renameDocument(targetTabId, name)
+                if (doc) {
+                    queryClient.setQueryData(documentContentQueryKey(doc.id), doc)
+                    dispatch(renameEditorTab({id: targetTabId, newId: doc.id, label: doc.name}))
+                    void queryClient.invalidateQueries({queryKey: documentTreeQueryKey})
+                }
+            } catch (err) {
+                CustomToast.error(err instanceof Error ? err.message : "Failed to rename document")
+            }
         }
     }, [allTabs, collectionId, dispatch, editingTabId, editValue, queryClient])
 
     const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            commitEdit()
+            void commitEdit()
         } else if (e.key === 'Escape') {
             setEditingTabId(null)
             setEditValue('')
@@ -175,7 +216,7 @@ const Editor: React.FC = () => {
                                                 ref={editInputRef}
                                                 value={editValue}
                                                 onChange={(e) => setEditValue(e.target.value)}
-                                                onBlur={commitEdit}
+                                                onBlur={() => void commitEdit()}
                                                 onKeyDown={handleEditKeyDown}
                                                 className="h-6 w-[120px] rounded border border-indigo-300 dark:border-indigo-700 bg-background px-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-indigo-400"
                                                 onClick={(e) => e.stopPropagation()}
@@ -238,6 +279,13 @@ const Editor: React.FC = () => {
                                         <Wrench className="mr-2 h-4 w-4 text-violet-600"/>
                                         New Automation
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        disabled={isCreatingDocument}
+                                        onClick={() => void handleCreateDocument()}
+                                    >
+                                        <BookOpen className="mr-2 h-4 w-4 text-sky-600"/>
+                                        {isCreatingDocument ? 'Creating Document...' : 'New Document'}
+                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -273,6 +321,13 @@ const Editor: React.FC = () => {
                             ' bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] dark:shadow-none')
                         }>
                         <InventoryEditor/>
+                    </div>
+                ) : activeTab.type === 'document' ? (
+                    <div
+                        className={cn('rounded-2xl border border-t-0 border-border',
+                            ' bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] dark:shadow-none')
+                        }>
+                        <DocumentEditor/>
                     </div>
                 ) : (
                     <div

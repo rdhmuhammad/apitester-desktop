@@ -13,12 +13,14 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/collection"
+	docctrl "github.com/rdhmuhammad/apitester/internal/adapter/controller/documentation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/environment"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/project"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/restrequest"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/testsuits"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/tree"
 	collectionSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/collection"
+	documentationSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/documentation"
 	requestSocket "github.com/rdhmuhammad/apitester/internal/adapter/socket/restrequest"
 	"github.com/rdhmuhammad/apitester/pkg/elog"
 	"github.com/rdhmuhammad/apitester/shared/api"
@@ -47,12 +49,14 @@ func (w *WinService) Execute(args []string, r <-chan svc.ChangeRequest, status c
 			environment.NewController(conn.Logger, conn.DB),
 			testsuits.NewController(conn.Logger, conn.DB),
 			automation.NewController(conn.Logger, conn.DB),
+			docctrl.NewController(conn.Logger, conn.DB),
 		}
 	})
 	w.api.RegisterSocket(func(conn api.Conns) []api.Namespace {
 		return []api.Namespace{
 			collectionSocket.NewCollectionSocket(conn.Logger, conn.DB),
 			requestSocket.NewRestRequestSocket(conn.Logger, conn.DB),
+			documentationSocket.NewDocumentationSocket(conn.Logger, conn.DB),
 		}
 	})
 

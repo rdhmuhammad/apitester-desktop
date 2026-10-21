@@ -1,4 +1,4 @@
-import {app, BrowserWindow, dialog, ipcMain, Menu, session} from "electron"
+import {app, BrowserWindow, dialog, ipcMain, Menu, session, shell} from "electron"
 import path from "path"
 import {fileURLToPath} from "url"
 
@@ -84,6 +84,15 @@ ipcMain.on("window-close", () => {
 
 ipcMain.handle("window-is-maximized", () => {
     return mainWindow?.isMaximized() ?? false
+})
+
+ipcMain.handle("open-external", async (_event, targetPathOrUrl: string) => {
+    if (!targetPathOrUrl) return ""
+    if (/^https?:\/\//i.test(targetPathOrUrl) || /^file:\/\//i.test(targetPathOrUrl)) {
+        await shell.openExternal(targetPathOrUrl)
+        return ""
+    }
+    return await shell.openPath(targetPathOrUrl)
 })
 
 app.whenReady().then(async () => {
