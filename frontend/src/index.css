@@ -293,3 +293,26 @@
   font-size: 12px !important;
   line-height: 1.5 !important;
 }
+
+.md-syntax {
+  display: none;
+}
+
+.syntax-active > .md-syntax,
+.syntax-active.md-syntax {
+  display: inline !important;
+}
+
+[data-code-block="true"][data-code-selected="true"] {
+  border-color: #6366f1 !important;
+  background-color: #1e1b4b !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+}
+
+[data-code-block="true"][data-code-selected="true"] > [data-code-header="true"],
+[data-code-block="true"][data-code-selected="true"] > div:first-child {
+  border-bottom-color: rgba(99, 102, 241, 0.5) !important;
+  background-color: rgba(49, 46, 129, 0.75) !important;
+}
+
+

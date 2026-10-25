@@ -1,3 +1,5 @@
+import {buildCodeBlockHtml} from "@/pages/editor/hooks/useCodeBlock.ts"
+
 const EMOJI_MAP: Record<string, string> = {
     tent: "⛺",
     joy: "😂",
@@ -63,11 +65,42 @@ export const slugifyHeading = (text: string): string =>
         .trim()
         .replace(/\s+/g, "-")
 
-const parseInline = (raw: string, ctx: ParseContext): string => {
+export const buildImagePlaceholderHtml = (alt = "image"): string => {
+    const safeAlt = escapeHtml(alt || "image")
+    return `<div contenteditable="false" data-image-placeholder="true" data-alt="${safeAlt}" class="my-3 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-border bg-muted/20 px-6 py-7 text-center select-none transition-colors hover:border-indigo-500/40"><div class="flex flex-col items-center gap-1"><span class="text-xs font-semibold text-foreground">Insert Image</span><span class="text-[11px] text-muted-foreground">Enter an image URL or select a local image file</span></div><div class="flex flex-wrap items-center justify-center gap-2"><button type="button" data-image-action="url" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-xs hover:bg-muted cursor-pointer">Use URL</button><button type="button" data-image-action="file" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-xs hover:bg-indigo-500 cursor-pointer">Select File</button></div><div data-image-url-box="true" class="hidden w-full max-w-md items-center gap-2 pt-1"><input type="url" data-image-url-input="true" placeholder="Paste or type image URL (https://...)" class="h-8 flex-1 rounded-md border border-border bg-background px-2.5 text-xs text-foreground outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" /><span data-image-url-status="true" class="text-[11px] text-muted-foreground whitespace-nowrap">Auto-renders</span></div></div>`
+}
+
+export const buildImageElementHtml = (
+    src: string,
+    alt = "image",
+    title?: string,
+    width?: string | number,
+    height?: string | number
+): string => {
+    const titleAttr = title ? ` title="${escapeHtml(title)}"` : ""
+    const wAttr = width ? ` data-width="${width}"` : ""
+    const hAttr = height ? ` data-height="${height}"` : ""
+    const styleParts: string[] = []
+    if (width) styleParts.push(`width:${width}px`)
+    if (height) styleParts.push(`height:${height}px`)
+    const styleAttr = styleParts.length > 0 ? ` style="${styleParts.join(";")}"` : ""
+    return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${titleAttr}${wAttr}${hAttr}${styleAttr} class="max-w-full rounded-lg border border-border my-2 inline-block" />`
+}
+
+// Placeholder stores shared between a root parseInline call and its nested calls, so placeholders
+// created by an outer pass stay resolvable (and never collide) while nested content is parsed.
+interface InlineStore {
+    escapes: string[]
+    codeSpans: string[]
+    htmlPlaceholders: string[]
+}
+
+const parseInline = (raw: string, ctx: ParseContext, store?: InlineStore): string => {
     if (!raw) return ""
+    const st: InlineStore = store ?? {escapes: [], codeSpans: [], htmlPlaceholders: []}
+    const {escapes, codeSpans, htmlPlaceholders} = st
 
     // 1. Handle escaped characters (\*, \_, \`, \\, \#, etc.)
-    const escapes: string[] = []
     let text = raw.replace(/\\([\\`*_{}[\]<>()#+-.!|~^=])/g, (_m, ch: string) => {
         const idx = escapes.length
         escapes.push(escapeHtml(ch))
@@ -82,25 +115,23 @@ const parseInline = (raw: string, ctx: ParseContext): string => {
     })
 
     // 2. Protect inline code spans (double backticks first, then single backticks)
-    const codeSpans: string[] = []
     text = text.replace(/``([\s\S]+?)``/g, (_m, code: string) => {
         const idx = codeSpans.length
         const cleaned = code.startsWith(" ") && code.endsWith(" ") && code.length > 2 ? code.slice(1, -1) : code
         codeSpans.push(
-            `<code class="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[0.875em] text-rose-600 dark:text-rose-400">${escapeHtml(cleaned)}</code>`
+            `<code class="md-node rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[0.875em] text-rose-600 dark:text-rose-400" data-md-type="code"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">\`\`</span><span class="md-content">${escapeHtml(cleaned)}</span><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">\`\`</span></code>`
         )
         return `\u0000CODE${idx}\u0000`
     })
     text = text.replace(/`([^`\n]+?)`/g, (_m, code: string) => {
         const idx = codeSpans.length
         codeSpans.push(
-            `<code class="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[0.875em] text-rose-600 dark:text-rose-400">${escapeHtml(code)}</code>`
+            `<code class="md-node rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[0.875em] text-rose-600 dark:text-rose-400" data-md-type="code"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">\`</span><span class="md-content">${escapeHtml(code)}</span><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">\`</span></code>`
         )
         return `\u0000CODE${idx}\u0000`
     })
 
     // 3. Protect angle-bracket autolinks <https://...> and <email@domain.com>
-    const htmlPlaceholders: string[] = []
     const stashHtml = (html: string): string => {
         const idx = htmlPlaceholders.length
         htmlPlaceholders.push(html)
@@ -141,14 +172,18 @@ const parseInline = (raw: string, ctx: ParseContext): string => {
         }
     )
 
-    // 6. Standard Images: ![alt](url "title")
+    // 6. Standard Images: ![alt](url "title") or ![alt|WxH](url) or empty ![alt]()
     text = text.replace(
-        /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
-        (_m, alt: string, url: string, title: string | undefined) => {
-            const titleAttr = title ? ` title="${escapeHtml(title)}"` : ""
-            return stashHtml(
-                `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}"${titleAttr} class="max-w-full rounded-lg border border-border my-2 inline-block" />`
-            )
+        /!\[([^\]]*)\]\(([^)\s]*)(?:\s+"([^"]*)")?\)/g,
+        (_m, rawAlt: string, url: string, title: string | undefined) => {
+            const sizeMatch = rawAlt.match(/^(.*?)\|(\d+)(?:x(\d+))?$/)
+            const cleanAlt = sizeMatch ? sizeMatch[1] : rawAlt
+            const width = sizeMatch ? sizeMatch[2] : undefined
+            const height = sizeMatch ? sizeMatch[3] : undefined
+            if (!url.trim()) {
+                return stashHtml(buildImagePlaceholderHtml(cleanAlt || "image"))
+            }
+            return stashHtml(buildImageElementHtml(url, cleanAlt, title, width, height))
         }
     )
 
@@ -157,7 +192,7 @@ const parseInline = (raw: string, ctx: ParseContext): string => {
         /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
         (_m, label: string, url: string, title: string | undefined) => {
             const titleAttr = title ? ` title="${escapeHtml(title)}"` : ""
-            const inner = parseInline(label, ctx)
+            const inner = parseInline(label, ctx, st)
             return stashHtml(
                 `<a href="${escapeHtml(url)}"${titleAttr} target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline underline-offset-2 hover:text-indigo-500">${inner}</a>`
             )
@@ -170,7 +205,7 @@ const parseInline = (raw: string, ctx: ParseContext): string => {
         const ref = ctx.refLinks.get(key)
         if (!ref) return match
         const titleAttr = ref.title ? ` title="${escapeHtml(ref.title)}"` : ""
-        const inner = parseInline(label, ctx)
+        const inner = parseInline(label, ctx, st)
         return stashHtml(
             `<a href="${escapeHtml(ref.url)}"${titleAttr} target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline underline-offset-2 hover:text-indigo-500">${inner}</a>`
         )
@@ -190,34 +225,34 @@ const parseInline = (raw: string, ctx: ParseContext): string => {
     })
 
     // 10. Bold + Italic: ***text***, ___text___, **_text_**, __*text*__
-    text = text.replace(/(\*\*\*|___)(?=\S)([\s\S]*?\S)\1/g, (_m, _d, content: string) => {
-        return `<strong><em>${parseInline(content, ctx)}</em></strong>`
+    text = text.replace(/(\*\*\*|___)(?=\S)([\s\S]*?\S)\1/g, (_m, delim: string, content: string) => {
+        return stashHtml(`<strong class="md-node" data-md-type="bold-italic"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">${delim}</span><em class="md-content">${parseInline(content, ctx, st)}</em><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">${delim}</span></strong>`)
     })
     text = text.replace(/\*\*_(?=\S)([\s\S]*?\S)_\*\*/g, (_m, content: string) => {
-        return `<strong><em>${parseInline(content, ctx)}</em></strong>`
+        return stashHtml(`<strong class="md-node" data-md-type="bold-italic"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">**_</span><em class="md-content">${parseInline(content, ctx, st)}</em><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">_**</span></strong>`)
     })
     text = text.replace(/__\*(?=\S)([\s\S]*?\S)\*__/g, (_m, content: string) => {
-        return `<strong><em>${parseInline(content, ctx)}</em></strong>`
+        return stashHtml(`<strong class="md-node" data-md-type="bold-italic"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">__*</span><em class="md-content">${parseInline(content, ctx, st)}</em><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">*__</span></strong>`)
     })
 
     // 11. Bold: **text** or __text__
-    text = text.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, (_m, _d, content: string) => {
-        return `<strong>${parseInline(content, ctx)}</strong>`
+    text = text.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, (_m, delim: string, content: string) => {
+        return stashHtml(`<strong class="md-node" data-md-type="bold"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">${delim}</span><span class="md-content">${parseInline(content, ctx, st)}</span><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">${delim}</span></strong>`)
     })
 
     // 12. Italic: *text* or _text_
-    text = text.replace(/(\*|_)(?=\S)([^\n*]+?\S|\S)\1/g, (_m, _d, content: string) => {
-        return `<em>${parseInline(content, ctx)}</em>`
+    text = text.replace(/(\*|_)(?=\S)([^\n*]+?\S|\S)\1/g, (_m, delim: string, content: string) => {
+        return stashHtml(`<em class="md-node" data-md-type="italic"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">${delim}</span><span class="md-content">${parseInline(content, ctx, st)}</span><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">${delim}</span></em>`)
     })
 
     // 13. Strikethrough: ~~text~~
     text = text.replace(/~~(?=\S)([\s\S]*?\S)~~/g, (_m, content: string) => {
-        return `<del class="line-through text-muted-foreground">${parseInline(content, ctx)}</del>`
+        return stashHtml(`<del class="md-node line-through text-muted-foreground" data-md-type="strikethrough"><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">~~</span><span class="md-content">${parseInline(content, ctx, st)}</span><span class="md-syntax text-muted-foreground/60 font-mono text-xs select-none">~~</span></del>`)
     })
 
     // 14. Highlight: ==text==
     text = text.replace(/==(?=\S)([\s\S]*?\S)==/g, (_m, content: string) => {
-        return `<mark class="rounded bg-amber-200/80 dark:bg-amber-500/30 px-1 text-foreground">${parseInline(content, ctx)}</mark>`
+        return stashHtml(`<mark class="rounded bg-amber-200/80 dark:bg-amber-500/30 px-1 text-foreground">${parseInline(content, ctx, st)}</mark>`)
     })
 
     // 15. Superscript: ^text^
@@ -249,8 +284,15 @@ const parseInline = (raw: string, ctx: ParseContext): string => {
         return `${prefix}<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 underline underline-offset-2 hover:text-indigo-500">${cleanUrl}</a>${trailing}`
     })
 
-    // Restore HTML placeholders, code spans, and escaped characters
-    text = text.replace(/\u0000HTML(\d+)\u0000/g, (_m, idx: string) => htmlPlaceholders[Number(idx)] ?? "")
+    // Nested calls leave placeholders for the root call, which owns the shared stores
+    if (store) return text
+
+    // Restore HTML placeholders (they may nest), code spans, and escaped characters
+    // eslint-disable-next-line no-control-regex
+    const htmlPattern = /\u0000HTML(\d+)\u0000/g
+    while (htmlPattern.test(text)) {
+        text = text.replace(htmlPattern, (_m, idx: string) => htmlPlaceholders[Number(idx)] ?? "")
+    }
     text = text.replace(/\u0000CODE(\d+)\u0000/g, (_m, idx: string) => codeSpans[Number(idx)] ?? "")
     text = text.replace(/\u0000ESC(\d+)\u0000/g, (_m, idx: string) => escapes[Number(idx)] ?? "")
 
@@ -408,12 +450,7 @@ const parseBlocks = (markdown: string, ctx: ParseContext): string => {
                 i++
             }
             if (i < lines.length) i++ // consume closing fence
-            const langBadge = lang
-                ? `<div class="flex items-center justify-between border-b border-slate-700/60 bg-slate-800/90 px-3 py-1 text-[11px] font-mono text-slate-300"><span>${escapeHtml(lang)}</span></div>`
-                : ""
-            out.push(
-                `<div class="my-3 overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-slate-100" data-code-block="true" data-lang="${escapeHtml(lang)}">${langBadge}<pre class="overflow-x-auto p-3 font-mono text-xs leading-relaxed"><code>${escapeHtml(codeLines.join("\n"))}</code></pre></div>`
-            )
+            out.push(buildCodeBlockHtml(codeLines.join("\n"), lang))
             continue
         }
 
@@ -445,7 +482,7 @@ const parseBlocks = (markdown: string, ctx: ParseContext): string => {
                 6: "text-sm font-semibold uppercase tracking-wide text-muted-foreground mt-2 mb-1",
             }
             out.push(
-                `<h${level} id="${escapeHtml(id)}" data-custom-id="${escapeHtml(customId)}" class="${headingClasses[level]}">${parseInline(rawHeading, ctx)}</h${level}>`
+                `<h${level} id="${escapeHtml(id)}" data-custom-id="${escapeHtml(customId)}" class="md-node ${headingClasses[level]}" data-md-type="h${level}"><span class="md-syntax text-muted-foreground/60 font-mono select-none mr-1">${"#".repeat(level)} </span><span class="md-content">${parseInline(rawHeading, ctx)}</span></h${level}>`
             )
             i++
             continue
@@ -551,9 +588,7 @@ const parseBlocks = (markdown: string, ctx: ParseContext): string => {
             while (codeLines.length > 0 && !codeLines[codeLines.length - 1].trim()) {
                 codeLines.pop()
             }
-            out.push(
-                `<div class="my-3 overflow-hidden rounded-lg border border-slate-800 bg-slate-900 text-slate-100" data-code-block="true"><pre class="overflow-x-auto p-3 font-mono text-xs leading-relaxed"><code>${escapeHtml(codeLines.join("\n"))}</code></pre></div>`
-            )
+            out.push(buildCodeBlockHtml(codeLines.join("\n"), ""))
             continue
         }
 
@@ -698,6 +733,14 @@ export const renderMarkdownToHtml = (markdown: string): string => {
     return html
 }
 
+// Emphasis delimiters must hug the text (`**a** `, not `**a **`) or the markdown stops being valid emphasis,
+// so leading/trailing whitespace is kept outside the delimiters.
+const wrapDelimited = (inner: string, delim: string): string => {
+    const [, lead, core, trail] = inner.match(/^(\s*)([\s\S]*?)(\s*)$/) ?? []
+    if (!core) return inner
+    return `${lead}${delim}${core}${delim}${trail}`
+}
+
 const serializeInlineNode = (node: Node): string => {
     if (node.nodeType === Node.TEXT_NODE) {
         return node.textContent ?? ""
@@ -707,6 +750,15 @@ const serializeInlineNode = (node: Node): string => {
     }
     const el = node as HTMLElement
     const tag = el.tagName.toLowerCase()
+
+    if (el.getAttribute("data-image-placeholder") === "true") {
+        const alt = el.getAttribute("data-alt") ?? "image"
+        return `![${alt}]()`
+    }
+
+    if (el.classList.contains("md-syntax")) {
+        return ""
+    }
 
     if (el.classList.contains("footnote-ref")) {
         const href = el.querySelector("a")?.getAttribute("href") ?? ""
@@ -719,16 +771,16 @@ const serializeInlineNode = (node: Node): string => {
     switch (tag) {
         case "strong":
         case "b":
-            return inner ? `**${inner}**` : ""
+            return wrapDelimited(inner, "**")
         case "em":
         case "i":
-            return inner ? `*${inner}*` : ""
+            return wrapDelimited(inner, "*")
         case "del":
         case "s":
         case "strike":
-            return inner ? `~~${inner}~~` : ""
+            return wrapDelimited(inner, "~~")
         case "mark":
-            return inner ? `==${inner}==` : ""
+            return wrapDelimited(inner, "==")
         case "sup":
             return inner ? `^${inner}^` : ""
         case "sub":
@@ -745,10 +797,13 @@ const serializeInlineNode = (node: Node): string => {
         }
         case "img": {
             const src = el.getAttribute("src") ?? ""
-            const alt = el.getAttribute("alt") ?? ""
+            const alt = (el.getAttribute("alt") ?? "").replace(/\|(\d+)(?:x(\d+))?$/, "")
             const title = el.getAttribute("title")
             const titlePart = title ? ` "${title}"` : ""
-            return `![${alt}](${src}${titlePart})`
+            const w = el.getAttribute("data-width") || (el.style.width ? String(parseInt(el.style.width, 10) || "") : "")
+            const h = el.getAttribute("data-height") || (el.style.height ? String(parseInt(el.style.height, 10) || "") : "")
+            const sizePart = w ? (h ? `|${w}x${h}` : `|${w}`) : ""
+            return `![${alt}${sizePart}](${src}${titlePart})`
         }
         default:
             return inner
@@ -766,6 +821,11 @@ const serializeBlockNode = (node: Node, listIndent = ""): string => {
     const el = node as HTMLElement
     const tag = el.tagName.toLowerCase()
 
+    if (el.getAttribute("data-image-placeholder") === "true") {
+        const alt = el.getAttribute("data-alt") ?? "image"
+        return `![${alt}]()`
+    }
+
     if (el.classList.contains("footnotes")) {
         const items = Array.from(el.querySelectorAll("li"))
         return items
@@ -779,9 +839,10 @@ const serializeBlockNode = (node: Node, listIndent = ""): string => {
     }
 
     if (el.getAttribute("data-code-block") === "true" || tag === "pre") {
-        const lang = el.getAttribute("data-lang") ?? ""
+        const langInput = el.querySelector<HTMLInputElement>("input[data-lang-input='true']")
+        const lang = langInput ? langInput.value.trim() : (el.getAttribute("data-lang") ?? "")
         const codeEl = el.querySelector("code") ?? el
-        const code = codeEl.textContent ?? ""
+        const code = (codeEl.textContent ?? "").replace(/\u200B/g, "")
         return `\`\`\`${lang}\n${code}\n\`\`\``
     }
 
