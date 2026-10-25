@@ -55,6 +55,12 @@ const DocumentEditorHeader: React.FC = () => {
         canRedo: false,
         headingLevel: 0,
     })
+    const [tableMenuOpen, setTableMenuOpen] = useState(false)
+    const [hoverCols, setHoverCols] = useState(1)
+    const [hoverRows, setHoverRows] = useState(1)
+
+    const visibleCols = Math.min(20, Math.max(11, hoverCols + 1))
+    const visibleRows = Math.min(20, Math.max(5, hoverRows + 1))
 
     useEffect(() => {
         return onDocumentToolbarState((nextState) => {
@@ -251,17 +257,82 @@ const DocumentEditorHeader: React.FC = () => {
                 >
                     <Image className="h-4 w-4"/>
                 </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "table"})}
-                    title="Insert Table"
-                    className="h-8 w-8 p-0"
+                <DropdownMenu
+                    open={tableMenuOpen}
+                    onOpenChange={(open) => {
+                        setTableMenuOpen(open)
+                        if (open) {
+                            setHoverCols(1)
+                            setHoverRows(1)
+                        }
+                    }}
                 >
-                    <Grid3X3 className="h-4 w-4"/>
-                </Button>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onMouseDown={preventBlur}
+                            title="Insert Table"
+                            className="h-8 w-8 p-0"
+                        >
+                            <Grid3X3 className="h-4 w-4"/>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="start"
+                        onMouseDown={preventBlur}
+                        className="w-auto p-3"
+                    >
+                        <div
+                            className="flex flex-col gap-1"
+                            onMouseLeave={() => {
+                                setHoverCols(1)
+                                setHoverRows(1)
+                            }}
+                        >
+                            {Array.from({length: visibleRows}, (_, rIdx) => {
+                                const r = rIdx + 1
+                                return (
+                                    <div key={r} className="flex items-center gap-1">
+                                        {Array.from({length: visibleCols}, (_, cIdx) => {
+                                            const c = cIdx + 1
+                                            const active = c <= hoverCols && r <= hoverRows
+                                            return (
+                                                <button
+                                                    key={c}
+                                                    type="button"
+                                                    onMouseDown={preventBlur}
+                                                    onMouseEnter={() => {
+                                                        setHoverCols(c)
+                                                        setHoverRows(r)
+                                                    }}
+                                                    onClick={() => {
+                                                        dispatchDocumentToolbarAction({
+                                                            type: "table",
+                                                            cols: c,
+                                                            rows: r,
+                                                        })
+                                                        setTableMenuOpen(false)
+                                                    }}
+                                                    className={cn(
+                                                        "h-4 w-4 rounded-[2px] border transition-colors",
+                                                        active
+                                                            ? "border-blue-500 bg-blue-100 dark:border-blue-400 dark:bg-blue-900/60"
+                                                            : "border-slate-300 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/40"
+                                                    )}
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        <div className="mt-2 text-center text-xs font-medium text-foreground">
+                            {hoverCols} x {hoverRows}
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
 
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground shrink-0">

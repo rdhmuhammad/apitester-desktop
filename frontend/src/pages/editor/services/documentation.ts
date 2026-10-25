@@ -39,7 +39,7 @@ export type DocumentToolbarAction =
     | {type: "list"; kind?: "ul" | "ol" | "task"}
     | {type: "link"}
     | {type: "image"}
-    | {type: "table"}
+    | {type: "table"; rows?: number; cols?: number}
 
 export interface DocumentToolbarState {
     sourceMode: boolean
