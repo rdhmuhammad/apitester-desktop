@@ -21,7 +21,6 @@ frontend/src/
 │   ├── store/
 │   │   ├── store.ts                 # configureStore: collection + testScenario reducers
 │   │   ├── hooks.ts                # useAppDispatch, useAppSelector (typed)
-│   │   └── withTypes.ts            # createAppAsyncThunk (pre-typed)
 │   └── slices/
 │       ├── index.ts                # Shared types (ColtReqMethod, DirTree, CollectionState)
 │       ├── collectionSlices.ts     # Main slice (558 lines): collection data, directory tree, active requests, variables

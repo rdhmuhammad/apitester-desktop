@@ -212,9 +212,5 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 }
 
 func (ctrl Controller) respond(c *gin.Context, res *payload.Response, err error) {
-	if invalid, invalidErr := ctrl.mapper.IsInvalidDataError(err); invalid {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(invalidErr.Error()))
-		return
-	}
 	ctrl.mapper.NewResponse(c, res, err)
 }

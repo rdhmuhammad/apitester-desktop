@@ -29,7 +29,7 @@ import {useEnvResolve} from "@/layout/hooks/useEnvResolve.ts";
 import {useDebouncedCallback} from "use-debounce";
 import {useQueryClient} from "@tanstack/react-query";
 import {CollectionServices, type RequestTree} from "@/layout/services/collection.ts";
-import type {EditorTab} from "@/app/slices";
+import type {EditorTab} from "@/pages/editor/types/editor.ts";
 import CustomToast from "@/components/common/toast";
 
 const flattenTreeRequests = (nodes: RequestTree[]): Map<string, RequestTree> => {

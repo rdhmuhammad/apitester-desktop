@@ -50,10 +50,6 @@ func (ctrl Controller) WriteAutomation(c *gin.Context) {
 		return
 	}
 	err := ctrl.usecase.WriteAutomation(c.Param("id"), c.Param("name"), req)
-	if invalid, invalidErr := ctrl.mapper.IsInvalidDataError(err); invalid {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(invalidErr.Error()))
-		return
-	}
 	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Automation file written successfully"), err)
 }
 func (ctrl Controller) DeleteAutomation(c *gin.Context) {

@@ -44,10 +44,6 @@ func (ctrl Controller) WriteTest(c *gin.Context) {
 		return
 	}
 	err := ctrl.usecase.WriteTest(c.Param("id"), c.Param("name"), req)
-	if invalid, invalidErr := ctrl.mapper.IsInvalidDataError(err); invalid {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(invalidErr.Error()))
-		return
-	}
 	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Test written successfully"), err)
 }
 

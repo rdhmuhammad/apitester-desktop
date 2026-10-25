@@ -23,21 +23,8 @@ func IsInvalidData(err error) bool {
 	return err != nil && errors.As(err, &InvalidDataError{})
 }
 
-func IsNotFoundStr(target string, source error) bool {
-	var newErr = InvalidDataError{}
-	if errors.As(source, &newErr) {
-		return target == newErr.Msg
-	}
-
-	return false
-}
-
 func InvalidData(msg string) error {
 	return InvalidDataError{Msg: msg}
-}
-
-func InvalidDataWithData(msg string, data map[string]string) error {
-	return InvalidDataError{Msg: msg, DataToTemplated: data}
 }
 
 type InternalError struct {
@@ -56,14 +43,6 @@ func NewHandlerError(lg logger.Logger) HandleError {
 	return HandleError{
 		logger: lg,
 	}
-}
-
-func (h HandleError) ErrorPrint(err error) {
-	h.logger.Error(err)
-}
-
-func (h HandleError) DebugPrint(err string, v ...interface{}) {
-	h.logger.Debugf(err, v)
 }
 
 func (h HandleError) ErrorReturn(err error) error {

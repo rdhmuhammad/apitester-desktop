@@ -12,6 +12,11 @@ import (
 
 func (m Mapper) NewResponse(c *gin.Context, res *payload.Response, err error) {
 	if err != nil {
+		var invalidErr localerror.InvalidDataError
+		if errors.As(err, &invalidErr) {
+			c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(invalidErr.Error()))
+			return
+		}
 		fmt.Printf("ERROR: %s \n", err.Error())
 		c.JSON(
 			http.StatusInternalServerError,

@@ -41,10 +41,6 @@ func (ctrl Controller) WriteEnvironments(c *gin.Context) {
 	}
 
 	err := ctrl.usecase.WriteEnvironments(c.Param("id"), req)
-	if invalid, invalidErr := ctrl.mapper.IsInvalidDataError(err); invalid {
-		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(invalidErr.Error()))
-		return
-	}
 	ctrl.mapper.NewResponse(c, payload.NewSuccessResponseNoData("Environments written successfully"), err)
 }
 

@@ -14,12 +14,6 @@ const (
 	EIDFileNotFound      uint32 = 2    // Failed to load a configuration file, missing binary, or bad paths
 	EIDPathNotFound      uint32 = 3    // Network share, folder path, or working directory missing
 	EIDAccessDenied      uint32 = 5    // Permission issues
-	EIDHandleInvalid     uint32 = 6    // The handle is invalid (avoid unless tracking invalid handles)
-	EIDOutOfMemory       uint32 = 8    // Out-of-memory errors
-	EIDDiskFull          uint32 = 14   // Disk space completely full
-	EIDDeviceNotReady    uint32 = 21   // Device not ready
-	EIDFileLockConflict  uint32 = 32   // File locking conflicts
-	EIDNetworkPathNoFind uint32 = 53   // Remote API endpoint offline or network path not found
 	EIDInvalidParameter  uint32 = 87   // Invalid CLI flags or control requests
 	EIDServiceNotStarted uint32 = 1062 // Graceful internal shutdown or service stopped
 )
@@ -51,13 +45,6 @@ func Init(source string) error {
 	}
 	defaultLogger = l
 	return nil
-}
-
-// SetLogger overrides the global event logger with a custom implementation.
-func SetLogger(l Logger) {
-	mu.Lock()
-	defer mu.Unlock()
-	defaultLogger = l
 }
 
 // Close closes the global event logger.
@@ -138,16 +125,6 @@ func Panic(err error) {
 	}
 	msg := fmt.Sprintf("%v\n\nStack trace:\n%s", err, debug.Stack())
 	Error(EIDGenericError, "PANIC: "+msg)
-	panic(err)
-}
-
-// PanicWithID logs the error with a specific Event ID and full stack trace to eventlog, then panics.
-func PanicWithID(eid uint32, err error) {
-	if err == nil {
-		return
-	}
-	msg := fmt.Sprintf("%v\n\nStack trace:\n%s", err, debug.Stack())
-	Error(eid, "PANIC: "+msg)
 	panic(err)
 }
 
