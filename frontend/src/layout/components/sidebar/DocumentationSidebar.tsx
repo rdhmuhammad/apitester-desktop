@@ -284,8 +284,8 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     }
 
     const matchesSearch = (node: DocumentTree, query: string): boolean => {
-        if (!query) return true
-        const q = query.toLowerCase()
+        const q = query.trim().toLowerCase()
+        if (!q) return true
         if (node.name.toLowerCase().includes(q)) return true
         if (node.category === "FOLD" && node.item) {
             return node.item.some((child) => matchesSearch(child, q))
@@ -486,10 +486,16 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
         }
     }
 
-    const renderNode = (node: DocumentTree, depth = 0): ReactNode => {
-        if (searchQuery && !matchesSearch(node, searchQuery)) return null
+    const renderNode = (node: DocumentTree, depth = 0, isParentMatch = false): ReactNode => {
+        const q = searchQuery.trim().toLowerCase()
+        const matchesCurrent = q ? node.name.toLowerCase().includes(q) : false
+        const isMatched = isParentMatch || (q ? matchesSearch(node, q) : true)
 
-        const isOpen = Boolean(expandedFolders[node.id]) || Boolean(searchQuery)
+        if (!isMatched) return null
+
+        const isChildParentMatch = isParentMatch || matchesCurrent
+
+        const isOpen = Boolean(expandedFolders[node.id]) || Boolean(q)
         const isActive = activeTabId === node.id || activeDragId === node.id
 
         return (
@@ -507,7 +513,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
             >
                 {isOpen && node.item && node.item.length > 0 && (
                     <div className="space-y-1">
-                        {node.item.map((child) => renderNode(child, depth + 1))}
+                        {node.item.map((child) => renderNode(child, depth + 1, isChildParentMatch))}
                     </div>
                 )}
             </DocTreeNode>

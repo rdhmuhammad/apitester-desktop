@@ -16,6 +16,7 @@ import type {CollectionAuth, CollectionVar} from "@/pages/editor/types/api"
 import CustomToast from "@/components/common/toast"
 import type {AxiosError} from "axios"
 import type {Response} from "@/types/response"
+import {documentTreeQueryKey} from "@/pages/editor/services/documentation"
 
 const EMPTY_COLLECTIONS: Collection[] = []
 const EMPTY_PROJECTS: Project[] = []
@@ -173,7 +174,11 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
 
     const selectCollectionMutation = useMutation({
         mutationFn: (id: string) => CollectionServices.selectCollection(id),
-        onSuccess: () => {
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+            await queryClient.invalidateQueries({queryKey: documentTreeQueryKey})
+            await queryClient.invalidateQueries({queryKey: ["documentation"]})
+            await queryClient.invalidateQueries({queryKey: ["collection", "active"]})
             CustomToast.success("Collection selected")
         },
         onError: (error: AxiosError<Response<unknown>>) => {

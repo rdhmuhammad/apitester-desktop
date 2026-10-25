@@ -9,6 +9,7 @@ import {useQueryClient} from "@tanstack/react-query"
 import CustomToast from "@/components/common/toast"
 import {useAppDispatch} from "@/app/store/hooks.ts"
 import {resetEditorTabs} from "@/app/slices/editorTabsSlice.ts"
+import {documentTreeQueryKey} from "@/pages/editor/services/documentation.ts"
 
 async function pickFolderPath(): Promise<string | null> {
     if (window.electronAPI?.openFolderDialog) {
@@ -147,6 +148,7 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
             setSelectedCollectionId(collectionId)
             dispatch(resetEditorTabs())
             await refetchTree()
+            await queryClient.invalidateQueries({queryKey: documentTreeQueryKey})
             onOpenChange(false)
         } catch (error) {
             CustomToast.error(error instanceof Error ? error.message : "Failed to select collection")

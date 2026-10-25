@@ -202,8 +202,8 @@ const SidebarLayout: React.FC = () => {
     }
 
     const matchesSearch = (node: RequestTree, query: string): boolean => {
-        if (!query) return true
-        const q = query.toLowerCase()
+        const q = query.trim().toLowerCase()
+        if (!q) return true
         if (node.name.toLowerCase().includes(q)) return true
         if (node.category === "FOLD" && node.item) {
             return node.item.some(child => matchesSearch(child, q))
@@ -212,14 +212,17 @@ const SidebarLayout: React.FC = () => {
     }
 
     useEffect(() => {
-        if (searchQuery) {
+        const q = searchQuery.trim().toLowerCase()
+        if (q) {
             expandedBeforeSearch.current = {...expandedFolders}
             const autoExpand: Record<string, boolean> = {}
-            const walkAndExpand = (nodes: RequestTree[]) => {
+            const walkAndExpand = (nodes: RequestTree[], isParentMatch = false) => {
                 for (const node of nodes) {
-                    if (node.category === "FOLD" && matchesSearch(node, searchQuery)) {
+                    const matchesCurrent = node.name.toLowerCase().includes(q)
+                    const isSelfOrParentMatch = isParentMatch || matchesCurrent
+                    if (node.category === "FOLD" && (isSelfOrParentMatch || matchesSearch(node, q))) {
                         autoExpand[node.id] = true
-                        if (node.item) walkAndExpand(node.item)
+                        if (node.item) walkAndExpand(node.item, isSelfOrParentMatch)
                     }
                 }
             }
@@ -404,8 +407,14 @@ const SidebarLayout: React.FC = () => {
         setNodeToDelete(null)
     }
 
-    const renderNode = (node: RequestTree, depth = 0): ReactNode => {
-        if (searchQuery && !matchesSearch(node, searchQuery)) return null
+    const renderNode = (node: RequestTree, depth = 0, isParentMatch = false): ReactNode => {
+        const q = searchQuery.trim().toLowerCase()
+        const matchesCurrent = q ? node.name.toLowerCase().includes(q) : false
+        const isMatched = isParentMatch || (q ? matchesSearch(node, q) : true)
+
+        if (!isMatched) return null
+
+        const isChildParentMatch = isParentMatch || matchesCurrent
 
         const isOpen = Boolean(expandedFolders[node.id]);
         const isActive = node.isActive || activeTabsId.includes(node.id) || node.id === activeDragId
@@ -426,7 +435,7 @@ const SidebarLayout: React.FC = () => {
                 {isOpen && node?.item && (
                     <div className="space-y-1">
                         {node.item.map((child) => {
-                            return renderNode(child, depth + 1)
+                            return renderNode(child, depth + 1, isChildParentMatch)
                         })}
                     </div>
                 )}
@@ -461,7 +470,7 @@ const SidebarLayout: React.FC = () => {
             collapsible={"none"}
         >
             <SidebarContent className="flex flex-col overflow-y-auto px-3 py-2 bg-sidebar">
-                <div className="px-3 pb-2">
+                <div className="sticky top-0 z-20 bg-sidebar -mx-3 -mt-2 px-3 pt-2 pb-2">
                     <div className="relative">
                         <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground"/>
                         <input
