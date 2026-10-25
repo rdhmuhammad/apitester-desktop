@@ -74,7 +74,13 @@ func (u *Usecase) GetTree(ctx context.Context) ([]DocumentTree, error) {
 		return nil, err
 	}
 
-	tree, err := u.scanDirectory(rootPath, rootPath)
+	gi := NewGitIgnoreMatcher()
+	rootGitIgnore := filepath.Join(rootPath, ".gitignore")
+	if _, err := os.Stat(rootGitIgnore); err == nil {
+		_ = gi.LoadGitIgnore(rootGitIgnore, "")
+	}
+
+	tree, err := u.scanDirectory(rootPath, rootPath, gi)
 	if err != nil {
 		return nil, u.ErrHandler.ErrorReturn(err)
 	}
@@ -275,7 +281,23 @@ func validateRootDirectory(rootPath string) (string, error) {
 	return cleaned, nil
 }
 
-func (u *Usecase) scanDirectory(rootPath, dirPath string) ([]DocumentTree, error) {
+var docFileExtensions = map[string]string{
+	".md":   "DOC_MD",
+	".html": "DOC_HTML",
+	".htm":  "DOC_HTML",
+}
+
+func (u *Usecase) scanDirectory(rootPath, dirPath string, gi *GitIgnoreMatcher) ([]DocumentTree, error) {
+	if gi != nil && dirPath != rootPath {
+		subGitIgnore := filepath.Join(dirPath, ".gitignore")
+		if _, err := os.Stat(subGitIgnore); err == nil {
+			relDir, err := filepath.Rel(rootPath, dirPath)
+			if err == nil {
+				_ = gi.LoadGitIgnore(subGitIgnore, relDir)
+			}
+		}
+	}
+
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, err
@@ -283,7 +305,7 @@ func (u *Usecase) scanDirectory(rootPath, dirPath string) ([]DocumentTree, error
 
 	nodes := make([]DocumentTree, 0, len(entries))
 	for _, entry := range entries {
-		node, ok, err := u.buildEntryTreeNode(rootPath, dirPath, entry)
+		node, ok, err := u.buildEntryTreeNode(rootPath, dirPath, entry, gi)
 		if err != nil {
 			return nil, err
 		}
@@ -294,51 +316,53 @@ func (u *Usecase) scanDirectory(rootPath, dirPath string) ([]DocumentTree, error
 	return nodes, nil
 }
 
-func (u *Usecase) buildEntryTreeNode(rootPath, dirPath string, entry os.DirEntry) (DocumentTree, bool, error) {
+func (u *Usecase) buildEntryTreeNode(rootPath, dirPath string, entry os.DirEntry, gi *GitIgnoreMatcher) (DocumentTree, bool, error) {
 	name := entry.Name()
 	absPath := filepath.Join(dirPath, name)
 	relID, err := filepath.Rel(rootPath, absPath)
 	if err != nil {
 		return DocumentTree{}, false, err
 	}
+	relID = filepath.ToSlash(relID)
+
+	if gi != nil && gi.IsIgnored(relID, entry.IsDir()) {
+		return DocumentTree{}, false, nil
+	}
 
 	if entry.IsDir() {
-		if shouldSkipDocDir(name) {
-			return DocumentTree{}, false, nil
-		}
-		children, err := u.scanDirectory(rootPath, absPath)
+		children, err := u.scanDirectory(rootPath, absPath, gi)
 		if err != nil {
 			return DocumentTree{}, false, err
 		}
-		return NewFolderTreeNode(relID, name, absPath, children), true, nil
+		hasVisibleChild := false
+		for _, child := range children {
+			if child.Show {
+				hasVisibleChild = true
+				break
+			}
+		}
+		return NewFolderTreeNode(relID, name, absPath, children, hasVisibleChild), true, nil
 	}
 
-	category, displayName, supported := classifyDocFile(name)
-	if !supported {
-		return DocumentTree{}, false, nil
+	ext := strings.ToLower(filepath.Ext(name))
+	if cat, isDoc := docFileExtensions[ext]; isDoc {
+		displayName := strings.TrimSuffix(name, filepath.Ext(name))
+		return NewFileTreeNode(relID, displayName, absPath, cat, true), true, nil
 	}
-	return NewFileTreeNode(relID, displayName, absPath, category), true, nil
-}
 
-func shouldSkipDocDir(name string) bool {
-	switch strings.ToLower(name) {
-	case ".git", "node_modules", "dist", "dist-electron", "release":
-		return true
-	default:
-		return strings.HasPrefix(name, ".")
-	}
+	return NewFileTreeNode(relID, name, absPath, "FILE", false), true, nil
 }
 
 func classifyDocFile(filename string) (string, string, bool) {
 	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".md":
-		return "DOC_MD", strings.TrimSuffix(filename, filepath.Ext(filename)), true
-	case ".html", ".htm":
-		return "DOC_HTML", filename, true
-	default:
+	cat, ok := docFileExtensions[ext]
+	if !ok {
 		return "", "", false
 	}
+	if cat == "DOC_MD" {
+		return cat, strings.TrimSuffix(filename, filepath.Ext(filename)), true
+	}
+	return cat, filename, true
 }
 
 func (u *Usecase) resolveTargetDir(rootPath, folderID string) (string, error) {
@@ -421,7 +445,7 @@ func (u *Usecase) createDirectoryOnDisk(rootPath string, req CreateFolderRequest
 	}
 
 	relID, _ := filepath.Rel(rootPath, absPath)
-	return NewFolderTreeNode(relID, name, absPath, []DocumentTree{}), nil
+	return NewFolderTreeNode(relID, name, absPath, []DocumentTree{}, true), nil
 }
 
 func (u *Usecase) resolveExistingFile(ctx context.Context, id string) (string, string, string, error) {

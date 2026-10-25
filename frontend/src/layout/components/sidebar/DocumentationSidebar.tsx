@@ -20,6 +20,7 @@ import {
     type DocumentTree,
 } from "@/pages/editor/services/documentation.ts"
 import {useCollection} from "@/layout/hooks/useCollection.ts"
+import {useProject} from "@/layout/hooks/useProject.ts"
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts"
 import {
     openEditorTab,
@@ -242,16 +243,18 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     const queryClient = useQueryClient()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
     const openTabs = useAppSelector(selectEditorTabs)
+    const {activeProject} = useProject()
     const {activeCollection} = useCollection()
 
     const {
-        documentTree,
+        documentTree: rawDocumentTree,
         isMovingDocument,
         refetchDocumentTree,
         createFolderMutation,
         moveDocumentMutation,
         deleteItemMutation,
-    } = useDocumentation(null, true)
+    } = useDocumentation(null, Boolean(activeProject))
+    const documentTree = activeProject ? rawDocumentTree : []
 
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
@@ -267,13 +270,14 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     )
 
     useEffect(() => {
+        if (!activeProject?.id) return
         void refetchDocumentTree()
-    }, [activeCollection?.id, activeCollection?.project_id, refetchDocumentTree])
+    }, [activeProject?.id, activeCollection?.id, refetchDocumentTree])
 
     const countDocs = (nodes: DocumentTree[]): number => {
         let count = 0
         for (const node of nodes) {
-            if (node.category === "DOC_MD" || node.category === "DOC_HTML") {
+            if (node.show && (node.category === "DOC_MD" || node.category === "DOC_HTML")) {
                 count++
             }
             if (node.item) {
@@ -284,6 +288,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     }
 
     const matchesSearch = (node: DocumentTree, query: string): boolean => {
+        if (!node.show) return false
         const q = query.trim().toLowerCase()
         if (!q) return true
         if (node.name.toLowerCase().includes(q)) return true
@@ -487,6 +492,8 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     }
 
     const renderNode = (node: DocumentTree, depth = 0, isParentMatch = false): ReactNode => {
+        if (!node.show) return null
+
         const q = searchQuery.trim().toLowerCase()
         const matchesCurrent = q ? node.name.toLowerCase().includes(q) : false
         const isMatched = isParentMatch || (q ? matchesSearch(node, q) : true)
@@ -521,10 +528,11 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     }
 
     const draggedNode = activeDragId ? findDocNodeById(documentTree, activeDragId) : null
+    const visibleDocsCount = countDocs(documentTree)
 
     const treeContent = (
         <div className="space-y-0.5">
-            {documentTree.length === 0 ? (
+            {visibleDocsCount === 0 ? (
                 <div className="px-4 py-4 text-center text-xs text-slate-400">
                     No documents found in project.
                 </div>

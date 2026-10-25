@@ -23,7 +23,6 @@ export interface Project {
     name: string
     is_selected: boolean
     path: string
-    collections: Collection[]
     updated_at: string
     created_at: string
 }
@@ -97,8 +96,13 @@ export const CollectionServices = {
         return response.data.data ?? []
     },
 
-    createProject: async (name: string, path: string): Promise<Project> => {
-        const response = await axios.post<Response<Project>>('/project/create', {name, path})
+    openProject: async (path: string): Promise<Project> => {
+        const response = await axios.post<Response<Project>>('/project/open', {path})
+        return response.data.data
+    },
+
+    selectProject: async (id: string): Promise<Project> => {
+        const response = await axios.put<Response<Project>>(`/project/select/${id}`)
         return response.data.data
     },
 
@@ -114,7 +118,7 @@ export const CollectionServices = {
 
     listCollections: async (): Promise<Collection[]> => {
         const response = await axios.get<Response<Collection[]>>('/collection/list')
-        return response.data.data
+        return response.data.data ?? []
     },
 
     createCollection: async (name: string, path: string, projectId?: string): Promise<Collection> => {

@@ -60,30 +60,45 @@ func (u *Usecase) ListProjects(ctx context.Context) ([]ProjectResponse, error) {
 		return nil, u.errHandler.ErrorReturn(err)
 	}
 
-	collections, err := u.collectionRepo.List(ctx)
-	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+	result := make([]ProjectResponse, 0, len(projects))
+	for _, p := range projects {
+		result = append(result, NewProjectResponse(p))
 	}
-
-	return groupProjectsWithCollections(projects, collections), nil
+	return result, nil
 }
 
-func (u *Usecase) CreateProject(ctx context.Context, req CreateProjectRequest) (ProjectResponse, error) {
-	if err := validateProjectRequest(req); err != nil {
+// OpenProject registers the folder as a project (reusing an existing one with the same path)
+// and makes it the active project.
+func (u *Usecase) OpenProject(ctx context.Context, req OpenProjectRequest) (ProjectResponse, error) {
+	if err := validateDirectoryPath(req.Path); err != nil {
 		return ProjectResponse{}, err
 	}
 
-	project := newProjectEntity(req)
-	if err := u.projectRepo.Create(ctx, project.ID, &project); err != nil {
-		return ProjectResponse{}, u.errHandler.ErrorReturn(err)
-	}
-
-	collections, err := u.discoverAndSaveCollections(ctx, project.ID, project.Path)
+	project, err := u.findOrCreateProject(ctx, req)
 	if err != nil {
 		return ProjectResponse{}, u.errHandler.ErrorReturn(err)
 	}
 
-	return NewProjectResponse(project, collections), nil
+	return u.SelectProject(ctx, project.ID)
+}
+
+// SelectProject activates the project and drops any active collection that belongs to another project.
+func (u *Usecase) SelectProject(ctx context.Context, id string) (ProjectResponse, error) {
+	project, err := u.getProject(ctx, id)
+	if err != nil {
+		return ProjectResponse{}, err
+	}
+
+	if err := u.clearForeignCollectionSelection(ctx, project.ID); err != nil {
+		return ProjectResponse{}, u.errHandler.ErrorReturn(err)
+	}
+
+	if err := u.markProjectSelected(ctx, project.ID); err != nil {
+		return ProjectResponse{}, u.errHandler.ErrorReturn(err)
+	}
+
+	project.IsSelected = true
+	return NewProjectResponse(*project), nil
 }
 
 func (u *Usecase) UpdateProjectByID(ctx context.Context, id string, req UpdateProjectRequest) (ProjectResponse, error) {
@@ -92,8 +107,7 @@ func (u *Usecase) UpdateProjectByID(ctx context.Context, id string, req UpdatePr
 		return ProjectResponse{}, err
 	}
 
-	collections, err := u.syncProjectCollections(ctx, project, req)
-	if err != nil {
+	if err := u.syncProjectCollections(ctx, project, req); err != nil {
 		return ProjectResponse{}, err
 	}
 
@@ -102,7 +116,7 @@ func (u *Usecase) UpdateProjectByID(ctx context.Context, id string, req UpdatePr
 		return ProjectResponse{}, u.errHandler.ErrorReturn(err)
 	}
 
-	return NewProjectResponse(*project, collections), nil
+	return NewProjectResponse(*project), nil
 }
 
 func (u *Usecase) DeleteProject(ctx context.Context, id string) error {
@@ -133,39 +147,87 @@ func (u *Usecase) getProject(ctx context.Context, id string) (*domain.Project, e
 	return project, nil
 }
 
-func (u *Usecase) syncProjectCollections(ctx context.Context, project *domain.Project, req UpdateProjectRequest) ([]domain.Collection, error) {
+func (u *Usecase) syncProjectCollections(ctx context.Context, project *domain.Project, req UpdateProjectRequest) error {
 	newPath := strings.TrimSpace(req.Path)
 	if newPath == "" || newPath == project.Path {
-		return u.listProjectCollections(ctx, project.ID)
+		return nil
 	}
 
 	if err := validateDirectoryPath(newPath); err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := u.deleteProjectCollections(ctx, project.ID); err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return u.errHandler.ErrorReturn(err)
 	}
 
-	collections, err := u.discoverAndSaveCollections(ctx, project.ID, newPath)
-	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+	if _, err := u.discoverAndSaveCollections(ctx, project.ID, newPath); err != nil {
+		return u.errHandler.ErrorReturn(err)
 	}
-	return collections, nil
+	return nil
 }
 
-func (u *Usecase) listProjectCollections(ctx context.Context, projectID string) ([]domain.Collection, error) {
-	all, err := u.collectionRepo.List(ctx)
-	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+func (u *Usecase) findOrCreateProject(ctx context.Context, req OpenProjectRequest) (*domain.Project, error) {
+	existing, err := u.findProjectByPath(ctx, req.Path)
+	if err != nil || existing != nil {
+		return existing, err
 	}
-	result := make([]domain.Collection, 0)
-	for _, c := range all {
-		if c.ProjectID == projectID {
-			result = append(result, c)
+
+	project := newProjectEntity(req)
+	if err := u.projectRepo.Create(ctx, project.ID, &project); err != nil {
+		return nil, err
+	}
+
+	if _, err := u.discoverAndSaveCollections(ctx, project.ID, project.Path); err != nil {
+		return nil, err
+	}
+	return &project, nil
+}
+
+func (u *Usecase) findProjectByPath(ctx context.Context, path string) (*domain.Project, error) {
+	projects, err := u.projectRepo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target := filepath.Clean(strings.TrimSpace(path))
+	for i := range projects {
+		if strings.EqualFold(filepath.Clean(projects[i].Path), target) {
+			return &projects[i], nil
 		}
 	}
-	return result, nil
+	return nil, nil
+}
+
+func (u *Usecase) markProjectSelected(ctx context.Context, projectID string) error {
+	projects, err := u.projectRepo.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range projects {
+		p.IsSelected = p.ID == projectID
+		if err := u.projectRepo.Update(ctx, p.ID, &p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// clearForeignCollectionSelection unselects every selected collection that does not belong to projectID.
+func (u *Usecase) clearForeignCollectionSelection(ctx context.Context, projectID string) error {
+	all, err := u.collectionRepo.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range all {
+		if !c.IsSelected || c.ProjectID == projectID {
+			continue
+		}
+		c.IsSelected = false
+		if err := u.collectionRepo.Update(ctx, c.ID, &c); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (u *Usecase) discoverAndSaveCollections(ctx context.Context, projectID, rootPath string) ([]domain.Collection, error) {
@@ -260,13 +322,6 @@ func (u *Usecase) deleteProjectCollections(ctx context.Context, projectID string
 	return nil
 }
 
-func validateProjectRequest(req CreateProjectRequest) error {
-	if strings.TrimSpace(req.Name) == "" {
-		return localerror.InvalidData("Project name is required")
-	}
-	return validateDirectoryPath(req.Path)
-}
-
 func validateDirectoryPath(path string) error {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
@@ -291,27 +346,14 @@ func shouldSkipDir(name string) bool {
 	}
 }
 
-func newProjectEntity(req CreateProjectRequest) domain.Project {
+func newProjectEntity(req OpenProjectRequest) domain.Project {
 	now := time.Now()
 	return domain.Project{
 		ID:         uuid.NewString(),
-		Name:       strings.TrimSpace(req.Name),
+		Name:       req.ProjectName(),
 		Path:       strings.TrimSpace(req.Path),
 		IsSelected: false,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
-}
-
-func groupProjectsWithCollections(projects []domain.Project, collections []domain.Collection) []ProjectResponse {
-	byProject := make(map[string][]domain.Collection, len(projects))
-	for _, c := range collections {
-		byProject[c.ProjectID] = append(byProject[c.ProjectID], c)
-	}
-
-	result := make([]ProjectResponse, 0, len(projects))
-	for _, p := range projects {
-		result = append(result, NewProjectResponse(p, byProject[p.ID]))
-	}
-	return result
 }

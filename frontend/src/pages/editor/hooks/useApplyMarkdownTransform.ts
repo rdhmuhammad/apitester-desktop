@@ -63,6 +63,10 @@ export const useApplyMarkdownTransform = ({
     const applyMarkdownTransform = useCallback(
         (action: DocumentToolbarAction) => {
             if (action.type === "toggle-source") {
+                if (!sourceMode && editorRef.current) {
+                    const currentMd = htmlToMarkdown(editorRef.current).replace(/\u200B/g, "").replace(/\u00A0/g, " ")
+                    setMarkdown(currentMd)
+                }
                 setSourceMode((prev) => !prev)
                 return
             }

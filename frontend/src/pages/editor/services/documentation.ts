@@ -7,8 +7,9 @@ export interface DocumentTree {
     id: string
     name: string
     path: string
-    category: "FOLD" | "DOC_MD" | "DOC_HTML"
+    category: "FOLD" | "DOC_MD" | "DOC_HTML" | "FILE" | string
     isActive: boolean
+    show: boolean
     item?: DocumentTree[]
 }
 

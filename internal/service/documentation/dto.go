@@ -14,6 +14,7 @@ type DocumentTree struct {
 	Path     string         `json:"path"`
 	Category string         `json:"category"`
 	IsActive bool           `json:"isActive"`
+	Show     bool           `json:"show"`
 	Item     []DocumentTree `json:"item,omitempty"`
 }
 
@@ -99,23 +100,25 @@ func NewDocumentResponse(relID, absPath, content, version string) DocumentRespon
 	}
 }
 
-func NewFolderTreeNode(relID, name, absPath string, children []DocumentTree) DocumentTree {
+func NewFolderTreeNode(relID, name, absPath string, children []DocumentTree, show bool) DocumentTree {
 	return DocumentTree{
 		ID:       filepath.ToSlash(relID),
 		Name:     name,
 		Path:     absPath,
 		Category: "FOLD",
 		IsActive: false,
+		Show:     show,
 		Item:     children,
 	}
 }
 
-func NewFileTreeNode(relID, name, absPath, category string) DocumentTree {
+func NewFileTreeNode(relID, name, absPath, category string, show bool) DocumentTree {
 	return DocumentTree{
 		ID:       filepath.ToSlash(relID),
 		Name:     name,
 		Path:     absPath,
 		Category: category,
 		IsActive: false,
+		Show:     show,
 	}
 }

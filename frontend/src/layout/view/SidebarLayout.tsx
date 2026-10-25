@@ -182,11 +182,12 @@ const SidebarLayout: React.FC = () => {
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
     const [nodeToDelete, setNodeToDelete] = useState<RequestTree | null>(null)
     const {
-        requestTree: tree,
+        requestTree: rawTree,
         activeCollection,
         updateTreeMutation,
         isUpdatingTree,
     } = useCollection()
+    const tree = activeCollection ? rawTree : []
 
     const sensors = useSensors(
         useSensor(PointerSensor, {activationConstraint: {distance: 5}})
@@ -456,11 +457,15 @@ const SidebarLayout: React.FC = () => {
         }))
     }
 
-    const treeContent = (
+    const treeContent = activeCollection ? (
         <div className="">
             {tree.map((collection) => {
                 return renderNode(collection)
             })}
+        </div>
+    ) : (
+        <div className="px-4 py-6 text-center text-xs text-slate-400">
+            No collection selected.
         </div>
     )
 

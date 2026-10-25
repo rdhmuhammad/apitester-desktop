@@ -2,7 +2,6 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query"
 import {
     CollectionServices,
     type Collection,
-    type Project,
     type CreateCollectionVariableRequest,
     type DeleteCollectionVariableRequest,
     type UpdateCollectionVariableRequest,
@@ -19,21 +18,12 @@ import type {Response} from "@/types/response"
 import {documentTreeQueryKey} from "@/pages/editor/services/documentation"
 
 const EMPTY_COLLECTIONS: Collection[] = []
-const EMPTY_PROJECTS: Project[] = []
 const EMPTY_TREE: RequestTree[] = []
 const EMPTY_VARIABLES: CollectionVar[] = []
 const EMPTY_PRE_SCRIPT = ""
 
 export const useCollection = (selectedCollectionId: string | null = null) => {
     const queryClient = useQueryClient()
-
-    const projectsQuery = useQuery<Project[]>({
-        queryKey: ["project", "list"],
-        queryFn: CollectionServices.listProjects,
-        gcTime: 0,
-        enabled: false,
-        refetchOnWindowFocus: false,
-    })
 
     const collectionsQuery = useQuery<Collection[]>({
         queryKey: ["collection", "list"],
@@ -47,6 +37,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         queryKey: ["collection", "active"],
         queryFn: CollectionServices.getActiveCollection,
         gcTime: 0,
+        retry: false,
         refetchOnWindowFocus: false,
     })
 
@@ -63,6 +54,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     const variablesQuery = useQuery<CollectionVar[]>({
         queryKey: ["collection", "variables"],
         queryFn: CollectionServices.getVariables,
+        enabled: Boolean(collectionId),
         gcTime: 0,
         refetchOnWindowFocus: false,
     })
@@ -70,6 +62,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     const preScriptQuery = useQuery<string>({
         queryKey: ["collection", "pre-script"],
         queryFn: CollectionServices.getPreScript,
+        enabled: Boolean(collectionId),
         gcTime: 0,
         refetchOnWindowFocus: false,
     })
@@ -77,6 +70,7 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     const authQuery = useQuery<CollectionAuth | null>({
         queryKey: ["collection", "auth"],
         queryFn: () => CollectionServices.getAuth(),
+        enabled: Boolean(collectionId),
         gcTime: 0,
         refetchOnWindowFocus: false,
     })
@@ -105,38 +99,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         },
         onError: (error: AxiosError<Response<unknown>>) => {
             CustomToast.error(error.response?.data.message || "Failed to update pre-request script")
-        },
-    })
-
-    const createProjectMutation = useMutation({
-        mutationFn: (payload: {name: string; path: string}) =>
-            CollectionServices.createProject(payload.name, payload.path),
-        onSuccess: () => {
-            CustomToast.success("Project created")
-        },
-        onError: (error: AxiosError<Response<unknown>>) => {
-            CustomToast.error(error.response?.data.message || "Failed to create project")
-        },
-    })
-
-    const updateProjectMutation = useMutation({
-        mutationFn: (payload: {id: string; data: {name?: string; path?: string}}) =>
-            CollectionServices.updateProject(payload.id, payload.data),
-        onSuccess: () => {
-            CustomToast.success("Project updated")
-        },
-        onError: (error: AxiosError<Response<unknown>>) => {
-            CustomToast.error(error.response?.data.message || "Failed to update project")
-        },
-    })
-
-    const deleteProjectMutation = useMutation({
-        mutationFn: (id: string) => CollectionServices.deleteProject(id),
-        onSuccess: () => {
-            CustomToast.success("Project deleted")
-        },
-        onError: (error: AxiosError<Response<unknown>>) => {
-            CustomToast.error(error.response?.data.message || "Failed to delete project")
         },
     })
 
@@ -254,7 +216,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
     })
 
     return {
-        projects: projectsQuery.data ?? EMPTY_PROJECTS,
         collections: collectionsQuery.data ?? EMPTY_COLLECTIONS,
         activeCollection: activeCollectionQuery.data ?? null,
         collection: activeCollectionQuery.data ?? null,
@@ -262,7 +223,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         variables: variablesQuery.data ?? EMPTY_VARIABLES,
         preScript: preScriptQuery.data ?? EMPTY_PRE_SCRIPT,
         auth: authQuery.data ?? null,
-        isLoadingProjects: projectsQuery.isLoading || projectsQuery.isFetching,
         isLoadingCollections: collectionsQuery.isLoading || collectionsQuery.isFetching,
         isLoadingActiveCollection: activeCollectionQuery.isLoading || activeCollectionQuery.isFetching,
         isLoadingCollection: activeCollectionQuery.isLoading || activeCollectionQuery.isFetching,
@@ -271,7 +231,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         isLoadingPreScript: preScriptQuery.isLoading || preScriptQuery.isFetching,
         isLoadingAuth: authQuery.isLoading || authQuery.isFetching,
         isUpdatingTree: updateTreeMutation.isPending,
-        refetchProjects: projectsQuery.refetch,
         refetchCollections: collectionsQuery.refetch,
         refetchActiveCollection: activeCollectionQuery.refetch,
         refetchCollection: activeCollectionQuery.refetch,
@@ -279,7 +238,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         refetchVariables: variablesQuery.refetch,
         refetchPreScript: preScriptQuery.refetch,
         refetchAuth: authQuery.refetch,
-        projectsQuery,
         collectionsQuery,
         activeCollectionQuery,
         collectionQuery: activeCollectionQuery,
@@ -287,9 +245,6 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         variablesQuery,
         preScriptQuery,
         authQuery,
-        createProjectMutation,
-        updateProjectMutation,
-        deleteProjectMutation,
         createCollectionMutation,
         updateCollectionMutation,
         deleteCollectionMutation,

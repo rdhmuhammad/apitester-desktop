@@ -173,6 +173,15 @@ func TestCreateDeleteAndSelectCollection(t *testing.T) {
 		t.Fatalf("expected other project proj-2 to be deselected")
 	}
 
+	// ListCollections only returns collections of the selected project
+	listed, err := usecase.ListCollections(context.Background())
+	if err != nil {
+		t.Fatalf("ListCollections failed: %v", err)
+	}
+	if len(listed) != 1 || listed[0].ID != col.ID {
+		t.Fatalf("expected only collections of selected project, got %+v", listed)
+	}
+
 	// DeleteCollection should remove both DB record and file on disk
 	if err := usecase.DeleteCollection(context.Background(), col.ID); err != nil {
 		t.Fatalf("DeleteCollection failed: %v", err)

@@ -35,6 +35,7 @@ Opening a `.md` file opens a `DOC` (`type: 'document'`) tab rendered by `Documen
 - **Code Block Snippet**: Typing ```` ```<lang> ```` followed by Enter generates an embedded code block container featuring an editable language definition input (`data-lang-input`), dedicated multiline code editing, Tab indenting, and Shift+Enter breakout.
 - **Interactive Table Grid Picker & Hover Row/Column Controls**: Clicking the Table button in `DocumentEditorHeader.tsx` opens a Google Docs-style dynamic grid picker (starting at 11×5 and expanding up to 20×20 as the cursor hovers near the edges) to insert a table with custom `cols × rows`. In Live Mode, hovering a table cell in `DocumentEditor.tsx` renders floating row and column action pills outside the `contentEditable` DOM (`Insert 1 row below` / `Delete row` on the left of the hovered row and `Insert 1 column to the right` / `Delete column` on top of the hovered column) that mutate the table in place and sync back to Markdown.
 - **Interactive Image Placeholder, Replacement & Manual Drag Resize**: Clicking the Insert Image toolbar button (`{type: "image"}`) inserts an interactive placeholder block (`![image]()`) with **Use URL** and **Select File** buttons. Entering a valid image URL (verified via `new Image()` `onload`) or choosing a local file immediately renders the `<img>`. Hovering any rendered `<img>` in Live Mode overlays a replacement bar (**Use URL** / **Select File**) plus corner and edge resize handles that update image dimensions live and persist as `![alt|WxH](src)` in Markdown.
+- **Dedicated Raw Source Mode**: Clicking the `Source` button in `DocumentEditorHeader.tsx` serializes the live DOM into raw Markdown and displays a dedicated full-width raw document editor without redundant split-screen rendered syntax previews.
 
 ### 5. Bold / Italic Toggling Without Re-render (`inlineFormat.ts`)
 Ctrl+B, Ctrl+I and the header Bold/Italic buttons call `toggleInlineFormat` in `frontend/src/pages/editor/utils/inlineFormat.ts` (live mode) or `toggleMarkdownFormat` (source mode). Rules:
@@ -49,6 +50,13 @@ When editing a Markdown document:
 - Frontend computes the changed UTF-16 slice (`{ id, content, startPos, lenght }`) via `computeDocumentDiff(prev, next)` and emits `document:content:edit` to the `/documentation` Socket.IO namespace after a 500ms debounce.
 - Backend `EditDocumentContentRequest.ApplyTo` splices the replacement into the file's UTF-16 code-unit representation and writes atomically while calling `docWatcher.SuppressPath(absPath, 600*time.Millisecond)`.
 - The frontend does not re-fetch on its own `document:content:edit` emissions; it only re-fetches when an external file modification triggers `document:refresh` with payload `true`.
+
+### 7. Project-Wide Workspace File Discovery, Gitignore Filtering & Antigravity-Style File Tagging
+To allow users to reference any workspace file while writing documentation (similar to `@` file tagging in Antigravity chat):
+- **Gitignore Engine**: Backend `GitIgnoreMatcher` (`internal/service/documentation/gitignore.go`) automatically ignores `.git/`, loads root `.gitignore`, and handles nested `.gitignore` files (e.g. `frontend/.gitignore`) with support for directory-only rules, wildcards (`*`, `**`), and negation (`!`).
+- **Workspace Tree with Visibility Flag (`show`)**: `GET /documentation/tree` scans all non-ignored files across the workspace. A backend extension map (`.md`, `.html`, `.htm`) marks documentation items with `show: true` and code/config files with `show: false`. Folders inherit `show: true` if they contain any descendant documentation file.
+- **Sidebar Filtering**: `DocumentationSidebar.tsx` renders only nodes where `node.show === true`, preserving a focused documentation outline without workspace clutter.
+- **File Tagging Dropdown**: In `DocumentEditor.tsx`, typing `@` at a word boundary (in either Live Mode or Source Mode) triggers `FileTagDropdown.tsx` positioned near the caret. Filtering matches both file name and relative workspace path. Selecting a file (via Enter, Tab, or click) inserts a clean Markdown link `[filename.ext](relative/path/to/filename.ext)`.
 
 ## Related pages
 

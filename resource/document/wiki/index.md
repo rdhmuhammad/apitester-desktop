@@ -49,7 +49,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[decisions/usecase-rules-of-engagement]] - Standardized usecase method complexity, error reporting, struct encapsulation, and execution context limits.
 - [[decisions/google-drive-service-account-sync]] - Architecture, security permissions, and step-by-step setup for syncing Playwright test reports to Google Drive.
 - [[decisions/playwright-cumulative-test-caching]] - Cumulative test scenario caching pipeline to prevent RAM exhaustion during testing and retain comprehensive reports.
-- [[decisions/project-folder-discovery-and-collection-hierarchy]] - Project-based folder discovery, parent-child collection hierarchy, inline creation, and disk file deletion.
+- [[decisions/project-folder-discovery-and-collection-hierarchy]] - GoLand-style project switcher, folder discovery, standalone project selection, scoped collection manager, and disk file deletion.
 - [[decisions/documentation-management-and-markdown-editor]] - Pure filesystem `.md`/`.html` documentation tree discovery, file-only drag-and-drop relocation, and live Markdown editor with 500ms debounced UTF-16 slice socket synchronization.
 
 ## Concepts

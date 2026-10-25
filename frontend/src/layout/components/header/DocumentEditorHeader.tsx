@@ -104,7 +104,7 @@ const DocumentEditorHeader: React.FC = () => {
                     size="sm"
                     onMouseDown={preventBlur}
                     onClick={() => dispatchDocumentToolbarAction({type: "toggle-source"})}
-                    title="Toggle Markdown Source / Live Preview"
+                    title={toolbarState.sourceMode ? "Switch to Live Editor" : "View Raw Markdown Source"}
                     className={cn(
                         "h-8 gap-1.5 px-2.5 text-xs font-medium",
                         toolbarState.sourceMode && "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"

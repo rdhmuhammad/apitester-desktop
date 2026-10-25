@@ -1,8 +1,8 @@
-import {useCallback, useEffect, useRef, useState} from "react"
+import {useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {AlignLeft, FileText, GripHorizontal, GripVertical, Link2, Loader2, Pin, Plus, Sparkles, Trash2, Upload} from "lucide-react"
 import {useAppSelector} from "@/app/store/hooks.ts"
 import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts"
-import {useDocumentContent} from "@/pages/editor/hooks/useDocumentation.ts"
+import {useDocumentContent, useDocumentation} from "@/pages/editor/hooks/useDocumentation.ts"
 import {useLiveTransform} from "@/pages/editor/hooks/useLiveTransform.ts"
 import {useApplyMarkdownTransform} from "@/pages/editor/hooks/useApplyMarkdownTransform.ts"
 import {SUPPORTED_CODE_LANGUAGES, useCodeBlock} from "@/pages/editor/hooks/useCodeBlock.ts"
@@ -12,6 +12,8 @@ import {
     DocumentationServices,
 } from "@/pages/editor/services/documentation.ts"
 import {htmlToMarkdown, renderMarkdownToHtml} from "@/pages/editor/utils/markdown.ts"
+import {flattenTreeToFiles, type WorkdirFileItem} from "@/pages/editor/utils/fileTree.ts"
+import {FileTagDropdown} from "@/pages/editor/components/FileTagDropdown.tsx"
 
 const HEADING_CLASSES: Record<number, string> = {
     1: "text-3xl font-bold tracking-tight text-foreground mt-6 mb-3 pb-1 border-b border-border/60",
@@ -64,10 +66,23 @@ const DocumentEditor: React.FC = () => {
     const activeTab = useAppSelector(selectEditorActiveTab)
     const documentId = activeTab?.type === "document" ? activeTab.id : ""
     const documentQuery = useDocumentContent(documentId)
+    const {documentTree} = useDocumentation(null, true)
+    const projectFiles = useMemo(() => flattenTreeToFiles(documentTree), [documentTree])
 
     const [markdown, setMarkdown] = useState("")
     const [sourceMode, setSourceMode] = useState(false)
     const [headingLevel, setHeadingLevel] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(0)
+    const [tagDropdown, setTagDropdown] = useState<{
+        open: boolean
+        position: {x: number; y: number}
+        query: string
+        mode: "live" | "source"
+    }>({
+        open: false,
+        position: {x: 0, y: 0},
+        query: "",
+        mode: "live",
+    })
     const [tableHover, setTableHover] = useState<{
         table: HTMLTableElement
         row: HTMLTableRowElement
@@ -351,6 +366,148 @@ const DocumentEditor: React.FC = () => {
         []
     )
 
+    const checkLiveTagTrigger = useCallback(() => {
+        const sel = window.getSelection()
+        if (!sel || sel.rangeCount === 0 || !editorRef.current) {
+            setTagDropdown((prev) => (prev.open ? {...prev, open: false} : prev))
+            return
+        }
+        const range = sel.getRangeAt(0)
+        if (!editorRef.current.contains(range.commonAncestorContainer)) {
+            setTagDropdown((prev) => (prev.open ? {...prev, open: false} : prev))
+            return
+        }
+
+        const node = range.startContainer
+        if (node.nodeType !== Node.TEXT_NODE) {
+            setTagDropdown((prev) => (prev.open ? {...prev, open: false} : prev))
+            return
+        }
+
+        const text = node.textContent ?? ""
+        const beforeCursor = text.slice(0, range.startOffset)
+        const match = beforeCursor.match(/(?:^|\s)@([^\s]*)$/)
+        if (!match) {
+            setTagDropdown((prev) => (prev.open ? {...prev, open: false} : prev))
+            return
+        }
+
+        const query = match[1]
+        const rect = range.getBoundingClientRect()
+        let x = rect.left
+        let y = rect.bottom
+        if (x === 0 && y === 0) {
+            const parentEl = node.parentElement
+            if (parentEl) {
+                const pRect = parentEl.getBoundingClientRect()
+                x = pRect.left + 20
+                y = pRect.bottom
+            }
+        }
+
+        setTagDropdown({
+            open: true,
+            position: {x, y},
+            query,
+            mode: "live",
+        })
+    }, [])
+
+    const checkSourceTagTrigger = useCallback(() => {
+        const ta = textareaRef.current
+        if (!ta) return
+        const cursor = ta.selectionStart
+        const before = ta.value.slice(0, cursor)
+        const match = before.match(/(?:^|\s)@([^\s]*)$/)
+        if (!match) {
+            setTagDropdown((prev) => (prev.open ? {...prev, open: false} : prev))
+            return
+        }
+
+        const query = match[1]
+        const rect = ta.getBoundingClientRect()
+        const lines = before.split("\n")
+        const lineIndex = lines.length - 1
+        const colIndex = lines[lineIndex].length
+
+        const charWidth = 7.2
+        const lineHeight = 19.5
+        const x = rect.left + 20 + colIndex * charWidth - ta.scrollLeft
+        const y = rect.top + 20 + (lineIndex + 1) * lineHeight - ta.scrollTop
+
+        setTagDropdown({
+            open: true,
+            position: {x, y},
+            query,
+            mode: "source",
+        })
+    }, [])
+
+    const handleSelectFileTag = useCallback(
+        (file: WorkdirFileItem) => {
+            if (tagDropdown.mode === "live") {
+                const sel = window.getSelection()
+                if (!sel || sel.rangeCount === 0 || !editorRef.current) return
+                const range = sel.getRangeAt(0)
+                const node = range.startContainer
+
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent ?? ""
+                    const beforeCursor = text.slice(0, range.startOffset)
+                    const match = beforeCursor.match(/(?:^|\s)@([^\s]*)$/)
+                    if (match) {
+                        const atIndex = range.startOffset - match[1].length - 1
+                        const replaceRange = document.createRange()
+                        replaceRange.setStart(node, atIndex)
+                        replaceRange.setEnd(node, range.startOffset)
+                        replaceRange.deleteContents()
+
+                        const a = document.createElement("a")
+                        a.href = file.id
+                        a.target = "_blank"
+                        a.rel = "noopener noreferrer"
+                        a.className =
+                            "text-indigo-600 dark:text-indigo-400 underline underline-offset-2 hover:text-indigo-500"
+                        a.textContent = file.name
+                        replaceRange.insertNode(a)
+
+                        const spacer = document.createTextNode("\u00A0")
+                        if (a.parentNode) {
+                            a.parentNode.insertBefore(spacer, a.nextSibling)
+                            const newRange = document.createRange()
+                            newRange.setStart(spacer, 1)
+                            newRange.collapse(true)
+                            sel.removeAllRanges()
+                            sel.addRange(newRange)
+                        }
+                    }
+                }
+                syncEditorMarkdown(false)
+            } else {
+                const ta = textareaRef.current
+                if (!ta) return
+                const cursor = ta.selectionStart
+                const before = markdown.slice(0, cursor)
+                const match = before.match(/(?:^|\s)@([^\s]*)$/)
+                if (match) {
+                    const atIndex = cursor - match[1].length - 1
+                    const linkText = `[${file.name}](${file.id}) `
+                    const next = markdown.slice(0, atIndex) + linkText + markdown.slice(cursor)
+                    pushHistoryAndSync(next, false)
+                    setTimeout(() => {
+                        if (textareaRef.current) {
+                            const nextPos = atIndex + linkText.length
+                            textareaRef.current.focus()
+                            textareaRef.current.setSelectionRange(nextPos, nextPos)
+                        }
+                    }, 0)
+                }
+            }
+            setTagDropdown((prev) => ({...prev, open: false}))
+        },
+        [markdown, pushHistoryAndSync, syncEditorMarkdown, tagDropdown.mode],
+    )
+
     const handleLiveInput = useCallback((e?: React.FormEvent<HTMLDivElement>) => {
         if (!editorRef.current) return
         const target = e?.target as HTMLElement | undefined
@@ -374,12 +531,14 @@ const DocumentEditor: React.FC = () => {
         } else {
             tryLiveTransform()
             handleCodeBlockInput(e)
+            setTimeout(checkLiveTagTrigger, 0)
         }
         syncEditorMarkdown(false)
-    }, [handleCodeBlockInput, probeAndApplyImageUrl, replacePlaceholderWithImage, syncEditorMarkdown, tryLiveTransform])
+    }, [checkLiveTagTrigger, handleCodeBlockInput, probeAndApplyImageUrl, replacePlaceholderWithImage, syncEditorMarkdown, tryLiveTransform])
 
     const handleLiveClick = useCallback(
         (e: React.MouseEvent<HTMLDivElement>) => {
+            setTagDropdown((prev) => (prev.open ? {...prev, open: false} : prev))
             if (handleCodeBlockClick(e)) return
             const target = e.target as HTMLElement
             const actionBtn = target.closest<HTMLElement>("[data-image-action]")
@@ -768,84 +927,76 @@ const DocumentEditor: React.FC = () => {
                     <Sparkles className="h-3.5 w-3.5 text-indigo-500"/>
                     <span>
                         {sourceMode
-                            ? "Source Markdown Mode (Auto-syncs in 500ms)"
+                            ? "Raw Markdown Content (Viewing & editing raw source)"
                             : "Live Markdown Mode — type *bold*, # heading, - list, ~~strike~~ or select text & use toolbar"}
                     </span>
                 </div>
             </div>
 
             {sourceMode ? (
-                <div className="grid flex-1 grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
-                    <div className="flex flex-col p-4">
-                        <span className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Markdown Source
-                        </span>
-                        <textarea
-                            ref={textareaRef}
-                            value={markdown}
-                            onChange={(e) => {
-                                pushHistoryAndSync(e.target.value, false)
-                            }}
-                            onSelect={(e) => {
-                                const target = e.currentTarget
-                                savedTextareaSelRef.current = {
-                                    start: target.selectionStart,
-                                    end: target.selectionEnd,
-                                }
-                            }}
-                            onKeyDown={(e) => {
-                                if (BRACKET_PAIRS[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                                    const ta = e.currentTarget
-                                    const start = ta.selectionStart
-                                    const end = ta.selectionEnd
-                                    if (start !== end) {
-                                        e.preventDefault()
-                                        const selected = markdown.slice(start, end)
-                                        const closeChar = BRACKET_PAIRS[e.key]
-                                        const next = markdown.slice(0, start) + e.key + selected + closeChar + markdown.slice(end)
-                                        pushHistoryAndSync(next, false)
-                                        setTimeout(() => {
-                                            ta.setSelectionRange(start + 1, end + 1)
-                                        }, 0)
-                                        return
-                                    }
-                                }
-                                if (e.key === "Tab") {
+                <div className="flex flex-1 flex-col p-6">
+                    <textarea
+                        ref={textareaRef}
+                        value={markdown}
+                        onChange={(e) => {
+                            pushHistoryAndSync(e.target.value, false)
+                            setTimeout(checkSourceTagTrigger, 0)
+                        }}
+                        onSelect={(e) => {
+                            const target = e.currentTarget
+                            savedTextareaSelRef.current = {
+                                start: target.selectionStart,
+                                end: target.selectionEnd,
+                            }
+                            checkSourceTagTrigger()
+                        }}
+                        onKeyUp={() => checkSourceTagTrigger()}
+                        onKeyDown={(e) => {
+                            if (tagDropdown.open && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+                                return
+                            }
+                            if (BRACKET_PAIRS[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                                const ta = e.currentTarget
+                                const start = ta.selectionStart
+                                const end = ta.selectionEnd
+                                if (start !== end) {
                                     e.preventDefault()
-                                    const ta = e.currentTarget
-                                    const start = ta.selectionStart
-                                    const end = ta.selectionEnd
-                                    if (!e.shiftKey) {
-                                        const next = markdown.slice(0, start) + "  " + markdown.slice(end)
+                                    const selected = markdown.slice(start, end)
+                                    const closeChar = BRACKET_PAIRS[e.key]
+                                    const next = markdown.slice(0, start) + e.key + selected + closeChar + markdown.slice(end)
+                                    pushHistoryAndSync(next, false)
+                                    setTimeout(() => {
+                                        ta.setSelectionRange(start + 1, end + 1)
+                                    }, 0)
+                                    return
+                                }
+                            }
+                            if (e.key === "Tab") {
+                                e.preventDefault()
+                                const ta = e.currentTarget
+                                const start = ta.selectionStart
+                                const end = ta.selectionEnd
+                                if (!e.shiftKey) {
+                                    const next = markdown.slice(0, start) + "  " + markdown.slice(end)
+                                    pushHistoryAndSync(next, false)
+                                    setTimeout(() => {
+                                        ta.setSelectionRange(start + 2, start + 2)
+                                    }, 0)
+                                } else {
+                                    const lineStart = markdown.lastIndexOf("\n", start - 1) + 1
+                                    if (markdown.slice(lineStart, lineStart + 2) === "  ") {
+                                        const next = markdown.slice(0, lineStart) + markdown.slice(lineStart + 2)
                                         pushHistoryAndSync(next, false)
                                         setTimeout(() => {
-                                            ta.setSelectionRange(start + 2, start + 2)
+                                            ta.setSelectionRange(Math.max(lineStart, start - 2), Math.max(lineStart, end - 2))
                                         }, 0)
-                                    } else {
-                                        const lineStart = markdown.lastIndexOf("\n", start - 1) + 1
-                                        if (markdown.slice(lineStart, lineStart + 2) === "  ") {
-                                            const next = markdown.slice(0, lineStart) + markdown.slice(lineStart + 2)
-                                            pushHistoryAndSync(next, false)
-                                            setTimeout(() => {
-                                                ta.setSelectionRange(Math.max(lineStart, start - 2), Math.max(lineStart, end - 2))
-                                            }, 0)
-                                        }
                                     }
                                 }
-                            }}
-                            placeholder="Write your Markdown here..."
-                            className="min-h-[460px] w-full flex-1 resize-y rounded-lg border border-border bg-background p-4 font-mono text-xs leading-relaxed text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                    </div>
-                    <div className="flex flex-col p-4">
-                        <span className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Rendered Preview
-                        </span>
-                        <div
-                            className="min-h-[460px] flex-1 rounded-lg border border-border/60 bg-background/50 p-5 text-sm leading-relaxed"
-                            dangerouslySetInnerHTML={{__html: renderMarkdownToHtml(markdown)}}
-                        />
-                    </div>
+                            }
+                        }}
+                        placeholder="Raw Markdown content..."
+                        className="min-h-[500px] w-full flex-1 resize-y rounded-xl border border-border bg-background p-5 font-mono text-xs leading-relaxed text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
                 </div>
             ) : (
                 <div
@@ -1066,6 +1217,9 @@ const DocumentEditor: React.FC = () => {
                         onInput={handleLiveInput}
                         onClick={handleLiveClick}
                         onKeyDown={(e) => {
+                            if (tagDropdown.open && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+                                return
+                            }
                             const keyTarget = e.target as HTMLElement | null
                             if (keyTarget?.getAttribute("data-image-url-input") === "true") {
                                 if (e.key === "Enter" || e.key === "Escape") {
@@ -1221,6 +1375,15 @@ const DocumentEditor: React.FC = () => {
                     </datalist>
                 </div>
             )}
+
+            <FileTagDropdown
+                open={tagDropdown.open}
+                position={tagDropdown.position}
+                query={tagDropdown.query}
+                files={projectFiles}
+                onSelect={handleSelectFileTag}
+                onClose={() => setTagDropdown((prev) => ({...prev, open: false}))}
+            />
         </div>
     )
 }

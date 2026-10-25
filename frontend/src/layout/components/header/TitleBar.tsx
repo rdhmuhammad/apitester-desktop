@@ -3,6 +3,7 @@ import {Images} from "@/config/constant/Images.tsx"
 import {Button} from "@/components/ui/button.tsx"
 import {LoaderCircle, Maximize2, Minimize2, Minus, Moon, Settings, Sun, TriangleAlert, Wifi, WifiOff, X} from "lucide-react"
 import CollectionManager from "@/layout/components/collectionManager"
+import ProjectSwitcher from "@/layout/components/header/ProjectSwitcher.tsx"
 import {useSocket} from "@/hooks/useSocket.ts"
 import {SOCKET_NAMESPACES} from "@/config/socket.ts"
 import {useTheme} from "@/hooks/useTheme.ts"
@@ -53,6 +54,8 @@ const TitleBar: React.FC = () => {
                 <span className="text-sm italic font-semibold text-foreground mr-2">
                     Apitester
                 </span>
+
+                <ProjectSwitcher/>
 
                 <Button
                     variant="ghost"

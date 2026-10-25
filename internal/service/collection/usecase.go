@@ -92,8 +92,48 @@ func (u *Usecase) NotifyChanges(data []byte) {
 	}
 }
 
+// ListCollections returns the collections of the currently selected project.
 func (u *Usecase) ListCollections(ctx context.Context) ([]domain.Collection, error) {
-	return u.CollectionRepo.List(ctx)
+	projectID, err := u.selectedProjectID(ctx)
+	if err != nil {
+		return nil, u.ErrHandler.ErrorReturn(err)
+	}
+
+	all, err := u.CollectionRepo.List(ctx)
+	if err != nil {
+		return nil, u.ErrHandler.ErrorReturn(err)
+	}
+
+	return filterCollectionsByProject(all, projectID), nil
+}
+
+func (u *Usecase) selectedProjectID(ctx context.Context) (string, error) {
+	if u.projectRepo == nil {
+		return "", nil
+	}
+	projects, err := u.projectRepo.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, p := range projects {
+		if p.IsSelected {
+			return p.ID, nil
+		}
+	}
+	return "", nil
+}
+
+func filterCollectionsByProject(all []domain.Collection, projectID string) []domain.Collection {
+	result := make([]domain.Collection, 0)
+	if projectID == "" {
+		return result
+	}
+	for _, c := range all {
+		if c.ProjectID == projectID {
+			result = append(result, c)
+		}
+	}
+	return result
 }
 
 func (u *Usecase) Read(ctx context.Context, id string) (ReadResponse, error) {

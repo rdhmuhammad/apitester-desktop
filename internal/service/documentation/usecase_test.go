@@ -127,3 +127,101 @@ func TestDocumentationUsecaseFlow(t *testing.T) {
 		t.Fatalf("expected file to be deleted from disk")
 	}
 }
+
+func TestDocumentationTreeGitIgnoreAndShowFlag(t *testing.T) {
+	uc, projRoot := setupTestDocUsecase(t)
+	ctx := context.Background()
+
+	// 1. Create .gitignore
+	gitIgnoreContent := `
+node_modules
+secret.env
+*.log
+`
+	if err := os.WriteFile(filepath.Join(projRoot, ".gitignore"), []byte(gitIgnoreContent), 0644); err != nil {
+		t.Fatalf("failed to write .gitignore: %v", err)
+	}
+
+	// 2. Create ignored items
+	if err := os.MkdirAll(filepath.Join(projRoot, "node_modules", "some-pkg"), 0755); err != nil {
+		t.Fatalf("failed to mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projRoot, "node_modules", "some-pkg", "index.js"), []byte("..."), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projRoot, "secret.env"), []byte("KEY=VAL"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projRoot, "app.log"), []byte("log"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	// 3. Create non-doc files and folder (cmd/api/main.go)
+	if err := os.MkdirAll(filepath.Join(projRoot, "cmd", "api"), 0755); err != nil {
+		t.Fatalf("failed to mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projRoot, "cmd", "api", "main.go"), []byte("package main"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	// 4. Create doc file and folder (docs/guide.md)
+	if err := os.MkdirAll(filepath.Join(projRoot, "docs"), 0755); err != nil {
+		t.Fatalf("failed to mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projRoot, "docs", "guide.md"), []byte("# Guide"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	// 5. Fetch tree
+	tree, err := uc.GetTree(ctx)
+	if err != nil {
+		t.Fatalf("GetTree failed: %v", err)
+	}
+
+	// Helper to find node
+	var findNode func(nodes []DocumentTree, id string) *DocumentTree
+	findNode = func(nodes []DocumentTree, id string) *DocumentTree {
+		for _, n := range nodes {
+			if n.ID == id {
+				return &n
+			}
+			if len(n.Item) > 0 {
+				if found := findNode(n.Item, id); found != nil {
+					return found
+				}
+			}
+		}
+		return nil
+	}
+
+	// Ignored items must NOT be present
+	if findNode(tree, "node_modules") != nil {
+		t.Errorf("node_modules should be ignored")
+	}
+	if findNode(tree, "secret.env") != nil {
+		t.Errorf("secret.env should be ignored")
+	}
+	if findNode(tree, "app.log") != nil {
+		t.Errorf("app.log should be ignored")
+	}
+
+	// Doc folder and file must have Show == true
+	docsNode := findNode(tree, "docs")
+	if docsNode == nil || !docsNode.Show {
+		t.Errorf("docs folder should exist with Show == true, got %+v", docsNode)
+	}
+	guideNode := findNode(tree, "docs/guide.md")
+	if guideNode == nil || !guideNode.Show || guideNode.Category != "DOC_MD" {
+		t.Errorf("docs/guide.md should have Show == true and Category == DOC_MD, got %+v", guideNode)
+	}
+
+	// Pure code folder (cmd) and file (cmd/api/main.go) must have Show == false
+	cmdNode := findNode(tree, "cmd")
+	if cmdNode == nil || cmdNode.Show {
+		t.Errorf("cmd folder should exist with Show == false, got %+v", cmdNode)
+	}
+	mainNode := findNode(tree, "cmd/api/main.go")
+	if mainNode == nil || mainNode.Show || mainNode.Category != "FILE" {
+		t.Errorf("cmd/api/main.go should have Show == false and Category == FILE, got %+v", mainNode)
+	}
+}

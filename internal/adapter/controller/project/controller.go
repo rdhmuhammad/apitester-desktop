@@ -14,7 +14,8 @@ import (
 
 type Usecase interface {
 	ListProjects(ctx context.Context) ([]service.ProjectResponse, error)
-	CreateProject(ctx context.Context, req service.CreateProjectRequest) (service.ProjectResponse, error)
+	OpenProject(ctx context.Context, req service.OpenProjectRequest) (service.ProjectResponse, error)
+	SelectProject(ctx context.Context, id string) (service.ProjectResponse, error)
 	UpdateProjectByID(ctx context.Context, id string, req service.UpdateProjectRequest) (service.ProjectResponse, error)
 	DeleteProject(ctx context.Context, id string) error
 }
@@ -39,15 +40,20 @@ func (ctrl Controller) ListProjects(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Projects retrieved"), err)
 }
 
-func (ctrl Controller) CreateProject(c *gin.Context) {
-	var req service.CreateProjectRequest
+func (ctrl Controller) OpenProject(c *gin.Context) {
+	var req service.OpenProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage(err.Error()))
 		return
 	}
 
-	res, err := ctrl.usecase.CreateProject(c.Request.Context(), req)
-	ctrl.respond(c, payload.NewSuccessResponse(res, "Project created"), err)
+	res, err := ctrl.usecase.OpenProject(c.Request.Context(), req)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Project opened"), err)
+}
+
+func (ctrl Controller) SelectProject(c *gin.Context) {
+	res, err := ctrl.usecase.SelectProject(c.Request.Context(), c.Param("id"))
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Project selected"), err)
 }
 
 func (ctrl Controller) UpdateProjectByID(c *gin.Context) {
@@ -69,7 +75,8 @@ func (ctrl Controller) DeleteProject(c *gin.Context) {
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	project := rg.Group("/project")
 	project.GET("/list", ctrl.ListProjects)
-	project.POST("/create", ctrl.CreateProject)
+	project.POST("/open", ctrl.OpenProject)
+	project.PUT("/select/:id", ctrl.SelectProject)
 	project.PUT("/:id", ctrl.UpdateProjectByID)
 	project.DELETE("/:id", ctrl.DeleteProject)
 }
