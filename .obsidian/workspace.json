@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "b1918768cfa58c21",
+        "id": "70f683ea0cd7e23c",
         "type": "tabs",
         "children": [
           {
-            "id": "e9d895a88ffe29c5",
+            "id": "7823f24b3eb78a62",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "resource/document/wiki/patterns/frontend/socket-io-service-and-hook-wiring.md",
+                "file": "resource/document/raw/tasks/Fixing Behavior of DocumentEditor.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "socket-io-service-and-hook-wiring"
+              "title": "Fixing Behavior of DocumentEditor"
             }
           }
         ]
@@ -55,7 +55,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "backend-te",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -99,7 +99,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "AGENTS.md",
+                "file": "resource/document/raw/tasks/Mock data mechanism.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -171,7 +171,7 @@
             }
           },
           {
-            "id": "3b77c1fa5559faca",
+            "id": "e67007bb55cfd6f0",
             "type": "leaf",
             "state": {
               "type": "mermaid-toolbar-view",
@@ -200,44 +200,44 @@
       "bases:Create new base": false
     }
   },
-  "active": "e9d895a88ffe29c5",
+  "active": "7823f24b3eb78a62",
   "lastOpenFiles": [
-    "frontend/dist/index.html",
-    "frontend/dist/assets/vendor-router-BfGmT5Km.js",
-    "frontend/dist/assets/vendor-query-DeA5-NlU.js",
-    "frontend/dist/assets/vendor-radix-Bw68iBg6.js",
-    "frontend/dist/assets/vendor-misc-ChzJ8184.js",
-    "frontend/dist/assets/vendor-i18n-BcXe8FLH.js",
-    "frontend/dist/assets/vendor-forms-BcXe8FLH.js",
-    "frontend/dist/assets/vendor-editor-CQYLBoXQ.js",
-    "frontend/dist/assets/vendor-charts-BdiIj9nr.js",
-    "frontend/dist/assets/index-xi1R1CfW.js",
-    "frontend/dist/assets/index-LH5eC3wx.js",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/049c8aa1ef603f7362c2ccb6078d946a66281c4219ae49702c071af3d248f0b8.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/3ef040799c62be27b914a75f41ea089dfb4f0989e232a90ed937a01bbc0f0257.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/311470b66a3a0a6e0d5b20c07ec1f525a6631160cd9a27e25adefe94407d2983.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/5d5c9a6d6bf8e10b7db1ea96a040a2ae4c0ac180bd608013cc57989c0762585b.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/8dfc64b6169d5a8a7c8d46e7b6f8cda05995f14a68a4df70a06f6d338491bf78.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/d8e1dbfb4b0407d4c0da3ed52e6e162c7a8b874a8613d10b6668297119505ba7.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/0aedeeb07a9e4117812bdbd90a109b3a67cddf05ed6017f96183a9766f6b4120.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/46a57ab03566c277b8f5ae6dd1ce6c8c1a92f9875eeccfc153723501687a03ae.json",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/1df88d89cc4adafee1e4cf6759e23b1400f4a02b7191da9e6b8c87c0a39cbc5f.json",
+    "frontend/src/pages/editor/hooks/useCodeBlock.ts",
+    "graphify-out/cache/ast/v0.9.88-s12-g84a7849c22e5/71d8d1e6cd8ffdb8b9f23a91aad47dc4071024991c6f0268489bc5831164b2a4.json",
     "frontend/dist/assets/api-tester-banner-BypRQSqu.png",
-    "resource/document/raw/patterns/frontend/Socket Client Integration.md",
-    "resource/document/wiki/patterns/frontend/socket-io-service-and-hook-wiring.md",
-    "resource/document/raw/patterns/frontend/Pattern of wiring.md",
-    "resource/document/raw/patterns/backend/Example of Module Socket.md",
-    "resource/document/raw/patterns/backend/Example of API and Socket Registration.md",
-    "resource/document/wiki/patterns/backend/index.md",
-    "resource/document/wiki/patterns/backend/example-of-api-and-socket-registration.md",
-    "resource/document/wiki/decisions/debounced-request-config-mutations.md",
-    "resource/document/wiki/decisions/file-backed-restrequest-editing.md",
-    "resource/document/wiki/decisions/collection-history-for-restrequest-mutations.md",
-    "resource/document/wiki/patterns/frontend/index.md",
-    "graphify-out/memory/query_20260910_080732_query_explain__frontend_src_pages_editor_component.md",
-    "resource/document/wiki/patterns/frontend/api-service-and-query-hook-wiring.md",
-    "resource/document/wiki/patterns/frontend/create-new-tabs-kind.md",
-    "resource/document/wiki/decisions/index.md",
-    "resource/document/wiki/concepts/index.md",
-    "resource/document/wiki/index.md",
-    "resource/document/wiki/concepts/backend/file-backed-editor-sync.md",
+    "AGENTS.md",
+    "resource/document/raw/tasks/Fixing Behavior of DocumentEditor.md",
+    "graphify-out/2026-10-23/GRAPH_REPORT.md",
+    "README.md",
+    "resource/document/raw/decisions/Markdown advance syntax.md",
+    "resource/document/raw/tasks/Enhancing Save Example.md",
+    "resource/document/raw/decisions/Markdown Basic Syntax.md",
+    "resource/document/raw/tasks/Initiate Mechanism for Document Management.md",
+    "graphify-out/2026-10-21/GRAPH_REPORT.md",
+    "resource/document/wiki/decisions/documentation-management-and-markdown-editor.md",
+    "resource/document/raw/tasks/Wiring endpoint update tree.md",
+    "resource/document/raw/tasks/Initiate Page type Document.md",
+    "resource/document/raw/tasks/Enhance Variable Display in Editor.md",
+    "resource/document/raw/decisions/Markdown viewer design.md",
+    "resource/document/wiki/tasks/backlog.md",
     "resource/document/wiki/log.md",
-    "resource/document/wiki/patterns/usecase/new-usecase-workflow.md",
+    "frontend/testing/result/html-report/data/a4cec41366949440cc16cbfc0f9f10b1c479e928.md",
+    "frontend/testing/result/test-results/path-variable-Params-Tab---5634d-es-on-endpoint-modification/error-context.md",
+    "resource/flatten_result/document.md",
+    "resource/document/raw/concepts/backend-tech-spec.md",
     "resource/document/raw/concepts/backend/IDE Like File Editor Design.md",
-    "resource/document/raw/decisions/Rest Request.md",
-    "resource/document/raw/decisions/Test Suites.md",
-    "resource/document/wiki/decisions/Untitled.md",
-    "resource/document/wiki/patterns/usecase/index.md"
+    "resource/document/raw/tasks/Setup Playwright testing.md",
+    "frontend/testing/result/html-report/data/6b4f054e99cd0ea4e5e9c185a22bb02ceec988b7.md",
+    "frontend/testing/result/test-results/multipart-body-Multipart-F-2daef--multipart-form-data-fields/error-context.md",
+    "frontend/testing/result/html-report/data/e16ffb90f753dce38abcd39e32ae27406acdbf69.md"
   ]
 }

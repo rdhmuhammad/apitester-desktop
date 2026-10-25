@@ -10,6 +10,7 @@ This wiki is a structured, interlinked knowledge base for working with this code
 - Agent AI maintains the wiki
 - Human curates sources (folder raw), ask question and guides the analysis
 
+
 ## Folder Structure
 
 | Folder                                      | Note                                               |
@@ -62,7 +63,7 @@ Link to related concepts using [[wiki-links]] throughout the text.
 
 ## Question Answering
 
-When user ask a question:
+When user ask a *question*:
 1. Read `resource/document/wiki/index.md` first to find relevant pages
 2. Read those pages and synthesized an answer
 3. If answer is not in wiki, note to chat about that while resolving the question

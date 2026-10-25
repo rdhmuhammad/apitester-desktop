@@ -12,11 +12,18 @@
       "request": {
         "funIden": "",
         "method": "GET",
-        "header": [],
+        "header": [
+          {
+            "id": "",
+            "key": "Authorization",
+            "value": "Bearer parent-bearer-token-123",
+            "disabled": false
+          }
+        ],
         "url": {
           "raw": "/api/v1/partner/business/:test/:ini?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
           "host": [
-            "{{host}}"
+            "{{base_url}}"
           ],
           "path": [
             "api",
@@ -73,11 +80,18 @@
               "type": "",
               "authSource": "none"
             },
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
               "raw": "/api/v1/partner/business/:test/:ini?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -148,11 +162,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
-              "raw": "{{host}}/api/v1/partner/business/c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
+              "raw": "{{base_url}}/api/v1/partner/business/c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -210,7 +231,7 @@
             "url": {
               "raw": "/api/v1/partner/outlet?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -286,7 +307,7 @@
                 "url": {
                   "raw": "/api/v1/partner/outlet?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
                   "host": [
-                    "{{host}}"
+                    "{{base_url}}"
                   ],
                   "path": [
                     "api",
@@ -336,163 +357,163 @@
               "code": 200,
               "header": [
                 {
-                  "id": "",
+                  "id": "1071f6bf-732a-4d1d-b151-3aac8540cfc6",
                   "key": "access-control-allow-credentials",
                   "value": "true",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "490e25d0-f4e4-4c44-bb63-84e4f9812cb9",
                   "key": "access-control-allow-headers",
                   "value": "*",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "6d4d11ad-d80a-4c9f-94aa-07f7ff162b21",
                   "key": "access-control-allow-methods",
                   "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "59a7c2fe-8dc1-43e2-acc9-d270e5cb7dcd",
                   "key": "access-control-allow-origin",
                   "value": "*",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "11bc44b0-85c4-4c7b-81d9-3e3e12c7eccc",
                   "key": "access-control-expose-headers",
                   "value": "*",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "b837a143-4e17-4a14-90f1-4581bdcd4157",
                   "key": "content-encoding",
                   "value": "gzip",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "1ea8921b-091e-4446-996e-fb77a7a4fef9",
                   "key": "content-security-policy",
                   "value": "default-src 'self';base-uri 'self';block-all-mixed-content;font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "f9eadf1a-a2b1-47ff-9e3e-df1fd227862b",
                   "key": "content-type",
                   "value": "application/json; charset=utf-8",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "4c339216-a4df-4492-a02a-bfb4cdd9b430",
                   "key": "cross-origin-embedder-policy",
                   "value": "require-corp",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "9210ab6c-16a9-43a6-9355-51365e82eb4e",
                   "key": "cross-origin-opener-policy",
                   "value": "same-origin",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "61dfc3f3-fe0e-4e19-937f-65c3111d00de",
                   "key": "cross-origin-resource-policy",
                   "value": "cross-origin",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "5e7a0808-0c75-4655-8b4a-f2b4e7428e8a",
                   "key": "date",
                   "value": "Fri, 09 Oct 2026 08:54:10 GMT",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "f3a0ea55-5735-45e1-a1fd-51cc69e81495",
                   "key": "etag",
                   "value": "W/\"e95-3ugnoxQtXfO23paT7LBXbENXaB4\"",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "14dfe031-fe84-4187-848c-993b881c7df4",
                   "key": "expect-ct",
                   "value": "max-age=0",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "c4085ba9-0db1-417a-a566-9021cc7738d0",
                   "key": "origin-agent-cluster",
                   "value": "?1",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "ba963386-b417-4f1e-a85b-49d924824eb7",
                   "key": "referrer-policy",
                   "value": "no-referrer",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "c088d063-210a-435d-ab43-d72f77aa73f6",
                   "key": "strict-transport-security",
                   "value": "max-age=15552000; includeSubDomains",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "07f2a12f-8f4f-4328-ac6e-4456d53b321b",
                   "key": "vary",
                   "value": "Accept-Encoding",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "a75f0774-ca2b-43fa-afd2-38f50523037b",
                   "key": "x-content-type-options",
                   "value": "nosniff",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "487447c6-a988-4fa9-9ff9-865e7f287ccc",
                   "key": "x-dns-prefetch-control",
                   "value": "off",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "c6a3e550-2528-4463-bcdb-feebb1eff1f6",
                   "key": "x-download-options",
                   "value": "noopen",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "65425cb2-978f-4ea9-8864-2fc7484d7c22",
                   "key": "x-frame-options",
                   "value": "SAMEORIGIN",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "ae1b4f2b-dde8-401d-8273-5c6a239cf46f",
                   "key": "x-permitted-cross-domain-policies",
                   "value": "none",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "7b5132c8-127d-48d9-993f-2b8b0f190f95",
                   "key": "x-ratelimit-limit",
                   "value": "100000",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "bc97becc-56a8-4f8e-84ee-e5d9c8018207",
                   "key": "x-ratelimit-remaining",
                   "value": "99875",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "ff8f4f27-ef35-40ca-9301-046c11068285",
                   "key": "x-ratelimit-reset",
                   "value": "1791536059",
                   "disabled": false
                 },
                 {
-                  "id": "",
+                  "id": "6eb87775-6625-4df6-a6eb-a6cd4fb1e103",
                   "key": "x-xss-protection",
                   "value": "0",
                   "disabled": false
@@ -509,11 +530,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
-              "raw": "{{host}}/api/v1/partner/outlet/a9d94ab3-0ff5-4e19-a8b5-cb4e6f54b92c",
+              "raw": "{{base_url}}/api/v1/partner/outlet/a9d94ab3-0ff5-4e19-a8b5-cb4e6f54b92c",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -548,11 +576,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
-              "raw": "{{host}}/api/v1/partner/category?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
+              "raw": "{{base_url}}/api/v1/partner/category?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -613,11 +648,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
-              "raw": "{{host}}/api/v1/partner/category/aac56d7a-6534-4ab8-a648-7e4620774e1d",
+              "raw": "{{base_url}}/api/v1/partner/category/aac56d7a-6534-4ab8-a648-7e4620774e1d",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -652,11 +694,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
               "raw": "/api/v1/partner/item?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt\u0026outletId=8f4ef39d-f983-441a-90de-7a9b047ff691\u0026isOnline=true",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -729,11 +778,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
-              "raw": "{{host}}/api/v1/partner/item/3b01ad56-3854-489d-bcc6-30c24ed3c8a6",
+              "raw": "{{base_url}}/api/v1/partner/item/3b01ad56-3854-489d-bcc6-30c24ed3c8a6",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -768,11 +824,18 @@
           "request": {
             "funIden": "",
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
+              }
+            ],
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/order/find-all?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt\u0026businessId=c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
+              "raw": "{{base_url}}/api/v1/partner/transaction/order/find-all?page=1\u0026limit=10\u0026order=desc\u0026orderBy=createdAt\u0026businessId=c7d85b3c-7b0f-42ce-a452-b22c3b94bf15",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -822,9 +885,15 @@
             "method": "POST",
             "header": [
               {
-                "id": "",
+                "id": "29570fd9-1afe-458d-8575-2eec0aadad25",
                 "key": "Content-Type",
                 "value": "application/json",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
                 "disabled": false
               }
             ],
@@ -833,9 +902,9 @@
               "raw": "{\n    \"outletId\": \"d2f1a765-ce09-4ebb-a428-9ec7401bd188\",\n    \"customerName\": \"Lutfi\",\n    \"customerPhoneNumber\": \"085763666634\",\n    \"customerEmail\": null,\n    \"orderType\": \"reguler\",\n    \"orderMethod\": \"reguler\",\n    \"tableId\": null,\n    \"tableIds\": null\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/order/create",
+              "raw": "{{base_url}}/api/v1/partner/transaction/order/create",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -858,9 +927,15 @@
             "method": "GET",
             "header": [
               {
-                "id": "",
+                "id": "a1847c1d-022b-451f-85ac-78e5be85bfb8",
                 "key": "Content-Type",
                 "value": "application/json",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
                 "disabled": false
               }
             ],
@@ -869,9 +944,9 @@
               "raw": ""
             },
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/order/cart-list/{{order_id}}",
+              "raw": "{{base_url}}/api/v1/partner/transaction/order/cart-list/{{order_id}}",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -913,9 +988,15 @@
                 "disabled": false
               },
               {
-                "id": "",
+                "id": "10e0b960-1b7c-4003-ba0c-f1c9be970f68",
                 "key": "Content-Type",
                 "value": "application/json",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
                 "disabled": false
               }
             ],
@@ -924,9 +1005,9 @@
               "raw": "{\n  \"items\": [\n    {\n      \"itemId\": \"c87bd611-8d46-430b-b26c-a6b52b05e0cb\",\n      \"itemVariantId\": null,\n      \"qty\": 1,\n      \"note\": null,\n      \"addons\": null\n    }\n  ]\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/checkout/add-to-cart/{{order_id}}",
+              "raw": "{{base_url}}/api/v1/partner/transaction/checkout/add-to-cart/{{order_id}}",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -983,9 +1064,15 @@
                 "disabled": false
               },
               {
-                "id": "",
+                "id": "07f4340d-dee4-4106-bfc7-799dfde39d39",
                 "key": "Content-Type",
                 "value": "application/json",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
                 "disabled": false
               }
             ],
@@ -994,9 +1081,9 @@
               "raw": "{\n  \"orderDetailId\": \"10c12371-c55d-43b2-b897-fd2a5110bbeb\",\n  \"qty\": 3,\n  \"isUpdateBatchOrder\": false\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/order/cart-update",
+              "raw": "{{base_url}}/api/v1/partner/transaction/order/cart-update",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -1052,9 +1139,15 @@
                 "disabled": false
               },
               {
-                "id": "",
+                "id": "bd01efdd-553a-49e8-a46a-c98cac5361b7",
                 "key": "Content-Type",
                 "value": "application/json",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
                 "disabled": false
               }
             ],
@@ -1063,9 +1156,9 @@
               "raw": "{\n  \"splitCount\": 1,\n  \"isSplitBill\": false,\n  \"tableId\": null,\n  \"tableIds\": [],\n  \"customerId\": null,\n  \"customerName\": \"Lutfi\",\n  \"customerPhoneNumber\": \"6285763666634\",\n  \"orderType\": \"reguler\",\n  \"payments\": [\n    {\n      \"orderId\": \"2cc3589f-e969-46b1-a116-a05160e392ea\",\n      \"paymentMethodId\": \"3d6f1688-672a-49b9-8a97-cdd5c66ebee7\",\n      \"paymentRef\": null,\n      \"roomNumber\": null,\n      \"cashReceived\": null,\n      \"cashReturned\": null,\n      \"discountPercentage\": null,\n      \"discountAmount\": null,\n      \"promoCodeId\": null,\n      \"promoCode\": null,\n      \"paymentDetails\": null\n    }\n  ]\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/payment",
+              "raw": "{{base_url}}/api/v1/partner/transaction/payment",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -1120,9 +1213,15 @@
                 "disabled": false
               },
               {
-                "id": "",
+                "id": "f14bd1cd-bd75-4b22-93e0-33a88978df5c",
                 "key": "Content-Type",
                 "value": "application/json",
+                "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
                 "disabled": false
               }
             ],
@@ -1131,9 +1230,9 @@
               "raw": "{\n  \"orderId\": \"544bbb23-0f8d-4210-b5a2-99f43eafe4ae\",\n  \"cancellationReason\": null\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/partner/transaction/cancel-order",
+              "raw": "{{base_url}}/api/v1/partner/transaction/cancel-order",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -1201,6 +1300,12 @@
             "key": "value new",
             "value": "",
             "disabled": false
+          },
+          {
+            "id": "",
+            "key": "Authorization",
+            "value": "Bearer parent-bearer-token-123",
+            "disabled": false
           }
         ],
         "body": {
@@ -1210,7 +1315,7 @@
         "url": {
           "raw": "/api/v1/adjustment/verify-signature/:test/:test?teh={{mock.firstName}}",
           "host": [
-            "{{host}}"
+            "{{base_url}}"
           ],
           "path": [
             "api",
@@ -1267,6 +1372,12 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "disabled": false
+              },
+              {
+                "id": "",
+                "key": "Authorization",
+                "value": "Bearer parent-bearer-token-123",
+                "disabled": false
               }
             ],
             "body": {
@@ -1276,7 +1387,7 @@
             "url": {
               "raw": "/api/v1/adjustment/verify-signature?teh={{mock.firstName}}",
               "host": [
-                "{{host}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -1318,234 +1429,13 @@
         }
       ],
       "id": "2ff6d976-a6b0-49b5-a72a-392002bffc1d"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "header": [],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "/api/v1/users?page=1\u0026limit=20",
-          "host": [],
-          "path": [
-            "api",
-            "v1",
-            "users"
-          ],
-          "query": [
-            {
-              "id": "ce0efdd9-f4a2-4205-95a7-3a50ca9d4143",
-              "key": "page",
-              "value": "1",
-              "description": "page number"
-            },
-            {
-              "id": "89b8ce79-a7d5-450b-b262-a25ea18d59c2",
-              "key": "limit",
-              "value": "20",
-              "description": "items limit"
-            }
-          ]
-        }
-      },
-      "id": "22963ad4-51bf-4c24-8fcb-e01000ec5ee4"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "auth": {
-          "type": "",
-          "authSource": "inherit"
-        },
-        "header": [
-          {
-            "id": "e76cdf28-8a3c-4e87-99ce-384f5625a2bc",
-            "key": "Authorization",
-            "value": "Bearer parent-bearer-token-123",
-            "disabled": false
-          }
-        ],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "/test-auth-endpoint",
-          "host": [],
-          "path": [
-            "test-auth-endpoint"
-          ],
-          "query": []
-        }
-      },
-      "id": "f7723b57-46ad-4487-a41e-bb53355cddd5"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "header": [],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "",
-          "host": [],
-          "path": [],
-          "query": []
-        }
-      },
-      "id": "075a8c15-80a5-470e-89a8-e2db9926d611"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "header": [
-          {
-            "id": "f54e5311-53fb-4eb0-9f44-43dfd77d786f",
-            "key": "{{mock.firstName}}",
-            "value": "{{mock.uuid}}",
-            "disabled": false
-          }
-        ],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "",
-          "host": [],
-          "path": [],
-          "query": []
-        }
-      },
-      "id": "5e97c9a6-1f52-4d7e-a89b-7f88c6a28f37"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "auth": {
-          "type": "",
-          "authSource": "inherit"
-        },
-        "header": [
-          {
-            "id": "a9856ed5-fce2-4e43-bec7-4ad091374d99",
-            "key": "Authorization",
-            "value": "Bearer parent-bearer-token-123",
-            "disabled": false
-          }
-        ],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "/test-auth-endpoint",
-          "host": [],
-          "path": [
-            "test-auth-endpoint"
-          ],
-          "query": []
-        }
-      },
-      "id": "73381ed7-eb1d-4b11-b141-c2de10e9cc91"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "header": [],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "",
-          "host": [],
-          "path": [],
-          "query": []
-        }
-      },
-      "id": "70128387-b249-4138-99be-681b4585c6c4"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "header": [],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "/api/v1/users",
-          "host": [],
-          "path": [
-            "api",
-            "v1",
-            "users"
-          ],
-          "query": []
-        }
-      },
-      "id": "5c0a4ef9-f0b0-40c5-a495-e83e9d12072a"
-    },
-    {
-      "funIden": "",
-      "name": "",
-      "request": {
-        "funIden": "",
-        "method": "",
-        "header": [
-          {
-            "id": "0bd731b6-7959-4692-b871-6b1c6dcf6668",
-            "key": "{{mock.firstName}}",
-            "value": "{{mock.uuid}}",
-            "disabled": false
-          }
-        ],
-        "body": {
-          "mode": "",
-          "raw": ""
-        },
-        "url": {
-          "raw": "",
-          "host": [],
-          "path": [],
-          "query": []
-        }
-      },
-      "id": "9084b1d1-04bd-430a-be6e-507168e3c49a"
     }
   ],
   "auth": {
     "type": "bearer",
     "bearer": [
       {
-        "id": "7a8c16c4-475c-4bf4-8725-344afe38f747",
+        "id": "0821a65f-c4e8-4eaf-9fcd-0c2dabc26aa3",
         "key": "token",
         "value": "parent-bearer-token-123",
         "type": "string"
@@ -1559,7 +1449,7 @@
       "category": "BASE_URL",
       "value": "https://posfly-api.tixfly.id",
       "type": "string",
-      "isSelected": false
+      "isSelected": true
     },
     {
       "id": "af04682a-96ca-4a27-906e-e3cf1c210b2e",

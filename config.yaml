@@ -1,0 +1,9 @@
+# Pyragify configuration for flattening repository documentation
+repo_path: resource/document
+output_dir: resource/flatten_result
+max_words: 1000000
+max_file_size: 10485760 # 10 MB
+skip_patterns:
+  - ".git"
+skip_dirs: []
+verbose: false
