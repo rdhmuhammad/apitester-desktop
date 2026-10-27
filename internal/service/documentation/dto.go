@@ -90,7 +90,10 @@ func (r EditDocumentContentRequest) ApplyTo(existing string) string {
 func NewDocumentResponse(relID, absPath, content, version string) DocumentResponse {
 	base := filepath.Base(absPath)
 	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
+	name := base
+	if strings.EqualFold(ext, ".md") || strings.EqualFold(ext, ".html") || strings.EqualFold(ext, ".htm") {
+		name = strings.TrimSuffix(base, ext)
+	}
 	return DocumentResponse{
 		ID:      filepath.ToSlash(relID),
 		Name:    name,

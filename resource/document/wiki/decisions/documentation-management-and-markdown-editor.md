@@ -2,7 +2,7 @@
 
 **Summary**: Pure filesystem-backed `.md` and `.html` documentation tree discovery, file-only drag-and-drop relocation, and live Markdown editor with 500ms debounced UTF-16 slice synchronization over Socket.IO.
 **Sources**: `resource/document/raw/tasks/Initiate Mechanism for Document Management.md`, `resource/document/raw/tasks/Initiate Page type Document.md`, `resource/document/raw/tasks/Fixing Behavior of DocumentEditor.md`, `resource/document/raw/decisions/Markdown Basic Syntax.md`, `resource/document/raw/decisions/Markdown advance syntax.md`
-**Last updated**: 2026-10-25
+**Last updated**: 2026-10-27
 
 ---
 
@@ -54,8 +54,9 @@ When editing a Markdown document:
 ### 7. Project-Wide Workspace File Discovery, Gitignore Filtering & Antigravity-Style File Tagging
 To allow users to reference any workspace file while writing documentation (similar to `@` file tagging in Antigravity chat):
 - **Gitignore Engine**: Backend `GitIgnoreMatcher` (`internal/service/documentation/gitignore.go`) automatically ignores `.git/`, loads root `.gitignore`, and handles nested `.gitignore` files (e.g. `frontend/.gitignore`) with support for directory-only rules, wildcards (`*`, `**`), and negation (`!`).
-- **Workspace Tree with Visibility Flag (`show`)**: `GET /documentation/tree` scans all non-ignored files across the workspace. A backend extension map (`.md`, `.html`, `.htm`) marks documentation items with `show: true` and code/config files with `show: false`. Folders inherit `show: true` if they contain any descendant documentation file.
-- **Sidebar Filtering**: `DocumentationSidebar.tsx` renders only nodes where `node.show === true`, preserving a focused documentation outline without workspace clutter.
+- **Workspace Tree with Visibility Flag (`show`)**: `GET /documentation/tree` scans all non-ignored files and folders across the workspace. A backend extension map (`.md`, `.html`, `.htm`) marks documentation items with `show: true` and code/config files with `show: false`. All non-gitignored folders receive `show: true` (even when empty or containing only non-documentation files) so users can browse and create folders/files anywhere in the project.
+- **Sidebar Filtering & Delete File-Count Warning**: `DocumentationSidebar.tsx` renders only nodes where `node.show === true`. However, because `node.item` retains all non-ignored files (`Category: "FILE", Show: false`) inside each folder, deleting a folder recursively counts all contained files and subfolders (`countAllFolderFiles`) and warns the user in the confirmation dialog if `N > 0` items will be permanently deleted from disk.
+- **Right-Click & Double-Click Context Menu with Inline Creation/Rename**: Right-clicking (`onContextMenu`) or double-clicking (`onDoubleClick`) any item in `DocumentationSidebar.tsx` opens a floating context menu (`New folder` and `New file` when the target is a `FOLD` node, plus `Copy absolute path`, `Show in file system` via Electron `shell.showItemInFolder`, and `Rename` for both folders and files). Folder/file creation and renaming use inline `<input>` rows directly inside the sidebar tree.
 - **File Tagging Dropdown**: In `DocumentEditor.tsx`, typing `@` at a word boundary (in either Live Mode or Source Mode) triggers `FileTagDropdown.tsx` positioned near the caret. Filtering matches both file name and relative workspace path. Selecting a file (via Enter, Tab, or click) inserts a clean Markdown link `[filename.ext](relative/path/to/filename.ext)`.
 
 ## Related pages

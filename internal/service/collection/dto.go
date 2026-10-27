@@ -4,18 +4,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-type ReadResponse struct {
-	Changed   bool        `json:"changed"`
-	Content   DocsContent `json:"content"`
-	UpdatedAt time.Time   `json:"updatedAt"`
-	Version   string      `json:"version"`
-}
 
 type ActiveCollectionResponse struct {
 	ID           string    `json:"id"`
@@ -183,12 +177,7 @@ func findOrNewPathVariable(existing []PathVariable, key string) PathVariable {
 }
 
 func (r *RequestURL) HasVariable(key string) bool {
-	for _, variable := range r.Variable {
-		if variable.Key == key {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(r.Variable, func(v PathVariable) bool { return v.Key == key })
 }
 
 func (r *RequestURL) SetVariableValue(key, value string) {

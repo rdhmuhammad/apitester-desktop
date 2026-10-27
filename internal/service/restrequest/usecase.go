@@ -27,7 +27,7 @@ func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	}
 }
 
-func (u *Usecase) CreateRequest(ctx context.Context, collectionID string) (RequestResponse, error) {
+func (u *Usecase) CreateRequest(ctx context.Context, collectionID string, opts ...CreateRequestPayload) (RequestResponse, error) {
 	u.WriteMu.Lock()
 	defer u.WriteMu.Unlock()
 
@@ -36,34 +36,69 @@ func (u *Usecase) CreateRequest(ctx context.Context, collectionID string) (Reque
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	item := collectionService.CollectionItem{
-		ID: uuid.NewString(),
-		Request: &collectionService.Request{
-			Header: []collectionService.Header{},
-			Body: &collectionService.RequestBody{
-				FormData: []collectionService.Property{},
-			},
-			URL: collectionService.RequestURL{
-				Host:  []string{},
-				Path:  []string{},
-				Query: []collectionService.Property{},
-			},
-		},
+	item, err := appendNewRequestToDocs(docs, opts...)
+	if err != nil {
+		return RequestResponse{}, err
 	}
-	docs.Item = append(docs.Item, item)
 
-	updated, err := u.saveCollection(ctx, collection, docs)
+	updated, err := u.saveAndRecord(ctx, collection, docs, item.ID, "create_request", "request", nil, item, content)
 	if err != nil {
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	u.NotifyWatcher(collection.Path, updated)
+	return requestResponse(collection, updated, &item), nil
+}
 
-	if err := u.RecordHistory(ctx, collection, item.ID, "create_request", "request", nil, item, content, updated); err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
+func (u *Usecase) CreateFolder(ctx context.Context, collectionID string, req CreateFolderPayload) (FolderResponse, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	if strings.TrimSpace(req.Name) == "" {
+		return FolderResponse{}, localerror.InvalidData("Folder name is required")
 	}
 
-	return requestResponse(collection, updated, &item), nil
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
+	if err != nil {
+		return FolderResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	folder, err := appendNewFolderToDocs(docs, req)
+	if err != nil {
+		return FolderResponse{}, err
+	}
+
+	updated, err := u.saveAndRecord(ctx, collection, docs, folder.ID, "create_folder", "item", nil, folder, content)
+	if err != nil {
+		return FolderResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	return FolderResponse{ID: folder.ID, Name: folder.Name, Version: u.Version(updated)}, nil
+}
+
+func (u *Usecase) RenameItem(ctx context.Context, collectionID, itemID string, req UpdateNameRequest) (FolderResponse, error) {
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
+	if strings.TrimSpace(req.Name) == "" {
+		return FolderResponse{}, localerror.InvalidData("Name is required")
+	}
+
+	collection, docs, content, err := u.loadCollection(ctx, collectionID)
+	if err != nil {
+		return FolderResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	oldName, err := renameItemInDocs(docs, itemID, req.Name)
+	if err != nil {
+		return FolderResponse{}, err
+	}
+
+	updated, err := u.saveAndRecord(ctx, collection, docs, itemID, "rename_item", "name", oldName, strings.TrimSpace(req.Name), content)
+	if err != nil {
+		return FolderResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	return FolderResponse{ID: itemID, Name: strings.TrimSpace(req.Name), Version: u.Version(updated)}, nil
 }
 
 func (u *Usecase) Get(ctx context.Context, collectionID, requestID string) (RequestResponse, error) {
@@ -506,6 +541,88 @@ func (u *Usecase) saveCollection(ctx context.Context, collection *domain.Collect
 		return nil, err
 	}
 	return u.Port.SaveCollection(ctx, collection, content)
+}
+
+func (u *Usecase) saveAndRecord(
+	ctx context.Context,
+	collection *domain.Collection,
+	docs *collectionService.DocsContent,
+	itemID, operation, field string,
+	oldValue, newValue any,
+	oldContent []byte,
+) ([]byte, error) {
+	updated, err := u.saveCollection(ctx, collection, docs)
+	if err != nil {
+		return nil, err
+	}
+	u.NotifyWatcher(collection.Path, updated)
+	if err := u.RecordHistory(ctx, collection, itemID, operation, field, oldValue, newValue, oldContent, updated); err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func appendNewRequestToDocs(docs *collectionService.DocsContent, opts ...CreateRequestPayload) (collectionService.CollectionItem, error) {
+	var opt CreateRequestPayload
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+	item := NewCollectionRequestItem(opt.Name)
+	nextItems, ok := insertItemIntoParent(docs.Item, opt.ParentID, item)
+	if !ok {
+		return collectionService.CollectionItem{}, localerror.InvalidData("Target folder not found")
+	}
+	docs.Item = nextItems
+	return item, nil
+}
+
+func appendNewFolderToDocs(docs *collectionService.DocsContent, req CreateFolderPayload) (collectionService.CollectionItem, error) {
+	folder := NewCollectionFolderItem(req.Name)
+	nextItems, ok := insertItemIntoParent(docs.Item, req.ParentID, folder)
+	if !ok {
+		return collectionService.CollectionItem{}, localerror.InvalidData("Target folder not found")
+	}
+	docs.Item = nextItems
+	return folder, nil
+}
+
+func insertItemIntoParent(items []collectionService.CollectionItem, parentID string, child collectionService.CollectionItem) ([]collectionService.CollectionItem, bool) {
+	if strings.TrimSpace(parentID) == "" {
+		return append(items, child), true
+	}
+	for i := range items {
+		if items[i].ID == parentID && items[i].Request == nil {
+			items[i].Item = append(items[i].Item, child)
+			return items, true
+		}
+		if updated, ok := insertItemIntoParent(items[i].Item, parentID, child); ok {
+			items[i].Item = updated
+			return items, true
+		}
+	}
+	return items, false
+}
+
+func renameItemInDocs(docs *collectionService.DocsContent, itemID, newName string) (string, error) {
+	item := findCollectionItem(docs.Item, itemID)
+	if item == nil {
+		return "", localerror.InvalidData("Item not found")
+	}
+	oldName := item.Name
+	item.Name = strings.TrimSpace(newName)
+	return oldName, nil
+}
+
+func findCollectionItem(items []collectionService.CollectionItem, id string) *collectionService.CollectionItem {
+	for i := range items {
+		if items[i].ID == id {
+			return &items[i]
+		}
+		if found := findCollectionItem(items[i].Item, id); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 func findRequest(items []collectionService.CollectionItem, id string, auth ...*collectionService.CollectionAuth) *collectionService.CollectionItem {

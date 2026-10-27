@@ -14,7 +14,9 @@ import (
 )
 
 type Usecase interface {
-	CreateRequest(ctx context.Context, collectionID string) (service.RequestResponse, error)
+	CreateRequest(ctx context.Context, collectionID string, opts ...service.CreateRequestPayload) (service.RequestResponse, error)
+	CreateFolder(ctx context.Context, collectionID string, req service.CreateFolderPayload) (service.FolderResponse, error)
+	RenameItem(ctx context.Context, collectionID, itemID string, req service.UpdateNameRequest) (service.FolderResponse, error)
 	Get(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
 	Delete(ctx context.Context, collectionID, requestID string) (service.RequestResponse, error)
 	UpdateTree(ctx context.Context, collectionID string, req []service.UpdateTreeItem) (service.UpdateTreeResponse, error)
@@ -30,8 +32,30 @@ func NewController(lg logger.Logger, database *bbolt.DB) Controller {
 }
 
 func (ctrl Controller) CreateRequest(c *gin.Context) {
-	res, err := ctrl.usecase.CreateRequest(c.Request.Context(), c.Param("collectionId"))
+	var req service.CreateRequestPayload
+	_ = c.ShouldBindJSON(&req)
+	res, err := ctrl.usecase.CreateRequest(c.Request.Context(), c.Param("collectionId"), req)
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request created"), err)
+}
+
+func (ctrl Controller) CreateFolder(c *gin.Context) {
+	var req service.CreateFolderPayload
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage("Invalid request body"))
+		return
+	}
+	res, err := ctrl.usecase.CreateFolder(c.Request.Context(), c.Param("collectionId"), req)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Folder created"), err)
+}
+
+func (ctrl Controller) RenameItem(c *gin.Context) {
+	var req service.UpdateNameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, payload.DefaultErrorInvalidDataWithMessage("Invalid request body"))
+		return
+	}
+	res, err := ctrl.usecase.RenameItem(c.Request.Context(), c.Param("collectionId"), c.Param("itemId"), req)
+	ctrl.respond(c, payload.NewSuccessResponse(res, "Item renamed"), err)
 }
 
 func (ctrl Controller) Get(c *gin.Context) {
@@ -59,6 +83,9 @@ func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest.GET("/mock-data", ctrl.GetMockData)
 	restRequest.POST("/create-request/:collectionId", ctrl.CreateRequest)
 	restRequest.POST("/create-request", ctrl.CreateRequest)
+	restRequest.POST("/create-folder/:collectionId", ctrl.CreateFolder)
+	restRequest.POST("/create-folder", ctrl.CreateFolder)
+	restRequest.PUT("/rename/:collectionId/:itemId", ctrl.RenameItem)
 	restRequest.GET("/:collectionId/:requestId", ctrl.Get)
 	restRequest.GET("/request/:requestId", ctrl.Get)
 	restRequest.DELETE("/:collectionId/:requestId", ctrl.Delete)

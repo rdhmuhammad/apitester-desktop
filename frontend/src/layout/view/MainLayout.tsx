@@ -1,4 +1,3 @@
-import {SidebarProvider} from "@/components/ui/sidebar.tsx";
 import SidebarLayout from "@/layout/view/SidebarLayout.tsx";
 import HeaderLayout from "@/layout/view/Header.tsx";
 import TitleBar from "../components/header/TitleBar";
@@ -10,7 +9,7 @@ interface IMainLayout {
 
 const MainLayout: React.FC<IMainLayout> = ({children}: IMainLayout) => {
     return (
-        <SidebarProvider>
+        <div className="min-h-screen bg-background">
             <TitleBar/>
             <HeaderLayout/>
             <SidebarLayout/>
@@ -18,7 +17,7 @@ const MainLayout: React.FC<IMainLayout> = ({children}: IMainLayout) => {
             <main className="flex-1 pt-[76px] overflow-hidden h-100dvh md:pl-64">
                 {children}
             </main>
-        </SidebarProvider>
+        </div>
     )
 }
 

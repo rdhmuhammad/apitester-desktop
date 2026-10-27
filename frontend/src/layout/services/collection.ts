@@ -249,6 +249,40 @@ export const CollectionServices = {
         return response.data.data
     },
 
+    createRequest: async (
+        collectionId: string,
+        data?: {name?: string; parentId?: string},
+    ): Promise<{id: string; name: string; method: string; version: string}> => {
+        const response = await axios.post<Response<{id: string; name: string; method: string; version: string}>>(
+            `/restrequest/create-request/${collectionId}`,
+            data ?? {},
+        )
+        return response.data.data
+    },
+
+    createFolder: async (
+        collectionId: string,
+        data: {name: string; parentId?: string},
+    ): Promise<{id: string; name: string; version: string}> => {
+        const response = await axios.post<Response<{id: string; name: string; version: string}>>(
+            `/restrequest/create-folder/${collectionId}`,
+            data,
+        )
+        return response.data.data
+    },
+
+    renameTreeItem: async (
+        collectionId: string,
+        itemId: string,
+        name: string,
+    ): Promise<{id: string; name: string; version: string}> => {
+        const response = await axios.put<Response<{id: string; name: string; version: string}>>(
+            `/restrequest/rename/${collectionId}/${itemId}`,
+            {name},
+        )
+        return response.data.data
+    },
+
     onNotifyChanges: (callback: (payload: NotifyChangesPayload) => void): (() => void) => {
         const handler = (payload: NotifyChangesPayload) => {
             callback(payload)

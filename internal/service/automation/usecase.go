@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -271,21 +272,13 @@ func (u *Usecase) CreateAutomationInventory(id string, req AutomationInventoryCr
 }
 
 func containsInventory(entries []os.DirEntry, filename string) bool {
-	for _, entry := range entries {
-		if entry.Name() == filename && !entry.IsDir() {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(entries, func(entry os.DirEntry) bool {
+		return entry.Name() == filename && !entry.IsDir()
+	})
 }
 
 func containsInventoryFilename(filenames []string, filename string) bool {
-	for _, candidate := range filenames {
-		if candidate == filename {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(filenames, filename)
 }
 
 func starterInventoryContent(filename string) string {

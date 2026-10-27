@@ -33,19 +33,44 @@ export const flattenTreeToFiles = (nodes: DocumentTree[]): WorkdirFileItem[] => 
     return result
 }
 
-export const filterWorkdirFiles = (files: WorkdirFileItem[], rawQuery: string): WorkdirFileItem[] => {
-    const q = rawQuery.trim().toLowerCase()
-    if (!q) return files
+export interface FilterWorkdirFilesResult {
+    items: WorkdirFileItem[]
+    total: number
+}
 
-    return files
-        .filter((f) => f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q))
-        .sort((a, b) => {
-            const aName = a.name.toLowerCase()
-            const bName = b.name.toLowerCase()
-            const aStartsWith = aName.startsWith(q)
-            const bStartsWith = bName.startsWith(q)
-            if (aStartsWith && !bStartsWith) return -1
-            if (!aStartsWith && bStartsWith) return 1
-            return aName.localeCompare(bName)
-        })
+export const filterWorkdirFiles = (
+    files: WorkdirFileItem[],
+    rawQuery: string,
+    limit = 40
+): FilterWorkdirFilesResult => {
+    const q = rawQuery.trim().toLowerCase()
+    if (!q) {
+        return {
+            items: files.slice(0, limit),
+            total: files.length,
+        }
+    }
+
+    const matches: WorkdirFileItem[] = []
+    for (let i = 0; i < files.length; i++) {
+        const f = files[i]
+        if (f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)) {
+            matches.push(f)
+        }
+    }
+
+    matches.sort((a, b) => {
+        const aName = a.name.toLowerCase()
+        const bName = b.name.toLowerCase()
+        const aStartsWith = aName.startsWith(q)
+        const bStartsWith = bName.startsWith(q)
+        if (aStartsWith && !bStartsWith) return -1
+        if (!aStartsWith && bStartsWith) return 1
+        return aName < bName ? -1 : aName > bName ? 1 : 0
+    })
+
+    return {
+        items: matches.slice(0, limit),
+        total: matches.length,
+    }
 }

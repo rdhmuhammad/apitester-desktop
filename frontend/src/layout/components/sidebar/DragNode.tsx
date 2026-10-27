@@ -1,6 +1,6 @@
 import {ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen, GripVertical, Trash2} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
-import {type ReactNode} from "react";
+import {type ReactNode, useEffect, useRef} from "react";
 import {type RequestTree} from "@/layout/services/collection.ts";
 import {useDraggable, useDroppable} from "@dnd-kit/core";
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
@@ -17,20 +17,85 @@ const DragNode: React.FC<{
     onClick: () => void
     onToggle: () => void
     onDelete?: () => void
+    onContextMenu?: (e: React.MouseEvent) => void
+    onDoubleClick?: (e: React.MouseEvent) => void
+    isRenaming?: boolean
+    renameValue?: string
+    onRenameChange?: (value: string) => void
+    onRenameSubmit?: () => void
+    onRenameCancel?: () => void
     isOpen: boolean
     isActive: boolean
     dropPosition: DropPosition
     isDragOver: boolean
     children?: ReactNode
-}> = ({node, depth, onClick, onToggle, onDelete, isOpen, isActive, dropPosition, isDragOver, children}) => {
+}> = ({
+    node,
+    depth,
+    onClick,
+    onToggle,
+    onDelete,
+    onContextMenu,
+    onDoubleClick,
+    isRenaming,
+    renameValue = "",
+    onRenameChange,
+    onRenameSubmit,
+    onRenameCancel,
+    isOpen,
+    isActive,
+    dropPosition,
+    isDragOver,
+    children,
+}) => {
     const indentStyle = {paddingLeft: `${depth * 14}px`}
     const {setNodeRef: setDroppableRef, isOver} = useDroppable({id: node.id, data: {node}})
     const {attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging} = useDraggable({
         id: node.id,
         data: {node},
+        disabled: Boolean(isRenaming),
     })
+    const inputRef = useRef<HTMLInputElement | null>(null)
     const draggableStyle = transform ? {opacity: isDragging ? 0.4 : undefined} : undefined
     const effectiveOver = isOver || isDragOver
+
+    useEffect(() => {
+        if (isRenaming) {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus()
+                inputRef.current?.select()
+            }, 0)
+            return () => clearTimeout(timer)
+        }
+    }, [isRenaming])
+
+    const renderNameOrInput = (textClassName: string) => {
+        if (isRenaming) {
+            return (
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => onRenameChange?.(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onBlur={() => onRenameSubmit?.()}
+                    onKeyDown={(e) => {
+                        e.stopPropagation()
+                        if (e.key === "Enter") {
+                            e.preventDefault()
+                            onRenameSubmit?.()
+                        } else if (e.key === "Escape") {
+                            e.preventDefault()
+                            onRenameCancel?.()
+                        }
+                    }}
+                    className="h-6 min-w-0 flex-1 rounded border border-indigo-400 bg-background px-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+            )
+        }
+        return <span className={textClassName}>{node.name}</span>
+    }
 
     if (node.category === "FOLD") {
         return (
@@ -41,6 +106,8 @@ const DragNode: React.FC<{
                         dropPosition === 'inside' && effectiveOver && dropIndicatorInside,
                     )}
                     style={{...indentStyle, ...draggableStyle}}
+                    onContextMenu={onContextMenu}
+                    onDoubleClick={onDoubleClick}
                 >
                     {dropPosition === 'before' && effectiveOver && <div className={dropIndicatorAbove}/>} 
                     {dropPosition === 'after' && effectiveOver && <div className={dropIndicatorBelow}/>} 
@@ -58,11 +125,11 @@ const DragNode: React.FC<{
                         onClick={onToggle}
                         className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                     >
-                        {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500"/> :
-                            <ChevronRight className="h-4 w-4 text-slate-500"/>}
-                        {isOpen ? <FolderOpen className="h-4 w-4 text-indigo-500"/> :
-                            <Folder className="h-4 w-4 text-indigo-500"/>}
-                        <span className="truncate">{node.name}</span>
+                        {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0"/> :
+                            <ChevronRight className="h-4 w-4 text-slate-500 shrink-0"/>}
+                        {isOpen ? <FolderOpen className="h-4 w-4 text-indigo-500 shrink-0"/> :
+                            <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>}
+                        {renderNameOrInput("truncate")}
                     </button>
                     {onDelete && (
                         <button
@@ -89,6 +156,8 @@ const DragNode: React.FC<{
             className={cn("flex items-center group relative rounded-md", isActive && "bg-indigo-100 dark:bg-indigo-950/60")}
             style={{...indentStyle, ...draggableStyle}}
             ref={setDroppableRef}
+            onContextMenu={onContextMenu}
+            onDoubleClick={onDoubleClick}
         >
             {dropPosition === 'before' && effectiveOver && <div className={dropIndicatorAbove}/>} 
             {dropPosition === 'after' && effectiveOver && <div className={dropIndicatorBelow}/>} 
@@ -106,9 +175,9 @@ const DragNode: React.FC<{
                 onClick={onClick}
                 className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent', isActive && 'bg-indigo-100 dark:bg-indigo-950/60')}
             >
-                <FileCode2 className="h-4 w-4 text-slate-400"/>
-                <span className={`w-12 text-xs font-semibold ${methodColorClass[node.method ?? "GET"]}`}>{node.method ?? "GET"}</span>
-                <span className="truncate text-sidebar-foreground">{node.name}</span>
+                <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>
+                <span className={`w-12 text-xs font-semibold shrink-0 ${methodColorClass[node.method ?? "GET"]}`}>{node.method ?? "GET"}</span>
+                {renderNameOrInput("truncate text-sidebar-foreground")}
             </button>
             {onDelete && (
                 <button

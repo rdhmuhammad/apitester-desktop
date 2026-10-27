@@ -1,18 +1,39 @@
 import {useEffect, useState} from "react"
-import {Images} from "@/config/constant/Images.tsx"
+import AppLogo from '@/assets/images/AppLogo.svg'
 import {Button} from "@/components/ui/button.tsx"
 import {LoaderCircle, Maximize2, Minimize2, Minus, Moon, Settings, Sun, TriangleAlert, Wifi, WifiOff, X} from "lucide-react"
 import CollectionManager from "@/layout/components/collectionManager"
 import ProjectSwitcher from "@/layout/components/header/ProjectSwitcher.tsx"
-import {useSocket} from "@/hooks/useSocket.ts"
-import {SOCKET_NAMESPACES} from "@/config/socket.ts"
-import {useTheme} from "@/hooks/useTheme.ts"
+import {socketCollection} from "@/pages/editor/services/mainSocket.ts"
+import {useTheme} from "next-themes"
 
 const TitleBar: React.FC = () => {
     const [managerOpen, setManagerOpen] = useState(false)
     const [isMaximized, setIsMaximized] = useState(false)
-    const {status: socketStatus} = useSocket(SOCKET_NAMESPACES.collection)
+    const [socketStatus, setSocketStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
+        socketCollection.connected ? 'connected' : 'connecting'
+    )
     const {theme, setTheme} = useTheme()
+
+    useEffect(() => {
+        const onConnect = () => setSocketStatus('connected')
+        const onDisconnect = () => setSocketStatus('disconnected')
+        const onError = () => setSocketStatus('error')
+
+        socketCollection.on('connect', onConnect)
+        socketCollection.on('disconnect', onDisconnect)
+        socketCollection.on('connect_error', onError)
+
+        if (socketCollection.connected) {
+            setSocketStatus('connected')
+        }
+
+        return () => {
+            socketCollection.off('connect', onConnect)
+            socketCollection.off('disconnect', onDisconnect)
+            socketCollection.off('connect_error', onError)
+        }
+    }, [])
 
     // Sync maximized state on mount and when the window changes
     useEffect(() => {
@@ -47,7 +68,7 @@ const TitleBar: React.FC = () => {
             {/* Left: App identity + controls — no-drag so buttons remain clickable */}
             <div className="no-drag flex items-center gap-1.5 px-3 h-full shrink-0">
                 <img
-                    src={Images.APP_LOGO}
+                    src={AppLogo}
                     alt="Apitester"
                     className="w-[18px] h-[22px] object-cover"
                 />

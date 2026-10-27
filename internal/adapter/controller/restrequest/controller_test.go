@@ -22,9 +22,20 @@ type createRequestUsecaseStub struct {
 	updateTreeReq       []service.UpdateTreeItem
 }
 
-func (stub *createRequestUsecaseStub) CreateRequest(_ context.Context, collectionID string) (service.RequestResponse, error) {
+func (stub *createRequestUsecaseStub) CreateRequest(_ context.Context, collectionID string, _ ...service.CreateRequestPayload) (service.RequestResponse, error) {
 	stub.collectionID = collectionID
 	return service.RequestResponse{ID: "request-id"}, nil
+}
+
+func (stub *createRequestUsecaseStub) CreateFolder(_ context.Context, collectionID string, req service.CreateFolderPayload) (service.FolderResponse, error) {
+	stub.collectionID = collectionID
+	return service.FolderResponse{ID: "folder-id", Name: req.Name}, nil
+}
+
+func (stub *createRequestUsecaseStub) RenameItem(_ context.Context, collectionID, itemID string, req service.UpdateNameRequest) (service.FolderResponse, error) {
+	stub.collectionID = collectionID
+	stub.requestID = itemID
+	return service.FolderResponse{ID: itemID, Name: req.Name}, nil
 }
 
 func (stub *createRequestUsecaseStub) Get(_ context.Context, _, _ string) (service.RequestResponse, error) {

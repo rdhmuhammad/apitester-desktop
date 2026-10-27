@@ -136,37 +136,6 @@ func filterCollectionsByProject(all []domain.Collection, projectID string) []dom
 	return result
 }
 
-func (u *Usecase) Read(ctx context.Context, id string) (ReadResponse, error) {
-	collection, err := u.CollectionRepo.View(ctx, id)
-	if err != nil {
-		return ReadResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	if collection == nil {
-		return ReadResponse{}, u.ErrHandler.ErrorReturn(localerror.InvalidData("Collection not found"))
-	}
-
-	fileBytes, err := os.ReadFile(collection.Path)
-	if err != nil {
-		return ReadResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
-	var docsContent DocsContent
-	if err := json.Unmarshal([]byte(content), &docsContent); err != nil {
-		return ReadResponse{}, u.ErrHandler.ErrorReturn(err)
-	}
-
-	docsContent.PrepareVariables()
-
-	return ReadResponse{
-		Content:   docsContent,
-		Changed:   false,
-		UpdatedAt: collection.UpdatedAt,
-		Version:   u.Version([]byte(content)),
-	}, nil
-}
-
 func (u *Usecase) CreateCollection(ctx context.Context, req CreateCollectionRequest) (domain.Collection, error) {
 	filePath, err := resolveNewCollectionFilePath(req)
 	if err != nil {
@@ -860,11 +829,10 @@ func resolveNewCollectionFilePath(req CreateCollectionRequest) (string, error) {
 	return filePath, nil
 }
 
+var invalidCollectionFileChars = strings.NewReplacer("/", "_", "\\", "_", ":", "_", "*", "_", "?", "_", "\"", "_", "<", "_", ">", "_", "|", "_")
+
 func sanitizeCollectionFileName(name string) string {
-	cleaned := strings.TrimSpace(name)
-	for _, ch := range []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"} {
-		cleaned = strings.ReplaceAll(cleaned, ch, "_")
-	}
+	cleaned := invalidCollectionFileChars.Replace(strings.TrimSpace(name))
 	if !strings.HasSuffix(strings.ToLower(cleaned), ".json") {
 		cleaned += ".json"
 	}

@@ -1,46 +1,33 @@
-//go:generate stringer -type=RequestEvent
 package restrequest
 
 import (
 	"encoding/json"
-	"strings"
-	"unicode"
 
 	service "github.com/rdhmuhammad/apitester/internal/service/restrequest"
 )
 
-type RequestEvent int
+type RequestEvent string
 
 func (receiver RequestEvent) Name() string {
-	name := []rune(receiver.String())
-	parts := make([]string, 0, len(name))
-	start := 0
-	for i, char := range name {
-		if i > 0 && unicode.IsUpper(char) {
-			parts = append(parts, string(name[start:i]))
-			start = i
-		}
-	}
-	parts = append(parts, string(name[start:]))
-	return strings.ToLower(strings.Join(parts, ":"))
+	return string(receiver)
 }
 
 const (
-	RequestUpdateUrl RequestEvent = iota
-	RequestUpdateHeaders
-	RequestUpdateAuthorization
-	RequestUpdateMethod
-	RequestUpdateName
-	RequestUpdateQuery
-	RequestUpdateBodyJson
-	RequestUpdateBodyFormdata
-	RequestUpdateScript
-	RequestDelete
-	RequestSaveResponse
-	RequestSaveScript
-	RequestError
-	RequestSuccess
-	RequestEditPathVariable
+	RequestUpdateUrl         RequestEvent = "request:update:url"
+	RequestUpdateHeaders     RequestEvent = "request:update:headers"
+	RequestUpdateAuthorization RequestEvent = "request:update:authorization"
+	RequestUpdateMethod      RequestEvent = "request:update:method"
+	RequestUpdateName        RequestEvent = "request:update:name"
+	RequestUpdateQuery       RequestEvent = "request:update:query"
+	RequestUpdateBodyJson    RequestEvent = "request:update:body:json"
+	RequestUpdateBodyFormdata RequestEvent = "request:update:body:formdata"
+	RequestUpdateScript      RequestEvent = "request:update:script"
+	RequestDelete            RequestEvent = "request:delete"
+	RequestSaveResponse      RequestEvent = "request:save:response"
+	RequestSaveScript        RequestEvent = "request:save:script"
+	RequestError             RequestEvent = "request:error"
+	RequestSuccess           RequestEvent = "request:success"
+	RequestEditPathVariable  RequestEvent = "request:edit:path:variable"
 )
 
 const RequestSavePostRequestScript = RequestSaveScript

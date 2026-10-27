@@ -37,7 +37,7 @@ const getFileIcon = (ext: string, category: string) => {
     }
 }
 
-export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
+const FileTagDropdownComponent: React.FC<FileTagDropdownProps> = ({
     open,
     position,
     query,
@@ -48,12 +48,17 @@ export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
     const containerRef = useRef<HTMLDivElement | null>(null)
     const listRef = useRef<HTMLDivElement | null>(null)
     const [selectedIndex, setSelectedIndex] = useState(0)
+    const [prevQuery, setPrevQuery] = useState(query)
 
-    const filteredFiles = useMemo(() => filterWorkdirFiles(files, query), [files, query])
+    const {items: visibleFiles, total: totalMatches} = useMemo(
+        () => filterWorkdirFiles(files, query, 40),
+        [files, query]
+    )
 
-    useEffect(() => {
+    if (prevQuery !== query) {
+        setPrevQuery(query)
         setSelectedIndex(0)
-    }, [query])
+    }
 
     // Scroll active item into view
     useEffect(() => {
@@ -85,7 +90,7 @@ export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
             if (e.key === "ArrowDown") {
                 e.preventDefault()
                 e.stopPropagation()
-                setSelectedIndex((prev) => (filteredFiles.length > 0 ? (prev + 1) % filteredFiles.length : 0))
+                setSelectedIndex((prev) => (visibleFiles.length > 0 ? (prev + 1) % visibleFiles.length : 0))
                 return
             }
 
@@ -93,16 +98,16 @@ export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
                 e.preventDefault()
                 e.stopPropagation()
                 setSelectedIndex((prev) =>
-                    filteredFiles.length > 0 ? (prev - 1 + filteredFiles.length) % filteredFiles.length : 0,
+                    visibleFiles.length > 0 ? (prev - 1 + visibleFiles.length) % visibleFiles.length : 0,
                 )
                 return
             }
 
             if (e.key === "Enter" || e.key === "Tab") {
-                if (filteredFiles.length > 0 && filteredFiles[selectedIndex]) {
+                if (visibleFiles.length > 0 && visibleFiles[selectedIndex]) {
                     e.preventDefault()
                     e.stopPropagation()
-                    onSelect(filteredFiles[selectedIndex])
+                    onSelect(visibleFiles[selectedIndex])
                 }
                 return
             }
@@ -113,7 +118,7 @@ export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
                 onClose()
             }
         },
-        [filteredFiles, onClose, onSelect, open, selectedIndex],
+        [onClose, onSelect, open, selectedIndex, visibleFiles],
     )
 
     useEffect(() => {
@@ -146,17 +151,19 @@ export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
                     </span>
                 </div>
                 <span className="text-[10px] font-mono font-medium text-muted-foreground ml-2 shrink-0">
-                    {filteredFiles.length} {filteredFiles.length === 1 ? "file" : "files"}
+                    {totalMatches > visibleFiles.length
+                        ? `${visibleFiles.length} of ${totalMatches} files`
+                        : `${totalMatches} ${totalMatches === 1 ? "file" : "files"}`}
                 </span>
             </div>
 
             <div ref={listRef} className="max-h-60 overflow-y-auto p-1 space-y-0.5">
-                {filteredFiles.length === 0 ? (
+                {visibleFiles.length === 0 ? (
                     <div className="px-3 py-4 text-center text-xs text-muted-foreground">
                         No matching files in workspace
                     </div>
                 ) : (
-                    filteredFiles.map((file, idx) => {
+                    visibleFiles.map((file, idx) => {
                         const isSelected = idx === selectedIndex
                         return (
                             <button
@@ -195,4 +202,5 @@ export const FileTagDropdown: React.FC<FileTagDropdownProps> = ({
     )
 }
 
+export const FileTagDropdown = React.memo(FileTagDropdownComponent)
 export default FileTagDropdown

@@ -111,9 +111,23 @@ func TestDocumentationUsecaseFlow(t *testing.T) {
 		t.Fatalf("expected 'docs/Architecture.md', got %q", moved.ID)
 	}
 
+	// 6b. Rename folder
+	renamedFolder, err := uc.RenameDocument(ctx, RenameDocumentRequest{
+		ID:   "docs",
+		Name: "documentation",
+	})
+	if err != nil {
+		t.Fatalf("RenameDocument (folder) failed: %v", err)
+	}
+	if renamedFolder.ID != "documentation" || renamedFolder.Name != "documentation" {
+		t.Fatalf("unexpected renamed folder: %+v", renamedFolder)
+	}
+	moved.ID = "documentation/Architecture.md"
+	moved.Path = filepath.Join(projRoot, "documentation", "Architecture.md")
+
 	// 7. Reject moving a folder
 	if _, err := uc.MoveDocument(ctx, MoveDocumentRequest{
-		ID:             "docs",
+		ID:             "documentation",
 		TargetFolderID: "",
 	}); err == nil {
 		t.Fatalf("expected moving a folder to be rejected")
@@ -215,10 +229,10 @@ secret.env
 		t.Errorf("docs/guide.md should have Show == true and Category == DOC_MD, got %+v", guideNode)
 	}
 
-	// Pure code folder (cmd) and file (cmd/api/main.go) must have Show == false
+	// Non-gitignored folder (cmd) must have Show == true, while code file (cmd/api/main.go) remains Show == false
 	cmdNode := findNode(tree, "cmd")
-	if cmdNode == nil || cmdNode.Show {
-		t.Errorf("cmd folder should exist with Show == false, got %+v", cmdNode)
+	if cmdNode == nil || !cmdNode.Show {
+		t.Errorf("cmd folder should exist with Show == true, got %+v", cmdNode)
 	}
 	mainNode := findNode(tree, "cmd/api/main.go")
 	if mainNode == nil || mainNode.Show || mainNode.Category != "FILE" {

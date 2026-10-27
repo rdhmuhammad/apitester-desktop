@@ -19,17 +19,11 @@ import (
 
 type Usecase struct {
 	*base.Port
-	errHandler     localerror.HandleError
-	collectionRepo db.RepositoryInterface[domain.Collection]
 	automationRepo db.RepositoryInterface[domain.Automation]
 	testRepo       db.RepositoryInterface[domain.TestSuite]
 }
 
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
-	collectionRepo, err := db.NewRepository[domain.Collection](database)
-	if err != nil {
-		elog.Panicf(elog.EIDGenericError, "failed to initialize collection repo for tree usecase: %v", err)
-	}
 	automationRepo, err := db.NewRepository[domain.Automation](database)
 	if err != nil {
 		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for tree usecase: %v", err)
@@ -41,10 +35,8 @@ func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	}
 
 	return &Usecase{
-		errHandler:     localerror.NewHandlerError(lg),
-		collectionRepo: collectionRepo,
-		automationRepo: automationRepo,
 		Port:           base.NewPort(lg, database),
+		automationRepo: automationRepo,
 		testRepo:       testRepo,
 	}
 }
@@ -53,7 +45,7 @@ func (u *Usecase) GetRequestTree(ctx context.Context) ([]RequestTree, error) {
 	collection := u.FindSelectedCollection(ctx)
 	content, err := os.ReadFile(collection.Path)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, u.ErrHandler.ErrorReturn(err)
 	}
 
 	var docs collectionService.DocsContent
@@ -71,7 +63,7 @@ func (u *Usecase) GetAutomationTree(collectionID string) ([]RequestTree, error) 
 	}
 	module, err := u.automationRepo.View(context.Background(), collection.AutomationID)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, u.ErrHandler.ErrorReturn(err)
 	}
 	if module == nil {
 		return nil, localerror.InvalidData("Automation module not found")
@@ -79,7 +71,7 @@ func (u *Usecase) GetAutomationTree(collectionID string) ([]RequestTree, error) 
 
 	return buildFileTree(module.Path, "AUTOMATION", func(name string) bool {
 		return strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")
-	}, u.errHandler)
+	}, u.ErrHandler)
 }
 
 func (u *Usecase) GetTestSuiteTree(collectionID string) ([]RequestTree, error) {
@@ -89,7 +81,7 @@ func (u *Usecase) GetTestSuiteTree(collectionID string) ([]RequestTree, error) {
 	}
 	module, err := u.testRepo.View(context.Background(), collection.TestSuiteID)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, u.ErrHandler.ErrorReturn(err)
 	}
 	if module == nil {
 		return nil, localerror.InvalidData("Test suite not found")
@@ -97,20 +89,20 @@ func (u *Usecase) GetTestSuiteTree(collectionID string) ([]RequestTree, error) {
 
 	return buildFileTree(module.Path, "TESTSUITE", func(name string) bool {
 		return strings.HasSuffix(name, ".http")
-	}, u.errHandler)
+	}, u.ErrHandler)
 }
 
 func (u *Usecase) collection(id string) (*domain.Collection, error) {
 	if strings.TrimSpace(id) == "" {
-		selected := base.FindSelectedCollection(context.Background(), u.collectionRepo)
+		selected := base.FindSelectedCollection(context.Background(), u.CollectionRepo)
 		if selected == nil {
 			return nil, localerror.InvalidData("No active collection")
 		}
 		return selected, nil
 	}
-	collection, err := u.collectionRepo.View(context.Background(), id)
+	collection, err := u.CollectionRepo.View(context.Background(), id)
 	if err != nil {
-		return nil, u.errHandler.ErrorReturn(err)
+		return nil, u.ErrHandler.ErrorReturn(err)
 	}
 	if collection == nil {
 		return nil, localerror.InvalidData("Collection not found")
@@ -158,7 +150,7 @@ func buildRequestTree(items []collectionService.CollectionItem) []RequestTree {
 		if item.Request != nil {
 			node.Method = strings.ToUpper(item.Request.Method)
 		}
-		if len(item.Item) > 0 {
+		if item.Request == nil || len(item.Item) > 0 {
 			node.Category = "FOLD"
 			node.Item = buildRequestTree(item.Item)
 		}

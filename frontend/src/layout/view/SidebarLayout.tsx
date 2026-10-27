@@ -1,6 +1,5 @@
-import {Sidebar, SidebarContent} from "@/components/ui/sidebar.tsx";
 import {type ReactNode, useCallback, useEffect, useRef, useState} from "react";
-import {FileCode2, Folder, FolderGit2, LoaderCircle, Search} from "lucide-react";
+import {FileCode2, FilePlus2, Folder, FolderGit2, FolderPlus, LoaderCircle, Pencil, Search} from "lucide-react";
 import TestScenarioSidebar from "@/layout/components/sidebar/TestScenarioSidebar.tsx";
 import AutomationSidebar from "@/layout/components/sidebar/AutomationSidebar.tsx";
 import DocumentationSidebar from "@/layout/components/sidebar/DocumentationSidebar.tsx";
@@ -12,8 +11,10 @@ import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {
     openEditorTab,
     removeEditorTab,
+    renameEditorTab,
     selectEditorActiveTabId,
 } from "@/app/slices/editorTabsSlice.ts";
+import {requestConfigQueryKey} from "@/pages/editor/services/requestConfig.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
 import {
     DndContext,
@@ -48,6 +49,15 @@ const collectRequestIds = (node: RequestTree): string[] => {
         }
     }
     return ids
+}
+
+const countDescendantItems = (node: RequestTree): number => {
+    if (!node.item) return 0
+    let count = 0
+    for (const child of node.item) {
+        count += 1 + countDescendantItems(child)
+    }
+    return count
 }
 
 const containsNode = (nodes: RequestTree[], id: string): boolean => {
@@ -181,10 +191,21 @@ const SidebarLayout: React.FC = () => {
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const activeTabsId = useAppSelector(selectEditorActiveTabId)
     const [nodeToDelete, setNodeToDelete] = useState<RequestTree | null>(null)
+    const [contextMenu, setContextMenu] = useState<{x: number; y: number; node: RequestTree} | null>(null)
+    const [renamingId, setRenamingId] = useState<string | null>(null)
+    const [renameValue, setRenameValue] = useState("")
+    const [creatingItem, setCreatingItem] = useState<{parentId: string; kind: "REQ" | "FOLD"} | null>(null)
+    const [createValue, setCreateValue] = useState("")
+    const createInputRef = useRef<HTMLInputElement | null>(null)
+    const isSubmittingCreateRef = useRef(false)
+    const isSubmittingRenameRef = useRef(false)
     const {
         requestTree: rawTree,
         activeCollection,
         updateTreeMutation,
+        createRequestMutation,
+        createFolderMutation,
+        renameTreeItemMutation,
         isUpdatingTree,
     } = useCollection()
     const tree = activeCollection ? rawTree : []
@@ -408,6 +429,164 @@ const SidebarLayout: React.FC = () => {
         setNodeToDelete(null)
     }
 
+    useEffect(() => {
+        if (!contextMenu) return
+        const close = () => setContextMenu(null)
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") close()
+        }
+        window.addEventListener("pointerdown", close)
+        window.addEventListener("keydown", onKeyDown)
+        window.addEventListener("scroll", close, true)
+        return () => {
+            window.removeEventListener("pointerdown", close)
+            window.removeEventListener("keydown", onKeyDown)
+            window.removeEventListener("scroll", close, true)
+        }
+    }, [contextMenu])
+
+    useEffect(() => {
+        if (creatingItem) {
+            const timer = setTimeout(() => {
+                createInputRef.current?.focus()
+                createInputRef.current?.select()
+            }, 0)
+            return () => clearTimeout(timer)
+        }
+    }, [creatingItem])
+
+    const handleOpenContextMenu = (e: React.MouseEvent, node: RequestTree) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (node.category === "FOLD" && !expandedFolders[node.id]) {
+            setExpandedFolders((prev) => ({...prev, [node.id]: true}))
+        }
+        setContextMenu({
+            x: Math.min(e.clientX, window.innerWidth - 180),
+            y: Math.min(e.clientY, window.innerHeight - 140),
+            node,
+        })
+    }
+
+    const handleStartRename = (node: RequestTree) => {
+        setContextMenu(null)
+        setCreatingItem(null)
+        setRenamingId(node.id)
+        setRenameValue(node.name)
+    }
+
+    const handleRenameSubmit = async (node: RequestTree) => {
+        if (isSubmittingRenameRef.current) return
+        const trimmed = renameValue.trim()
+        setRenamingId(null)
+        setRenameValue("")
+        if (!trimmed || trimmed === node.name || !activeCollection?.id) return
+
+        isSubmittingRenameRef.current = true
+        try {
+            await renameTreeItemMutation.mutateAsync({
+                collectionId: activeCollection.id,
+                itemId: node.id,
+                name: trimmed,
+            })
+            if (node.category === "REQ") {
+                dispatch(renameEditorTab({id: node.id, label: trimmed}))
+                void queryClient.invalidateQueries({
+                    queryKey: requestConfigQueryKey(activeCollection.id, node.id),
+                })
+            }
+        } catch {
+            // Error toast handled by mutation
+        } finally {
+            isSubmittingRenameRef.current = false
+        }
+    }
+
+    const handleStartCreate = (parentId: string, kind: "REQ" | "FOLD") => {
+        setContextMenu(null)
+        setRenamingId(null)
+        if (parentId) {
+            setExpandedFolders((prev) => ({...prev, [parentId]: true}))
+        }
+        setCreatingItem({parentId, kind})
+        setCreateValue(kind === "REQ" ? "New Request" : "New Folder")
+    }
+
+    const handleCreateSubmit = async () => {
+        if (isSubmittingCreateRef.current || !creatingItem) return
+        const current = creatingItem
+        const trimmed = createValue.trim()
+        setCreatingItem(null)
+        setCreateValue("")
+        if (!trimmed || !activeCollection?.id) return
+
+        isSubmittingCreateRef.current = true
+        try {
+            if (current.kind === "REQ") {
+                const created = await createRequestMutation.mutateAsync({
+                    collectionId: activeCollection.id,
+                    name: trimmed,
+                    parentId: current.parentId,
+                })
+                dispatch(
+                    openEditorTab({
+                        id: created.id,
+                        label: created.name || trimmed,
+                        method: (created.method || "GET") as ColtReqMethod,
+                        type: "request",
+                    }),
+                )
+            } else {
+                const created = await createFolderMutation.mutateAsync({
+                    collectionId: activeCollection.id,
+                    name: trimmed,
+                    parentId: current.parentId,
+                })
+                setExpandedFolders((prev) => ({...prev, [created.id]: true}))
+            }
+        } catch {
+            // Error toast handled by mutation
+        } finally {
+            isSubmittingCreateRef.current = false
+        }
+    }
+
+    const renderCreateRow = (depth: number) => {
+        if (!creatingItem) return null
+        return (
+            <div
+                className="flex items-center gap-2 rounded-md px-2 py-1"
+                style={{paddingLeft: `${depth * 14 + 28}px`}}
+            >
+                {creatingItem.kind === "FOLD" ? (
+                    <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>
+                ) : (
+                    <FileCode2 className="h-4 w-4 text-emerald-500 shrink-0"/>
+                )}
+                <input
+                    ref={createInputRef}
+                    type="text"
+                    value={createValue}
+                    onChange={(e) => setCreateValue(e.target.value)}
+                    onBlur={() => void handleCreateSubmit()}
+                    onKeyDown={(e) => {
+                        e.stopPropagation()
+                        if (e.key === "Enter") {
+                            e.preventDefault()
+                            void handleCreateSubmit()
+                        } else if (e.key === "Escape") {
+                            e.preventDefault()
+                            setCreatingItem(null)
+                            setCreateValue("")
+                        }
+                    }}
+                    placeholder={creatingItem.kind === "FOLD" ? "Folder name..." : "Request name..."}
+                    className="h-6 min-w-0 flex-1 rounded border border-indigo-400 bg-background px-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+            </div>
+        )
+    }
+
     const renderNode = (node: RequestTree, depth = 0, isParentMatch = false): ReactNode => {
         const q = searchQuery.trim().toLowerCase()
         const matchesCurrent = q ? node.name.toLowerCase().includes(q) : false
@@ -419,6 +598,7 @@ const SidebarLayout: React.FC = () => {
 
         const isOpen = Boolean(expandedFolders[node.id]);
         const isActive = node.isActive || activeTabsId.includes(node.id) || node.id === activeDragId
+        const isCreatingInside = creatingItem?.parentId === node.id
 
         return (
             <DragNode
@@ -428,14 +608,25 @@ const SidebarLayout: React.FC = () => {
                 onClick={() => handleRequestClick(node)}
                 onToggle={() => toggleFolder(node.id)}
                 onDelete={() => setNodeToDelete(node)}
+                onContextMenu={(e) => handleOpenContextMenu(e, node)}
+                onDoubleClick={(e) => handleOpenContextMenu(e, node)}
+                isRenaming={renamingId === node.id}
+                renameValue={renamingId === node.id ? renameValue : node.name}
+                onRenameChange={setRenameValue}
+                onRenameSubmit={() => void handleRenameSubmit(node)}
+                onRenameCancel={() => {
+                    setRenamingId(null)
+                    setRenameValue("")
+                }}
                 isOpen={isOpen}
                 isActive={isActive}
                 dropPosition={dropTargetId === node.id ? dropPosition : null}
                 isDragOver={dropTargetId === node.id}
             >
-                {isOpen && node?.item && (
+                {isOpen && (
                     <div className="space-y-1">
-                        {node.item.map((child) => {
+                        {isCreatingInside && renderCreateRow(depth + 1)}
+                        {node.item?.map((child) => {
                             return renderNode(child, depth + 1, isChildParentMatch)
                         })}
                     </div>
@@ -459,6 +650,7 @@ const SidebarLayout: React.FC = () => {
 
     const treeContent = activeCollection ? (
         <div className="">
+            {creatingItem?.parentId === "" && renderCreateRow(0)}
             {tree.map((collection) => {
                 return renderNode(collection)
             })}
@@ -469,28 +661,41 @@ const SidebarLayout: React.FC = () => {
         </div>
     )
 
+    const deleteDescendantCount = nodeToDelete?.category === "FOLD" ? countDescendantItems(nodeToDelete) : 0
+
     return (
-        <Sidebar
-            className="fixed left-0 top-[90px] z-30 h-[calc(100dvh-90px)] w-64 flex-col border-r border-sidebar-border bg-sidebar"
-            collapsible={"none"}
+        <aside
+            className="fixed left-0 top-[90px] z-30 h-[calc(100dvh-90px)] w-64 flex flex-col border-r border-sidebar-border bg-sidebar"
         >
-            <SidebarContent className="flex flex-col overflow-y-auto px-3 py-2 bg-sidebar">
-                <div className="sticky top-0 z-20 bg-sidebar -mx-3 -mt-2 px-3 pt-2 pb-2">
-                    <div className="relative">
-                        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground"/>
-                        <input
-                            type="text"
-                            placeholder="Search collections & test suites..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-sidebar-accent border border-sidebar-border text-sidebar-foreground placeholder-muted-foreground text-xs pl-8 pr-3 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
-                        />
-                    </div>
+            <div className="bg-sidebar px-3 pt-2 pb-2 shrink-0 z-10">
+                <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-muted-foreground"/>
+                    <input
+                        type="text"
+                        placeholder="Search collections & test suites..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-sidebar-accent border border-sidebar-border text-sidebar-foreground placeholder-muted-foreground text-xs pl-8 pr-3 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                    />
                 </div>
-                <div className="mb-2 px-2 flex items-center space-x-1.5">
-                    <FolderGit2 className="w-4 h-4 text-indigo-600"/>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collections
-                        ({countFolders(tree)})</p>
+            </div>
+            <div className="flex flex-col overflow-y-auto px-3 pb-2 bg-sidebar flex-1">
+                <div className="mb-2 px-2 mt-2 flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                        <FolderGit2 className="w-4 h-4 text-indigo-600"/>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collections
+                            ({countFolders(tree)})</p>
+                    </div>
+                    {activeCollection && (
+                        <button
+                            type="button"
+                            title="Create new folder"
+                            onClick={() => handleStartCreate("", "FOLD")}
+                            className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-sidebar-accent hover:text-indigo-600 transition"
+                        >
+                            <FolderPlus className="h-3.5 w-3.5"/>
+                        </button>
+                    )}
                 </div>
                 <div className="relative">
                     {searchQuery ? (
@@ -531,7 +736,43 @@ const SidebarLayout: React.FC = () => {
                 <TestScenarioSidebar searchQuery={searchQuery}/>
                 <AutomationSidebar searchQuery={searchQuery}/>
                 <DocumentationSidebar searchQuery={searchQuery}/>
-            </SidebarContent>
+            </div>
+            {contextMenu && (
+                <div
+                    style={{top: contextMenu.y, left: contextMenu.x}}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="fixed z-50 min-w-[160px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+                >
+                    <button
+                        type="button"
+                        onClick={() => handleStartRename(contextMenu.node)}
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                    >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground"/>
+                        <span>Rename</span>
+                    </button>
+                    {contextMenu.node.category === "FOLD" && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => handleStartCreate(contextMenu.node.id, "REQ")}
+                                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                            >
+                                <FilePlus2 className="h-3.5 w-3.5 text-muted-foreground"/>
+                                <span>New request</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleStartCreate(contextMenu.node.id, "FOLD")}
+                                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                            >
+                                <FolderPlus className="h-3.5 w-3.5 text-muted-foreground"/>
+                                <span>New folder</span>
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
             <AlertDialog open={Boolean(nodeToDelete)} onOpenChange={(open) => !open && setNodeToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -540,7 +781,9 @@ const SidebarLayout: React.FC = () => {
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {nodeToDelete?.category === "FOLD"
-                                ? `Are you sure you want to delete folder "${nodeToDelete?.name}" and all of its items? This action cannot be undone.`
+                                ? deleteDescendantCount > 0
+                                    ? `Are you sure you want to delete folder "${nodeToDelete?.name}"? You will delete ${deleteDescendantCount} item(s) inside it. This action cannot be undone.`
+                                    : `Are you sure you want to delete empty folder "${nodeToDelete?.name}"? This action cannot be undone.`
                                 : `Are you sure you want to delete request "${nodeToDelete?.name}"? This action cannot be undone.`}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -555,7 +798,7 @@ const SidebarLayout: React.FC = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </Sidebar>
+        </aside>
     );
 };
 

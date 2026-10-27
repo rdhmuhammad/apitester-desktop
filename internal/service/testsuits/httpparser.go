@@ -47,13 +47,10 @@ func (p *httpParser) parse(content string) []TestStep {
 }
 
 func (p *httpParser) IsRequest(block string) bool {
-	for _, mp := range []string{"POST", "GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"} {
-		if strings.Contains(block, mp) {
-			return true
-		}
-	}
-
-	return false
+	methods := []string{"POST", "GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+	return slices.ContainsFunc(methods, func(mp string) bool {
+		return strings.Contains(block, mp)
+	})
 }
 
 func (p *httpParser) parseBlock(block string, index int) TestStep {

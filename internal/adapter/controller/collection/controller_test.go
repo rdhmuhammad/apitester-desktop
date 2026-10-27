@@ -23,9 +23,6 @@ type collectionUsecaseStub struct {
 	searchErrToReturn  error
 }
 
-func (s *collectionUsecaseStub) Read(ctx context.Context, id string) (service.ReadResponse, error) {
-	return service.ReadResponse{}, nil
-}
 func (s *collectionUsecaseStub) ListCollections(ctx context.Context) ([]domain.Collection, error) {
 	return nil, nil
 }

@@ -6,6 +6,7 @@ interface ElectronAPI {
     closeWindow(): void
     isMaximized(): Promise<boolean>
     openExternal(targetPathOrUrl: string): Promise<string>
+    showItemInFolder(targetPath: string): Promise<boolean>
 }
 
 interface Window {

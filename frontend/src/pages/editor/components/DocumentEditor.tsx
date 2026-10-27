@@ -405,11 +405,22 @@ const DocumentEditor: React.FC = () => {
             }
         }
 
-        setTagDropdown({
-            open: true,
-            position: {x, y},
-            query,
-            mode: "live",
+        setTagDropdown((prev) => {
+            if (
+                prev.open &&
+                prev.mode === "live" &&
+                prev.query === query &&
+                Math.abs(prev.position.x - x) < 3 &&
+                Math.abs(prev.position.y - y) < 3
+            ) {
+                return prev
+            }
+            return {
+                open: true,
+                position: {x, y},
+                query,
+                mode: "live",
+            }
         })
     }, [])
 
@@ -435,11 +446,22 @@ const DocumentEditor: React.FC = () => {
         const x = rect.left + 20 + colIndex * charWidth - ta.scrollLeft
         const y = rect.top + 20 + (lineIndex + 1) * lineHeight - ta.scrollTop
 
-        setTagDropdown({
-            open: true,
-            position: {x, y},
-            query,
-            mode: "source",
+        setTagDropdown((prev) => {
+            if (
+                prev.open &&
+                prev.mode === "source" &&
+                prev.query === query &&
+                Math.abs(prev.position.x - x) < 3 &&
+                Math.abs(prev.position.y - y) < 3
+            ) {
+                return prev
+            }
+            return {
+                open: true,
+                position: {x, y},
+                query,
+                mode: "source",
+            }
         })
     }, [])
 
@@ -940,7 +962,7 @@ const DocumentEditor: React.FC = () => {
                         value={markdown}
                         onChange={(e) => {
                             pushHistoryAndSync(e.target.value, false)
-                            setTimeout(checkSourceTagTrigger, 0)
+                            checkSourceTagTrigger()
                         }}
                         onSelect={(e) => {
                             const target = e.currentTarget
@@ -948,9 +970,7 @@ const DocumentEditor: React.FC = () => {
                                 start: target.selectionStart,
                                 end: target.selectionEnd,
                             }
-                            checkSourceTagTrigger()
                         }}
-                        onKeyUp={() => checkSourceTagTrigger()}
                         onKeyDown={(e) => {
                             if (tagDropdown.open && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
                                 return

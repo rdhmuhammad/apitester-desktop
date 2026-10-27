@@ -1,6 +1,53 @@
 package restrequest
 
-import collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
+import (
+	"strings"
+
+	"github.com/google/uuid"
+	collectionService "github.com/rdhmuhammad/apitester/internal/service/collection"
+)
+
+type CreateRequestPayload struct {
+	Name     string `json:"name"`
+	ParentID string `json:"parentId"`
+}
+
+type CreateFolderPayload struct {
+	Name     string `json:"name"`
+	ParentID string `json:"parentId"`
+}
+
+type FolderResponse struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+func NewCollectionRequestItem(name string) collectionService.CollectionItem {
+	return collectionService.CollectionItem{
+		ID:   uuid.NewString(),
+		Name: strings.TrimSpace(name),
+		Request: &collectionService.Request{
+			Header: []collectionService.Header{},
+			Body: &collectionService.RequestBody{
+				FormData: []collectionService.Property{},
+			},
+			URL: collectionService.RequestURL{
+				Host:  []string{},
+				Path:  []string{},
+				Query: []collectionService.Property{},
+			},
+		},
+	}
+}
+
+func NewCollectionFolderItem(name string) collectionService.CollectionItem {
+	return collectionService.CollectionItem{
+		ID:   uuid.NewString(),
+		Name: strings.TrimSpace(name),
+		Item: []collectionService.CollectionItem{},
+	}
+}
 
 type RequestResponse struct {
 	ID        string                                 `json:"id"`

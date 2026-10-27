@@ -50,213 +50,131 @@ func NewRestRequestSocket(lg *logger.ReZero, dbBolt *bbolt.DB) *RequestSocket {
 	}
 }
 
-func (s *RequestSocket) UpdateAuth(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateAuthPayload)
+func handleRequestAction[P cio.MessagePayload](
+	s *RequestSocket,
+	client *socket.Socket,
+	message cio.MessagePayload,
+	event string,
+	getIdentity func(P) RequestIdentity,
+	action func(ctx context.Context, collectionID, requestID string, p P) (service.RequestResponse, error),
+) {
+	payload, ok := message.(P)
 	if !ok {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
+	collectionID, requestID := s.requestIDs(ctx, client, getIdentity(payload))
 	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateAuth, "Collection id and request id are required")
+		s.emitError(client, event, "Collection id and request id are required")
 		return
 	}
-	res, err := s.usecase.UpdateAuth(ctx, collectionID, requestID, payload.UpdateAuthRequest)
-	s.emitResult(client, RequestUpdateAuth, res, err)
+	res, err := action(ctx, collectionID, requestID, payload)
+	s.emitResult(client, event, res, err)
+}
+
+func (s *RequestSocket) UpdateAuth(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
+	handleRequestAction(s, client, message, RequestUpdateAuth,
+		func(p *RequestUpdateAuthPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateAuthPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateAuth(ctx, cid, rid, p.UpdateAuthRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateURL(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateURLPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateUrl.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateURL(ctx, collectionID, requestID, payload.UpdateURLRequest)
-	s.emitResult(client, RequestUpdateUrl.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateUrl.Name(),
+		func(p *RequestUpdateURLPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateURLPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateURL(ctx, cid, rid, p.UpdateURLRequest)
+		})
 }
 
 func (s *RequestSocket) EditPathVariable(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestEditPathVariablePayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestEditPathVariable.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.EditPathVariable(ctx, collectionID, requestID, payload.EditPathVariableRequest)
-	s.emitResult(client, RequestEditPathVariable.Name(), res, err)
+	handleRequestAction(s, client, message, RequestEditPathVariable.Name(),
+		func(p *RequestEditPathVariablePayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestEditPathVariablePayload) (service.RequestResponse, error) {
+			return s.usecase.EditPathVariable(ctx, cid, rid, p.EditPathVariableRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateHeaders(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateHeadersPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateHeaders.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateHeaders(ctx, collectionID, requestID, payload.UpdateHeadersRequest)
-	s.emitResult(client, RequestUpdateHeaders.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateHeaders.Name(),
+		func(p *RequestUpdateHeadersPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateHeadersPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateHeaders(ctx, cid, rid, p.UpdateHeadersRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateMethod(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateMethodPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateMethod.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateMethod(ctx, collectionID, requestID, payload.UpdateMethodRequest)
-	s.emitResult(client, RequestUpdateMethod.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateMethod.Name(),
+		func(p *RequestUpdateMethodPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateMethodPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateMethod(ctx, cid, rid, p.UpdateMethodRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateName(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateNamePayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateName.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateName(ctx, collectionID, requestID, payload.UpdateNameRequest)
-	s.emitResult(client, RequestUpdateName.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateName.Name(),
+		func(p *RequestUpdateNamePayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateNamePayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateName(ctx, cid, rid, p.UpdateNameRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateQuery(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateQueryPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateQuery.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateQuery(ctx, collectionID, requestID, payload.UpdateQueryRequest)
-	s.emitResult(client, RequestUpdateQuery.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateQuery.Name(),
+		func(p *RequestUpdateQueryPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateQueryPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateQuery(ctx, cid, rid, p.UpdateQueryRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateJSONBody(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateJSONBodyPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateBodyJson.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateJSONBody(ctx, collectionID, requestID, payload.UpdateJSONBodyRequest)
-	s.emitResult(client, RequestUpdateBodyJson.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateBodyJson.Name(),
+		func(p *RequestUpdateJSONBodyPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateJSONBodyPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateJSONBody(ctx, cid, rid, p.UpdateJSONBodyRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateFormDataBody(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateFormDataBodyPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateBodyFormdata.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdateFormDataBody(ctx, collectionID, requestID, payload.UpdateFormDataBodyRequest)
-	s.emitResult(client, RequestUpdateBodyFormdata.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateBodyFormdata.Name(),
+		func(p *RequestUpdateFormDataBodyPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateFormDataBodyPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdateFormDataBody(ctx, cid, rid, p.UpdateFormDataBodyRequest)
+		})
 }
 
 func (s *RequestSocket) UpdateScript(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestUpdateScriptPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestUpdateScript.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.UpdatePostRequestScript(ctx, collectionID, requestID, payload.UpdatePostRequestScriptRequest)
-	s.emitResult(client, RequestUpdateScript.Name(), res, err)
+	handleRequestAction(s, client, message, RequestUpdateScript.Name(),
+		func(p *RequestUpdateScriptPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestUpdateScriptPayload) (service.RequestResponse, error) {
+			return s.usecase.UpdatePostRequestScript(ctx, cid, rid, p.UpdatePostRequestScriptRequest)
+		})
 }
 
 func (s *RequestSocket) Delete(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestDeletePayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestDelete.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.Delete(ctx, collectionID, requestID)
-	s.emitResult(client, RequestDelete.Name(), res, err)
+	handleRequestAction(s, client, message, RequestDelete.Name(),
+		func(p *RequestDeletePayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, _ *RequestDeletePayload) (service.RequestResponse, error) {
+			return s.usecase.Delete(ctx, cid, rid)
+		})
 }
 
 func (s *RequestSocket) SaveResponse(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestSaveResponsePayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestSaveResponse.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.SaveResponse(ctx, collectionID, requestID, payload.SaveResponseRequest)
-	s.emitResult(client, RequestSaveResponse.Name(), res, err)
+	handleRequestAction(s, client, message, RequestSaveResponse.Name(),
+		func(p *RequestSaveResponsePayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestSaveResponsePayload) (service.RequestResponse, error) {
+			return s.usecase.SaveResponse(ctx, cid, rid, p.SaveResponseRequest)
+		})
 }
 
 func (s *RequestSocket) SavePostRequestScript(_ *cio.NS, client *socket.Socket, message cio.MessagePayload) {
-	payload, ok := message.(*RequestSaveScriptPayload)
-	if !ok {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	collectionID, requestID := s.requestIDs(ctx, client, payload.RequestIdentity)
-	if collectionID == "" || requestID == "" {
-		s.emitError(client, RequestSaveScript.Name(), "Collection id and request id are required")
-		return
-	}
-	res, err := s.usecase.SavePostRequestScript(ctx, collectionID, requestID, payload.SavePostRequestScriptRequest)
-	s.emitResult(client, RequestSaveScript.Name(), res, err)
+	handleRequestAction(s, client, message, RequestSaveScript.Name(),
+		func(p *RequestSaveScriptPayload) RequestIdentity { return p.RequestIdentity },
+		func(ctx context.Context, cid, rid string, p *RequestSaveScriptPayload) (service.RequestResponse, error) {
+			return s.usecase.SavePostRequestScript(ctx, cid, rid, p.SavePostRequestScriptRequest)
+		})
 }
 
 func (s *RequestSocket) SaveScript(ns *cio.NS, client *socket.Socket, message cio.MessagePayload) {

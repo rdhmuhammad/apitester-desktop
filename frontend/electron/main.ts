@@ -95,6 +95,12 @@ ipcMain.handle("open-external", async (_event, targetPathOrUrl: string) => {
     return await shell.openPath(targetPathOrUrl)
 })
 
+ipcMain.handle("show-item-in-folder", (_event, targetPath: string) => {
+    if (!targetPath) return false
+    shell.showItemInFolder(path.normalize(targetPath))
+    return true
+})
+
 app.whenReady().then(async () => {
     // Intercept all HTTP/HTTPS responses to inject permissive CORS headers
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

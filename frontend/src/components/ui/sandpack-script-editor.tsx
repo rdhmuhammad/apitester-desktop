@@ -48,453 +48,257 @@ export interface SandpackScriptEditorProps {
     extraFiles?: Record<string, string | { code: string; hidden?: boolean; active?: boolean }>
 }
 
-const darkAutocompleteTheme = EditorView.theme({
-    ".cm-tooltip": {
-        backgroundColor: "#18181b !important",
-        border: "1px solid #3f3f46 !important",
-        color: "#f4f4f5 !important",
-        borderRadius: "6px",
-        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)",
-        zIndex: "9999 !important",
-        pointerEvents: "auto !important",
-    },
-    ".cm-tooltip.cm-tooltip-autocomplete": {
-        borderRadius: "6px",
-        overflow: "hidden",
-        "& > ul": {
-            fontFamily: "var(--font-mono, monospace)",
-            padding: "4px 0",
-            maxHeight: "16em",
-            minWidth: "260px",
-            scrollbarWidth: "thin",
-            scrollbarColor: "#3f3f46 transparent",
-        },
-        "& > ul > li": {
-            padding: "5px 10px",
-            lineHeight: "1.4",
-            color: "#e4e4e7",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "12px",
-        },
-        "& > ul > li[aria-selected]": {
-            backgroundColor: "#2563eb !important",
-            color: "#ffffff !important",
-        },
-        "& > ul > li:hover:not([aria-selected])": {
-            backgroundColor: "#27272a !important",
-        },
-        "& > ul > completion-section": {
-            borderBottom: "1px solid #3f3f46",
-            color: "#a1a1aa",
-            fontSize: "11px",
-            padding: "4px 8px",
-            opacity: "0.8",
-        },
-    },
-    ".cm-completionMatchedText": {
-        color: "#60a5fa !important",
-        textDecoration: "underline",
-        fontWeight: "600",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText": {
-        color: "#ffffff !important",
-        textDecoration: "underline",
-        fontWeight: "700",
-    },
-    ".cm-completionDetail": {
-        color: "#a1a1aa",
-        fontStyle: "italic",
-        marginLeft: "auto",
-        fontSize: "11px",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
-        color: "#dbeafe !important",
-    },
-    ".cm-completionIcon": {
-        opacity: "0.85",
-        width: "1.2em",
-        display: "inline-block",
-        textAlign: "center",
-        marginRight: "4px",
-        fontSize: "12px",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon": {
-        color: "#ffffff !important",
-        opacity: "1",
-    },
-    ".cm-completionIcon-function, .cm-completionIcon-method": {
-        color: "#a78bfa",
-    },
-    ".cm-completionIcon-variable, .cm-completionIcon-property": {
-        color: "#38bdf8",
-    },
-    ".cm-completionIcon-keyword": {
-        color: "#f472b6",
-    },
-    ".cm-completionIcon-class, .cm-completionIcon-interface": {
-        color: "#fbbf24",
-    },
-    ".cm-completionIcon-constant": {
-        color: "#34d399",
-    },
-    ".cm-completionIcon-type": {
-        color: "#818cf8",
-    },
-    ".cm-tooltip.cm-completionInfo": {
-        backgroundColor: "#18181b !important",
-        border: "1px solid #3f3f46 !important",
-        color: "#f4f4f5 !important",
-        borderRadius: "6px",
-        padding: "8px 12px",
-        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.6)",
-        fontSize: "12px",
-        lineHeight: "1.5",
-    },
-    ".cm-panels": {
-        backgroundColor: "#18181b !important",
-        color: "#f4f4f5 !important",
-        zIndex: "20 !important",
-    },
-    ".cm-panels.cm-panels-top": {
-        borderBottom: "1px solid #27272a !important",
-    },
-    ".cm-panels.cm-panels-bottom": {
-        borderTop: "1px solid #27272a !important",
-    },
-    ".cm-panel.cm-search": {
-        backgroundColor: "#18181b !important",
-        color: "#f4f4f5 !important",
-        padding: "6px 28px 6px 10px !important",
-        fontFamily: "var(--font-sans, system-ui, sans-serif) !important",
-        fontSize: "12px !important",
-        display: "flex !important",
-        flexWrap: "wrap !important",
-        alignItems: "center !important",
-        gap: "4px 6px !important",
-        position: "relative !important",
-    },
-    ".cm-panel.cm-search [name=close]": {
-        position: "absolute !important",
-        top: "6px !important",
-        right: "6px !important",
-        cursor: "pointer !important",
-        color: "#a1a1aa !important",
-        backgroundColor: "transparent !important",
-        border: "none !important",
-        borderRadius: "4px !important",
-        width: "20px !important",
-        height: "20px !important",
-        padding: "0 !important",
-        fontSize: "16px !important",
-        lineHeight: "1 !important",
-        display: "inline-flex !important",
-        alignItems: "center !important",
-        justifyContent: "center !important",
-        transition: "background-color 0.15s, color 0.15s",
-    },
-    ".cm-panel.cm-search [name=close]:hover": {
-        backgroundColor: "#27272a !important",
-        color: "#ffffff !important",
-    },
-    ".cm-panel.cm-search input.cm-textfield": {
-        backgroundColor: "#27272a !important",
-        color: "#f4f4f5 !important",
-        border: "1px solid #3f3f46 !important",
-        borderRadius: "4px !important",
-        padding: "2px 8px !important",
-        fontSize: "12px !important",
-        fontFamily: "var(--font-mono, monospace) !important",
-        outline: "none !important",
-        minWidth: "130px !important",
-        maxWidth: "200px !important",
-        height: "24px !important",
-        margin: "0 !important",
-        transition: "border-color 0.15s, box-shadow 0.15s",
-    },
-    ".cm-panel.cm-search input.cm-textfield:focus": {
-        borderColor: "#3b82f6 !important",
-        boxShadow: "0 0 0 1px #3b82f6 !important",
-    },
-    ".cm-panel.cm-search button.cm-button": {
-        backgroundColor: "#27272a !important",
-        color: "#e4e4e7 !important",
-        border: "1px solid #3f3f46 !important",
-        borderRadius: "4px !important",
-        padding: "2px 8px !important",
-        height: "24px !important",
-        fontSize: "11px !important",
-        fontWeight: "500 !important",
-        cursor: "pointer !important",
-        margin: "0 !important",
-        display: "inline-flex !important",
-        alignItems: "center !important",
-        justifyContent: "center !important",
-        transition: "background-color 0.15s, color 0.15s",
-    },
-    ".cm-panel.cm-search button.cm-button:hover": {
-        backgroundColor: "#3f3f46 !important",
-        color: "#ffffff !important",
-    },
-    ".cm-panel.cm-search button.cm-button:active": {
-        backgroundColor: "#52525b !important",
-    },
-    ".cm-panel.cm-search label": {
-        fontSize: "11px !important",
-        color: "#a1a1aa !important",
-        display: "inline-flex !important",
-        alignItems: "center !important",
-        gap: "4px !important",
-        cursor: "pointer !important",
-        margin: "0 2px !important",
-        userSelect: "none !important",
-    },
-    ".cm-panel.cm-search label:hover": {
-        color: "#f4f4f5 !important",
-    },
-    ".cm-panel.cm-search input[type=checkbox]": {
-        accentColor: "#2563eb",
-        cursor: "pointer",
-        margin: "0 !important",
-    },
-    ".cm-panel.cm-search br": {
-        flexBasis: "100% !important",
-        height: "0px !important",
-        margin: "0 !important",
-        display: "block !important",
-    },
-    ".cm-searchMatch": {
-        backgroundColor: "rgba(234, 179, 8, 0.35) !important",
-        outline: "1px solid rgba(234, 179, 8, 0.6) !important",
-        borderRadius: "2px",
-    },
-    ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: "rgba(249, 115, 22, 0.55) !important",
-        outline: "1px solid rgba(249, 115, 22, 0.9) !important",
-        borderRadius: "2px",
-    },
-    ".cm-selectionMatch": {
-        backgroundColor: "rgba(59, 130, 246, 0.25) !important",
-        borderRadius: "2px",
-    },
-}, { dark: true })
+function createAutocompleteTheme(isDark: boolean) {
+    const bg = isDark ? "#18181b" : "#ffffff";
+    const bgMuted = isDark ? "#27272a" : "#f1f5f9";
+    const bgField = isDark ? "#27272a" : "#f8fafc";
+    const border = isDark ? "#3f3f46" : "#e2e8f0";
+    const borderMuted = isDark ? "#27272a" : "#e2e8f0";
+    const text = isDark ? "#f4f4f5" : "#0f172a";
+    const textMuted = isDark ? "#a1a1aa" : "#64748b";
+    const textItem = isDark ? "#e4e4e7" : "#334155";
+    const scrollbar = isDark ? "#3f3f46 transparent" : "#cbd5e1 transparent";
+    const matchText = isDark ? "#60a5fa" : "#2563eb";
+    const shadow = isDark
+        ? "0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)"
+        : "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)";
 
-const lightAutocompleteTheme = EditorView.theme({
-    ".cm-tooltip": {
-        backgroundColor: "#ffffff !important",
-        border: "1px solid #e2e8f0 !important",
-        color: "#0f172a !important",
-        borderRadius: "6px",
-        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
-        zIndex: "9999 !important",
-        pointerEvents: "auto !important",
-    },
-    ".cm-tooltip.cm-tooltip-autocomplete": {
-        borderRadius: "6px",
-        overflow: "hidden",
-        "& > ul": {
-            fontFamily: "var(--font-mono, monospace)",
-            padding: "4px 0",
-            maxHeight: "16em",
-            minWidth: "260px",
-            scrollbarWidth: "thin",
-            scrollbarColor: "#cbd5e1 transparent",
+    return EditorView.theme({
+        ".cm-tooltip": {
+            backgroundColor: `${bg} !important`,
+            border: `1px solid ${border} !important`,
+            color: `${text} !important`,
+            borderRadius: "6px",
+            boxShadow: shadow,
+            zIndex: "9999 !important",
+            pointerEvents: "auto !important",
         },
-        "& > ul > li": {
-            padding: "5px 10px",
-            lineHeight: "1.4",
-            color: "#334155",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
+        ".cm-tooltip.cm-tooltip-autocomplete": {
+            borderRadius: "6px",
+            overflow: "hidden",
+            "& > ul": {
+                fontFamily: "var(--font-mono, monospace)",
+                padding: "4px 0",
+                maxHeight: "16em",
+                minWidth: "260px",
+                scrollbarWidth: "thin",
+                scrollbarColor: scrollbar,
+            },
+            "& > ul > li": {
+                padding: "5px 10px",
+                lineHeight: "1.4",
+                color: textItem,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+            },
+            "& > ul > li[aria-selected]": {
+                backgroundColor: "#2563eb !important",
+                color: "#ffffff !important",
+            },
+            "& > ul > li:hover:not([aria-selected])": {
+                backgroundColor: `${bgMuted} !important`,
+            },
+            "& > ul > completion-section": {
+                borderBottom: `1px solid ${border}`,
+                color: textMuted,
+                fontSize: "11px",
+                padding: "4px 8px",
+                opacity: "0.8",
+            },
+        },
+        ".cm-completionMatchedText": {
+            color: `${matchText} !important`,
+            textDecoration: "underline",
+            fontWeight: "600",
+        },
+        ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText": {
+            color: "#ffffff !important",
+            textDecoration: "underline",
+            fontWeight: "700",
+        },
+        ".cm-completionDetail": {
+            color: textMuted,
+            fontStyle: "italic",
+            marginLeft: "auto",
+            fontSize: "11px",
+        },
+        ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
+            color: "#dbeafe !important",
+        },
+        ".cm-completionIcon": {
+            opacity: "0.85",
+            width: "1.2em",
+            display: "inline-block",
+            textAlign: "center",
+            marginRight: "4px",
             fontSize: "12px",
         },
-        "& > ul > li[aria-selected]": {
-            backgroundColor: "#2563eb !important",
+        ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon": {
             color: "#ffffff !important",
+            opacity: "1",
         },
-        "& > ul > li:hover:not([aria-selected])": {
-            backgroundColor: "#f1f5f9 !important",
+        ".cm-completionIcon-function, .cm-completionIcon-method": {
+            color: isDark ? "#a78bfa" : "#7c3aed",
         },
-        "& > ul > completion-section": {
-            borderBottom: "1px solid #e2e8f0",
-            color: "#64748b",
-            fontSize: "11px",
-            padding: "4px 8px",
-            opacity: "0.8",
+        ".cm-completionIcon-variable, .cm-completionIcon-property": {
+            color: isDark ? "#38bdf8" : "#0284c7",
         },
-    },
-    ".cm-completionMatchedText": {
-        color: "#2563eb !important",
-        textDecoration: "underline",
-        fontWeight: "600",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionMatchedText": {
-        color: "#ffffff !important",
-        textDecoration: "underline",
-        fontWeight: "700",
-    },
-    ".cm-completionDetail": {
-        color: "#64748b",
-        fontStyle: "italic",
-        marginLeft: "auto",
-        fontSize: "11px",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
-        color: "#dbeafe !important",
-    },
-    ".cm-completionIcon": {
-        opacity: "0.85",
-        width: "1.2em",
-        display: "inline-block",
-        textAlign: "center",
-        marginRight: "4px",
-        fontSize: "12px",
-    },
-    ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon": {
-        color: "#ffffff !important",
-        opacity: "1",
-    },
-    ".cm-tooltip.cm-completionInfo": {
-        backgroundColor: "#ffffff !important",
-        border: "1px solid #e2e8f0 !important",
-        color: "#0f172a !important",
-        borderRadius: "6px",
-        padding: "8px 12px",
-        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-        fontSize: "12px",
-        lineHeight: "1.5",
-    },
-    ".cm-panels": {
-        backgroundColor: "#f8fafc !important",
-        color: "#0f172a !important",
-        zIndex: "20 !important",
-    },
-    ".cm-panels.cm-panels-top": {
-        borderBottom: "1px solid #e2e8f0 !important",
-    },
-    ".cm-panels.cm-panels-bottom": {
-        borderTop: "1px solid #e2e8f0 !important",
-    },
-    ".cm-panel.cm-search": {
-        backgroundColor: "#f8fafc !important",
-        color: "#0f172a !important",
-        padding: "6px 28px 6px 10px !important",
-        fontFamily: "var(--font-sans, system-ui, sans-serif) !important",
-        fontSize: "12px !important",
-        display: "flex !important",
-        flexWrap: "wrap !important",
-        alignItems: "center !important",
-        gap: "4px 6px !important",
-        position: "relative !important",
-    },
-    ".cm-panel.cm-search [name=close]": {
-        position: "absolute !important",
-        top: "6px !important",
-        right: "6px !important",
-        cursor: "pointer !important",
-        color: "#64748b !important",
-        backgroundColor: "transparent !important",
-        border: "none !important",
-        borderRadius: "4px !important",
-        width: "20px !important",
-        height: "20px !important",
-        padding: "0 !important",
-        fontSize: "16px !important",
-        lineHeight: "1 !important",
-        display: "inline-flex !important",
-        alignItems: "center !important",
-        justifyContent: "center !important",
-        transition: "background-color 0.15s, color 0.15s",
-    },
-    ".cm-panel.cm-search [name=close]:hover": {
-        backgroundColor: "#e2e8f0 !important",
-        color: "#0f172a !important",
-    },
-    ".cm-panel.cm-search input.cm-textfield": {
-        backgroundColor: "#ffffff !important",
-        color: "#0f172a !important",
-        border: "1px solid #cbd5e1 !important",
-        borderRadius: "4px !important",
-        padding: "2px 8px !important",
-        fontSize: "12px !important",
-        fontFamily: "var(--font-mono, monospace) !important",
-        outline: "none !important",
-        minWidth: "130px !important",
-        maxWidth: "200px !important",
-        height: "24px !important",
-        margin: "0 !important",
-        transition: "border-color 0.15s, box-shadow 0.15s",
-    },
-    ".cm-panel.cm-search input.cm-textfield:focus": {
-        borderColor: "#2563eb !important",
-        boxShadow: "0 0 0 1px #2563eb !important",
-    },
-    ".cm-panel.cm-search button.cm-button": {
-        backgroundColor: "#ffffff !important",
-        color: "#334155 !important",
-        border: "1px solid #cbd5e1 !important",
-        borderRadius: "4px !important",
-        padding: "2px 8px !important",
-        height: "24px !important",
-        fontSize: "11px !important",
-        fontWeight: "500 !important",
-        cursor: "pointer !important",
-        margin: "0 !important",
-        display: "inline-flex !important",
-        alignItems: "center !important",
-        justifyContent: "center !important",
-        transition: "background-color 0.15s, color 0.15s",
-    },
-    ".cm-panel.cm-search button.cm-button:hover": {
-        backgroundColor: "#e2e8f0 !important",
-        color: "#0f172a !important",
-    },
-    ".cm-panel.cm-search button.cm-button:active": {
-        backgroundColor: "#cbd5e1 !important",
-    },
-    ".cm-panel.cm-search label": {
-        fontSize: "11px !important",
-        color: "#64748b !important",
-        display: "inline-flex !important",
-        alignItems: "center !important",
-        gap: "4px !important",
-        cursor: "pointer !important",
-        margin: "0 2px !important",
-        userSelect: "none !important",
-    },
-    ".cm-panel.cm-search label:hover": {
-        color: "#0f172a !important",
-    },
-    ".cm-panel.cm-search input[type=checkbox]": {
-        accentColor: "#2563eb",
-        cursor: "pointer",
-        margin: "0 !important",
-    },
-    ".cm-panel.cm-search br": {
-        flexBasis: "100% !important",
-        height: "0px !important",
-        margin: "0 !important",
-        display: "block !important",
-    },
-    ".cm-searchMatch": {
-        backgroundColor: "rgba(250, 204, 21, 0.4) !important",
-        outline: "1px solid rgba(234, 179, 8, 0.7) !important",
-        borderRadius: "2px",
-    },
-    ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: "rgba(249, 115, 22, 0.45) !important",
-        outline: "1px solid rgba(249, 115, 22, 0.8) !important",
-        borderRadius: "2px",
-    },
-    ".cm-selectionMatch": {
-        backgroundColor: "rgba(59, 130, 246, 0.2) !important",
-        borderRadius: "2px",
-    },
-}, { dark: false })
+        ".cm-completionIcon-keyword": {
+            color: isDark ? "#f472b6" : "#db2777",
+        },
+        ".cm-completionIcon-class, .cm-completionIcon-interface": {
+            color: isDark ? "#fbbf24" : "#d97706",
+        },
+        ".cm-completionIcon-constant": {
+            color: isDark ? "#34d399" : "#059669",
+        },
+        ".cm-completionIcon-type": {
+            color: isDark ? "#818cf8" : "#4f46e5",
+        },
+        ".cm-tooltip.cm-completionInfo": {
+            backgroundColor: `${bg} !important`,
+            border: `1px solid ${border} !important`,
+            color: `${text} !important`,
+            borderRadius: "6px",
+            padding: "8px 12px",
+            boxShadow: shadow,
+            fontSize: "12px",
+            lineHeight: "1.5",
+        },
+        ".cm-panels": {
+            backgroundColor: `${bg} !important`,
+            color: `${text} !important`,
+            zIndex: "20 !important",
+        },
+        ".cm-panels.cm-panels-top": {
+            borderBottom: `1px solid ${borderMuted} !important`,
+        },
+        ".cm-panels.cm-panels-bottom": {
+            borderTop: `1px solid ${borderMuted} !important`,
+        },
+        ".cm-panel.cm-search": {
+            backgroundColor: `${bg} !important`,
+            color: `${text} !important`,
+            padding: "6px 28px 6px 10px !important",
+            fontFamily: "var(--font-sans, system-ui, sans-serif) !important",
+            fontSize: "12px !important",
+            display: "flex !important",
+            flexWrap: "wrap !important",
+            alignItems: "center !important",
+            gap: "4px 6px !important",
+            position: "relative !important",
+        },
+        ".cm-panel.cm-search [name=close]": {
+            position: "absolute !important",
+            top: "6px !important",
+            right: "6px !important",
+            cursor: "pointer !important",
+            color: textMuted,
+            backgroundColor: "transparent !important",
+            border: "none !important",
+            borderRadius: "4px !important",
+            width: "20px !important",
+            height: "20px !important",
+            padding: "0 !important",
+            fontSize: "16px !important",
+            lineHeight: "1 !important",
+            display: "inline-flex !important",
+            alignItems: "center !important",
+            justifyContent: "center !important",
+            transition: "background-color 0.15s, color 0.15s",
+        },
+        ".cm-panel.cm-search [name=close]:hover": {
+            backgroundColor: `${bgMuted} !important`,
+            color: text,
+        },
+        ".cm-panel.cm-search input.cm-textfield": {
+            backgroundColor: `${bgField} !important`,
+            color: `${text} !important`,
+            border: `1px solid ${border} !important`,
+            borderRadius: "4px !important",
+            padding: "2px 8px !important",
+            fontSize: "12px !important",
+            fontFamily: "var(--font-mono, monospace) !important",
+            outline: "none !important",
+            minWidth: "130px !important",
+            maxWidth: "200px !important",
+            height: "24px !important",
+            margin: "0 !important",
+            transition: "border-color 0.15s, box-shadow 0.15s",
+        },
+        ".cm-panel.cm-search input.cm-textfield:focus": {
+            borderColor: "#3b82f6 !important",
+            boxShadow: "0 0 0 1px #3b82f6 !important",
+        },
+        ".cm-panel.cm-search button.cm-button": {
+            backgroundColor: `${bgMuted} !important`,
+            color: `${textItem} !important`,
+            border: `1px solid ${border} !important`,
+            borderRadius: "4px !important",
+            padding: "2px 8px !important",
+            height: "24px !important",
+            fontSize: "11px !important",
+            fontWeight: "500 !important",
+            cursor: "pointer !important",
+            margin: "0 !important",
+            display: "inline-flex !important",
+            alignItems: "center !important",
+            justifyContent: "center !important",
+            transition: "background-color 0.15s, color 0.15s",
+        },
+        ".cm-panel.cm-search button.cm-button:hover": {
+            backgroundColor: `${border} !important`,
+            color: text,
+        },
+        ".cm-panel.cm-search button.cm-button:active": {
+            backgroundColor: isDark ? "#52525b !important" : "#cbd5e1 !important",
+        },
+        ".cm-panel.cm-search label": {
+            fontSize: "11px !important",
+            color: `${textMuted} !important`,
+            display: "inline-flex !important",
+            alignItems: "center !important",
+            gap: "4px !important",
+            cursor: "pointer !important",
+            margin: "0 2px !important",
+            userSelect: "none !important",
+        },
+        ".cm-panel.cm-search label:hover": {
+            color: `${text} !important`,
+        },
+        ".cm-panel.cm-search input[type=checkbox]": {
+            accentColor: "#2563eb",
+            cursor: "pointer",
+            margin: "0 !important",
+        },
+        ".cm-panel.cm-search br": {
+            flexBasis: "100% !important",
+            height: "0px !important",
+            margin: "0 !important",
+            display: "block !important",
+        },
+        ".cm-searchMatch": {
+            backgroundColor: isDark ? "rgba(234, 179, 8, 0.35) !important" : "rgba(234, 179, 8, 0.4) !important",
+            outline: isDark ? "1px solid rgba(234, 179, 8, 0.6) !important" : "1px solid rgba(234, 179, 8, 0.7) !important",
+            borderRadius: "2px",
+        },
+        ".cm-searchMatch.cm-searchMatch-selected": {
+            backgroundColor: isDark ? "rgba(249, 115, 22, 0.55) !important" : "rgba(249, 115, 22, 0.5) !important",
+            outline: isDark ? "1px solid rgba(249, 115, 22, 0.9) !important" : "1px solid rgba(249, 115, 22, 0.8) !important",
+            borderRadius: "2px",
+        },
+        ".cm-selectionMatch": {
+            backgroundColor: isDark ? "rgba(59, 130, 246, 0.25) !important" : "rgba(59, 130, 246, 0.2) !important",
+            borderRadius: "2px",
+        },
+    }, { dark: isDark })
+}
+
+const darkAutocompleteTheme = createAutocompleteTheme(true)
+const lightAutocompleteTheme = createAutocompleteTheme(false)
 
 function SyncScript({ value, onChange, fileName }: {
     value: string

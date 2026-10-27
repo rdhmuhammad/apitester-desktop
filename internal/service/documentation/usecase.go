@@ -154,12 +154,12 @@ func (u *Usecase) RenameDocument(ctx context.Context, req RenameDocumentRequest)
 		return DocumentResponse{}, err
 	}
 
-	rootPath, absPath, _, err := u.resolveExistingFile(ctx, req.ID)
+	rootPath, absPath, err := u.resolveExistingPath(ctx, req.ID)
 	if err != nil {
 		return DocumentResponse{}, err
 	}
 
-	newRelID, newAbsPath, content, err := u.renameFileOnDisk(rootPath, absPath, req.Name)
+	newRelID, newAbsPath, content, err := u.renamePathOnDisk(rootPath, absPath, req.Name)
 	if err != nil {
 		return DocumentResponse{}, err
 	}
@@ -334,14 +334,7 @@ func (u *Usecase) buildEntryTreeNode(rootPath, dirPath string, entry os.DirEntry
 		if err != nil {
 			return DocumentTree{}, false, err
 		}
-		hasVisibleChild := false
-		for _, child := range children {
-			if child.Show {
-				hasVisibleChild = true
-				break
-			}
-		}
-		return NewFolderTreeNode(relID, name, absPath, children, hasVisibleChild), true, nil
+		return NewFolderTreeNode(relID, name, absPath, children, true), true, nil
 	}
 
 	ext := strings.ToLower(filepath.Ext(name))
@@ -490,6 +483,57 @@ func (u *Usecase) readAndWatchFile(absPath string) ([]byte, error) {
 		u.docWatcher.Watch(absPath)
 	}
 	return content, nil
+}
+
+func (u *Usecase) resolveExistingPath(ctx context.Context, id string) (string, string, error) {
+	rootPath, err := u.resolveProjectRoot(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	absPath, _, err := resolveSafePath(rootPath, id)
+	if err != nil {
+		return "", "", err
+	}
+
+	if _, err := os.Stat(absPath); err != nil {
+		return "", "", localerror.InvalidData("Document path not found")
+	}
+	return rootPath, absPath, nil
+}
+
+func (u *Usecase) renamePathOnDisk(rootPath, absPath, rawName string) (string, string, []byte, error) {
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return "", "", nil, localerror.InvalidData("Document path not found")
+	}
+	if info.IsDir() {
+		return u.renameDirectoryOnDisk(rootPath, absPath, rawName)
+	}
+	return u.renameFileOnDisk(rootPath, absPath, rawName)
+}
+
+func (u *Usecase) renameDirectoryOnDisk(rootPath, absPath, rawName string) (string, string, []byte, error) {
+	cleanName := strings.TrimSpace(rawName)
+	if err := validateBaseName(cleanName, "Folder name is required"); err != nil {
+		return "", "", nil, err
+	}
+
+	newAbsPath := filepath.Join(filepath.Dir(absPath), cleanName)
+	if !strings.EqualFold(absPath, newAbsPath) {
+		if _, err := os.Stat(newAbsPath); err == nil {
+			return "", "", nil, localerror.InvalidData("A folder with that name already exists")
+		}
+	}
+
+	if absPath != newAbsPath {
+		if err := os.Rename(absPath, newAbsPath); err != nil {
+			return "", "", nil, u.ErrHandler.ErrorReturn(err)
+		}
+	}
+
+	newRelID, _ := filepath.Rel(rootPath, newAbsPath)
+	return newRelID, newAbsPath, nil, nil
 }
 
 func (u *Usecase) renameFileOnDisk(rootPath, absPath, rawName string) (string, string, []byte, error) {

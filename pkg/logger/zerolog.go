@@ -61,14 +61,7 @@ func (b *LoggerBuilder) Build() ReZero {
 	zerolog.CallerSkipFrameCount = 4
 
 	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
-		short := file
-		for i := len(file) - 1; i > 0; i-- {
-			if file[i] == '/' {
-				short = file[i+1:]
-				break
-			}
-		}
-		return fmt.Sprintf("%s:%d", short, line)
+		return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 	}
 
 	zerolog.SetGlobalLevel(b.level)

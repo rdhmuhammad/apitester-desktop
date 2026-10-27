@@ -14,7 +14,6 @@ import (
 )
 
 type Usecase interface {
-	Read(ctx context.Context, id string) (service.ReadResponse, error)
 	ListCollections(ctx context.Context) ([]domain.Collection, error)
 	CreateCollection(ctx context.Context, req service.CreateCollectionRequest) (domain.Collection, error)
 	UpdateCollectionByID(ctx context.Context, id string, req service.UpdateCollectionRequest) (domain.Collection, error)
@@ -52,11 +51,6 @@ func NewController(
 func (ctrl Controller) ListCollections(c *gin.Context) {
 	res, err := ctrl.usecase.ListCollections(c.Request.Context())
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Collections retrieved"), err)
-}
-
-func (ctrl Controller) Read(c *gin.Context) {
-	res, err := ctrl.usecase.Read(c.Request.Context(), c.Param("id"))
-	ctrl.respond(c, payload.NewSuccessResponse(res, "Collection retrieved"), err)
 }
 
 func (ctrl Controller) CreateCollection(c *gin.Context) {

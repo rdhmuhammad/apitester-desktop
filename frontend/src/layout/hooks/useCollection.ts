@@ -215,6 +215,57 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         },
     })
 
+    const createRequestMutation = useMutation({
+        mutationFn: (data: {collectionId?: string; name?: string; parentId?: string}) => {
+            const targetId = data.collectionId ?? collectionId
+            if (!targetId) {
+                throw new Error("No collection selected")
+            }
+            return CollectionServices.createRequest(targetId, {name: data.name, parentId: data.parentId})
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+            CustomToast.success("Request created")
+        },
+        onError: (error: AxiosError<Response<unknown>>) => {
+            CustomToast.error(error.response?.data.message || "Failed to create request")
+        },
+    })
+
+    const createFolderMutation = useMutation({
+        mutationFn: (data: {collectionId?: string; name: string; parentId?: string}) => {
+            const targetId = data.collectionId ?? collectionId
+            if (!targetId) {
+                throw new Error("No collection selected")
+            }
+            return CollectionServices.createFolder(targetId, {name: data.name, parentId: data.parentId})
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+            CustomToast.success("Folder created")
+        },
+        onError: (error: AxiosError<Response<unknown>>) => {
+            CustomToast.error(error.response?.data.message || "Failed to create folder")
+        },
+    })
+
+    const renameTreeItemMutation = useMutation({
+        mutationFn: (data: {collectionId?: string; itemId: string; name: string}) => {
+            const targetId = data.collectionId ?? collectionId
+            if (!targetId) {
+                throw new Error("No collection selected")
+            }
+            return CollectionServices.renameTreeItem(targetId, data.itemId, data.name)
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({queryKey: ["collection", "tree"]})
+            CustomToast.success("Renamed")
+        },
+        onError: (error: AxiosError<Response<unknown>>) => {
+            CustomToast.error(error.response?.data.message || "Failed to rename item")
+        },
+    })
+
     return {
         collections: collectionsQuery.data ?? EMPTY_COLLECTIONS,
         activeCollection: activeCollectionQuery.data ?? null,
@@ -256,5 +307,8 @@ export const useCollection = (selectedCollectionId: string | null = null) => {
         updatePreScriptMutation,
         updateAuthMutation,
         updateTreeMutation,
+        createRequestMutation,
+        createFolderMutation,
+        renameTreeItemMutation,
     }
 }
