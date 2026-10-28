@@ -22,12 +22,6 @@ export const socketCollection = io(`${URL}/collection`, {
     transports: ["websocket", "polling"],
 })
 
-export const socketAutomation = io(`${URL}/automation`, {
-    path: "/socket.io",
-    autoConnect: false,
-    transports: ["websocket", "polling"],
-})
-
 export const socketDocumentation = io(`${URL}/documentation`, {
     path: "/socket.io",
     autoConnect: true,
@@ -42,7 +36,6 @@ if (import.meta.hot) {
     import.meta.hot.dispose(() => {
         socketRestRequest.disconnect()
         socketCollection.disconnect()
-        socketAutomation.disconnect()
         socketDocumentation.disconnect()
     })
 }

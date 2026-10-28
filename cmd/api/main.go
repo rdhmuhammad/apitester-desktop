@@ -4,7 +4,6 @@ import (
 	"flag"
 
 	"github.com/joho/godotenv"
-	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/collection"
 	docctrl "github.com/rdhmuhammad/apitester/internal/adapter/controller/documentation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/environment"
@@ -41,7 +40,6 @@ func main() {
 			restrequest.NewController(conn.Logger, conn.DB),
 			environment.NewController(conn.Logger, conn.DB),
 			testsuits.NewController(conn.Logger, conn.DB),
-			automation.NewController(conn.Logger, conn.DB),
 			docctrl.NewController(conn.Logger, conn.DB),
 		}
 	})

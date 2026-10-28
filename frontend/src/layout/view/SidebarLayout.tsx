@@ -1,7 +1,6 @@
 import {type ReactNode, useCallback, useEffect, useRef, useState} from "react";
 import {FileCode2, FilePlus2, Folder, FolderGit2, FolderPlus, LoaderCircle, Pencil, Search} from "lucide-react";
 import TestScenarioSidebar from "@/layout/components/sidebar/TestScenarioSidebar.tsx";
-import AutomationSidebar from "@/layout/components/sidebar/AutomationSidebar.tsx";
 import DocumentationSidebar from "@/layout/components/sidebar/DocumentationSidebar.tsx";
 import DragNode, {type DropPosition} from "@/layout/components/sidebar/DragNode.tsx";
 import {methodColorClass} from "@/layout/components/sidebar/constants.ts";
@@ -734,7 +733,6 @@ const SidebarLayout: React.FC = () => {
                     )}
                 </div>
                 <TestScenarioSidebar searchQuery={searchQuery}/>
-                <AutomationSidebar searchQuery={searchQuery}/>
                 <DocumentationSidebar searchQuery={searchQuery}/>
             </div>
             {contextMenu && (

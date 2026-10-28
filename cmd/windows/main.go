@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/rdhmuhammad/apitester/internal/adapter/controller/automation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/collection"
 	docctrl "github.com/rdhmuhammad/apitester/internal/adapter/controller/documentation"
 	"github.com/rdhmuhammad/apitester/internal/adapter/controller/environment"
@@ -48,7 +47,6 @@ func (w *WinService) Execute(args []string, r <-chan svc.ChangeRequest, status c
 			restrequest.NewController(conn.Logger, conn.DB),
 			environment.NewController(conn.Logger, conn.DB),
 			testsuits.NewController(conn.Logger, conn.DB),
-			automation.NewController(conn.Logger, conn.DB),
 			docctrl.NewController(conn.Logger, conn.DB),
 		}
 	})

@@ -13,7 +13,6 @@ import (
 
 type Usecase interface {
 	GetRequestTree(ctx context.Context) ([]tree.RequestTree, error)
-	GetAutomationTree(collectionID string) ([]tree.RequestTree, error)
 	GetTestSuiteTree(collectionID string) ([]tree.RequestTree, error)
 }
 
@@ -34,11 +33,6 @@ func (ctrl Controller) GetRequestTree(c *gin.Context) {
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Request tree retrieved"), err)
 }
 
-func (ctrl Controller) GetAutomationTree(c *gin.Context) {
-	res, err := ctrl.usecase.GetAutomationTree(c.Param("collectionId"))
-	ctrl.respond(c, payload.NewSuccessResponse(res, "Automation tree retrieved"), err)
-}
-
 func (ctrl Controller) GetTestSuiteTree(c *gin.Context) {
 	res, err := ctrl.usecase.GetTestSuiteTree(c.Param("collectionId"))
 	ctrl.respond(c, payload.NewSuccessResponse(res, "Test suite tree retrieved"), err)
@@ -47,8 +41,6 @@ func (ctrl Controller) GetTestSuiteTree(c *gin.Context) {
 func (ctrl Controller) Route(rg *gin.RouterGroup) {
 	restRequest := rg.Group("/restrequest")
 	restRequest.GET("/tree", ctrl.GetRequestTree)
-	restRequest.GET("/tree/automation/:collectionId", ctrl.GetAutomationTree)
-	restRequest.GET("/tree/automation", ctrl.GetAutomationTree)
 	restRequest.GET("/tree/testsuite/:collectionId", ctrl.GetTestSuiteTree)
 	restRequest.GET("/tree/testsuite", ctrl.GetTestSuiteTree)
 }

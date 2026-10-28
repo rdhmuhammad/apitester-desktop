@@ -3,8 +3,6 @@ import RequestConfigTabs from "@/pages/editor/components/RequestConfig";
 import ResponseView from "@/pages/editor/components/RequestConfig/ResponseView.tsx";
 import WelcomeEditor from "@/pages/editor/components/WelcomeEditor.tsx";
 import TestScenarioEditor from "@/pages/editor/components/TestScenarioEditor.tsx";
-import AutomationEditor from "@/pages/editor/components/AutomationEditor.tsx";
-import InventoryEditor from "@/pages/editor/components/InventoryEditor.tsx";
 import DocumentEditor from "@/pages/editor/components/DocumentEditor.tsx";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
 import {Button} from "@/components/ui/button.tsx";
@@ -18,7 +16,7 @@ import {
 // React & Utils Imports
 import {useCallback, useRef, useState} from "react";
 import {cn} from "@/lib/utils.ts";
-import {BookOpen, FileCode2, FileText, Plus, Wrench, XIcon} from "lucide-react";
+import {BookOpen, FileCode2, FileText, Plus, XIcon} from "lucide-react";
 
 
 // Store Imports
@@ -45,15 +43,13 @@ import {
 import {useQueryClient} from "@tanstack/react-query";
 import CustomToast from "@/components/common/toast";
 
-const methodStyle: Record<ColtReqMethod | 'TEST' | 'AUTO' | 'INV' | 'DOC', string> = {
+const methodStyle: Record<ColtReqMethod | 'TEST' | 'DOC', string> = {
     GET: "bg-emerald-100 text-emerald-700",
     POST: "bg-amber-100 text-amber-700",
     PUT: "bg-blue-100 text-blue-700",
     PATCH: "bg-violet-100 text-violet-700",
     DELETE: "bg-rose-100 text-rose-700",
     TEST: "bg-indigo-100 text-indigo-700",
-    AUTO: "bg-violet-100 text-violet-700",
-    INV: "bg-amber-100 text-amber-700",
     DOC: "bg-sky-100 text-sky-700",
 };
 
@@ -273,13 +269,6 @@ const Editor: React.FC = () => {
                                         Create Test Suite
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                        onClick={() => {
-                                        }}
-                                    >
-                                        <Wrench className="mr-2 h-4 w-4 text-violet-600"/>
-                                        New Automation
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
                                         disabled={isCreatingDocument}
                                         onClick={() => void handleCreateDocument()}
                                     >
@@ -307,20 +296,6 @@ const Editor: React.FC = () => {
                             ' bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] dark:shadow-none')
                         }>
                         <TestScenarioEditor/>
-                    </div>
-                ) : activeTab.type === 'automation' ? (
-                    <div
-                        className={cn('rounded-2xl border border-t-0 border-border',
-                            ' bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] dark:shadow-none')
-                        }>
-                        <AutomationEditor/>
-                    </div>
-                ) : activeTab.type === 'inventory' ? (
-                    <div
-                        className={cn('rounded-2xl border border-t-0 border-border',
-                            ' bg-card shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] dark:shadow-none')
-                        }>
-                        <InventoryEditor/>
                     </div>
                 ) : activeTab.type === 'document' ? (
                     <div

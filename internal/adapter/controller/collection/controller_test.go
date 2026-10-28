@@ -16,15 +16,17 @@ import (
 )
 
 type collectionUsecaseStub struct {
-	authToReturn       *service.CollectionAuth
-	authErrToReturn    error
-	getAuthPassedID    []string
-	searchKeysToReturn []string
-	searchErrToReturn  error
+	authToReturn          *service.CollectionAuth
+	authErrToReturn       error
+	getAuthPassedID       []string
+	searchKeysToReturn    []string
+	searchErrToReturn     error
+	collectionsToReturn   []domain.Collection
+	collectionsErrToReturn error
 }
 
 func (s *collectionUsecaseStub) ListCollections(ctx context.Context) ([]domain.Collection, error) {
-	return nil, nil
+	return s.collectionsToReturn, s.collectionsErrToReturn
 }
 func (s *collectionUsecaseStub) CreateCollection(ctx context.Context, req service.CreateCollectionRequest) (domain.Collection, error) {
 	return domain.Collection{}, nil
@@ -300,5 +302,39 @@ func TestSearchVariablesRoute(t *testing.T) {
 	}
 	if len(response.Data) != 3 {
 		t.Fatalf("expected 3 keys, got %d", len(response.Data))
+	}
+}
+
+func TestListCollectionsRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stub := &collectionUsecaseStub{
+		collectionsToReturn: []domain.Collection{
+			{ID: "col-1", Name: "API One", Path: "/path/to/one.json"},
+			{ID: "col-2", Name: "API Two", Path: "/path/to/two.json"},
+		},
+	}
+	controller := Controller{usecase: stub, mapper: mapper.NewMapper()}
+	router := gin.New()
+	controller.Route(router.Group(""))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/collection/list", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+
+	var response struct {
+		Data []domain.Collection `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(response.Data) != 2 {
+		t.Fatalf("expected 2 collections, got %d", len(response.Data))
+	}
+	if response.Data[0].Name != "API One" || response.Data[1].Name != "API Two" {
+		t.Fatalf("unexpected collections returned: %+v", response.Data)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,7 +33,6 @@ type Usecase struct {
 	*base.Port
 	projectRepo    db.RepositoryInterface[domain.Project]
 	testSuiteRepo  db.RepositoryInterface[domain.TestSuite]
-	automationRepo db.RepositoryInterface[domain.Automation]
 	onRefresh      RefreshListener
 }
 
@@ -54,16 +54,11 @@ func NewUsecase(
 	if err != nil {
 		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for collection usecase: %v", err)
 	}
-	automationRepo, err := db.NewRepository[domain.Automation](database, db.WithBucketName("Automation"))
-	if err != nil {
-		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for collection usecase: %v", err)
-	}
 
 	u := &Usecase{
-		Port:           port,
-		projectRepo:    projectRepo,
-		testSuiteRepo:  testSuiteRepo,
-		automationRepo: automationRepo,
+		Port:          port,
+		projectRepo:   projectRepo,
+		testSuiteRepo: testSuiteRepo,
 	}
 
 	if u.Watcher != nil {
@@ -92,10 +87,18 @@ func (u *Usecase) NotifyChanges(data []byte) {
 	}
 }
 
-// ListCollections returns the collections of the currently selected project.
+// ListCollections returns the collections of the currently selected project,
+// rescanning the project folder to discover newly added collections and clean up removed ones.
 func (u *Usecase) ListCollections(ctx context.Context) ([]domain.Collection, error) {
-	projectID, err := u.selectedProjectID(ctx)
+	project, err := u.selectedProject(ctx)
 	if err != nil {
+		return nil, u.ErrHandler.ErrorReturn(err)
+	}
+	if project == nil {
+		return []domain.Collection{}, nil
+	}
+
+	if err := u.rescanProjectCollections(ctx, project); err != nil {
 		return nil, u.ErrHandler.ErrorReturn(err)
 	}
 
@@ -104,23 +107,136 @@ func (u *Usecase) ListCollections(ctx context.Context) ([]domain.Collection, err
 		return nil, u.ErrHandler.ErrorReturn(err)
 	}
 
-	return filterCollectionsByProject(all, projectID), nil
+	return filterCollectionsByProject(all, project.ID), nil
 }
 
-func (u *Usecase) selectedProjectID(ctx context.Context) (string, error) {
+func (u *Usecase) rescanProjectCollections(ctx context.Context, project *domain.Project) error {
+	if project == nil || strings.TrimSpace(project.Path) == "" {
+		return nil
+	}
+
+	info, err := os.Stat(project.Path)
+	if err != nil || !info.IsDir() {
+		return nil
+	}
+
+	all, err := u.CollectionRepo.List(ctx)
+	if err != nil {
+		return err
+	}
+
+	projectCols := filterCollectionsByProject(all, project.ID)
+	existingByPath := make(map[string]domain.Collection, len(projectCols))
+	for _, c := range projectCols {
+		existingByPath[normalizeCollectionPath(c.Path)] = c
+	}
+
+	foundPaths := make(map[string]bool)
+
+	err = filepath.WalkDir(project.Path, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if path != project.Path && shouldSkipDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.EqualFold(filepath.Ext(d.Name()), ".json") {
+			return nil
+		}
+
+		norm := normalizeCollectionPath(path)
+		foundPaths[norm] = true
+
+		if _, exists := existingByPath[norm]; exists {
+			return nil
+		}
+
+		fileBytes, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+
+		content := strings.TrimPrefix(string(fileBytes), "\uFEFF")
+		var docs DocsContent
+		if jsonErr := json.Unmarshal([]byte(content), &docs); jsonErr != nil || !docs.IsValidCollection() {
+			return nil
+		}
+
+		docs.PrepareCreate()
+		updatedContent, mErr := json.MarshalIndent(docs, "", "  ")
+		if mErr == nil {
+			_ = os.WriteFile(path, updatedContent, 0644)
+		}
+
+		now := time.Now()
+		newCol := domain.Collection{
+			ID:           uuid.NewString(),
+			ProjectID:    project.ID,
+			Name:         docs.CollectionName(path),
+			Path:         path,
+			IsSelected:   false,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			TestSuiteID: uuid.NewString(),
+		}
+		_ = u.CollectionRepo.Create(ctx, newCol.ID, &newCol)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, c := range projectCols {
+		norm := normalizeCollectionPath(c.Path)
+		if !foundPaths[norm] && strings.TrimSpace(c.Path) != "" {
+			if _, statErr := os.Stat(c.Path); os.IsNotExist(statErr) {
+				_ = u.deleteModules(ctx, &c)
+				_ = u.CollectionRepo.Delete(ctx, c.ID)
+			}
+		}
+	}
+
+	return nil
+}
+
+func normalizeCollectionPath(path string) string {
+	return strings.ToLower(filepath.Clean(strings.TrimSpace(path)))
+}
+
+func shouldSkipDir(name string) bool {
+	switch strings.ToLower(name) {
+	case ".git", "node_modules":
+		return true
+	default:
+		return strings.HasPrefix(name, ".")
+	}
+}
+
+func (u *Usecase) selectedProject(ctx context.Context) (*domain.Project, error) {
 	if u.projectRepo == nil {
-		return "", nil
+		return nil, nil
 	}
 	projects, err := u.projectRepo.List(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	for _, p := range projects {
 		if p.IsSelected {
-			return p.ID, nil
+			return &p, nil
 		}
 	}
-	return "", nil
+	return nil, nil
+}
+
+func (u *Usecase) selectedProjectID(ctx context.Context) (string, error) {
+	p, err := u.selectedProject(ctx)
+	if err != nil || p == nil {
+		return "", err
+	}
+	return p.ID, nil
 }
 
 func filterCollectionsByProject(all []domain.Collection, projectID string) []domain.Collection {
@@ -252,9 +368,8 @@ func (u *Usecase) GetActiveCollection(ctx context.Context) (ActiveCollectionResp
 		Version:      u.Version([]byte(content)),
 		Path:         selected.Path,
 		IsSelected:   selected.IsSelected,
-		TestSuiteID:  selected.TestSuiteID,
-		AutomationID: selected.AutomationID,
-		UpdatedAt:    selected.UpdatedAt,
+		TestSuiteID: selected.TestSuiteID,
+		UpdatedAt:   selected.UpdatedAt,
 		CreatedAt:    selected.CreatedAt,
 	}, nil
 }
@@ -871,10 +986,9 @@ func (u *Usecase) newCollectionEntity(req CreateCollectionRequest, filePath stri
 		Name:         strings.TrimSpace(req.Name),
 		Path:         filePath,
 		IsSelected:   false,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		TestSuiteID:  uuid.NewString(),
-		AutomationID: uuid.NewString(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		TestSuiteID: uuid.NewString(),
 	}
 }
 
@@ -902,30 +1016,12 @@ func (u *Usecase) updateModulePaths(ctx context.Context, collection *domain.Coll
 			}
 		}
 	}
-	if collection.AutomationID != "" {
-		module, err := u.automationRepo.View(ctx, collection.AutomationID)
-		if err != nil {
-			return err
-		}
-		if module != nil {
-			module.Path = filepath.Join(filepath.Dir(collection.Path), "automation")
-			module.UpdatedAt = time.Now()
-			if err := u.automationRepo.Update(ctx, module.ID, module); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
 func (u *Usecase) deleteModules(ctx context.Context, collection *domain.Collection) error {
 	if collection.TestSuiteID != "" {
 		if err := u.testSuiteRepo.Delete(ctx, collection.TestSuiteID); err != nil {
-			return err
-		}
-	}
-	if collection.AutomationID != "" {
-		if err := u.automationRepo.Delete(ctx, collection.AutomationID); err != nil {
 			return err
 		}
 	}

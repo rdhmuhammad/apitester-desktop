@@ -13,7 +13,6 @@ export interface Collection {
     version: string
     path: string
     testsuite_id: string
-    automation_id: string
     updated_at: string
     created_at: string
 }

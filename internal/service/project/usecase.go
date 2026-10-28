@@ -24,7 +24,6 @@ type Usecase struct {
 	projectRepo    db.RepositoryInterface[domain.Project]
 	collectionRepo db.RepositoryInterface[domain.Collection]
 	testSuiteRepo  db.RepositoryInterface[domain.TestSuite]
-	automationRepo db.RepositoryInterface[domain.Automation]
 }
 
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
@@ -40,17 +39,12 @@ func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
 	if err != nil {
 		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for project usecase: %v", err)
 	}
-	automationRepo, err := db.NewRepository[domain.Automation](database, db.WithBucketName("Automation"))
-	if err != nil {
-		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for project usecase: %v", err)
-	}
 
 	return &Usecase{
 		errHandler:     localerror.NewHandlerError(lg),
 		projectRepo:    projectRepo,
 		collectionRepo: collectionRepo,
 		testSuiteRepo:  testSuiteRepo,
-		automationRepo: automationRepo,
 	}
 }
 
@@ -289,10 +283,9 @@ func (u *Usecase) prepareDiscoveredCollection(ctx context.Context, projectID, fi
 		Name:         docs.CollectionName(filePath),
 		Path:         filePath,
 		IsSelected:   false,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		TestSuiteID:  uuid.NewString(),
-		AutomationID: uuid.NewString(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		TestSuiteID: uuid.NewString(),
 	}
 	if err := u.collectionRepo.Create(ctx, collection.ID, &collection); err != nil {
 		return domain.Collection{}, false, err
@@ -311,9 +304,6 @@ func (u *Usecase) deleteProjectCollections(ctx context.Context, projectID string
 		}
 		if c.TestSuiteID != "" {
 			_ = u.testSuiteRepo.Delete(ctx, c.TestSuiteID)
-		}
-		if c.AutomationID != "" {
-			_ = u.automationRepo.Delete(ctx, c.AutomationID)
 		}
 		if err := u.collectionRepo.Delete(ctx, c.ID); err != nil {
 			return err

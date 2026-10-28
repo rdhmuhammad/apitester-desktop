@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react"
 import {Button} from "@/components/ui/button.tsx"
 import {Input} from "@/components/ui/input.tsx"
-import {FileCode2, Folder, FolderUp, Plus, Save, Trash2} from "lucide-react"
+import {FileCode2, Folder, FolderUp, LoaderCircle, Plus, RefreshCw, Save, Trash2} from "lucide-react"
 import {cn} from "@/lib/utils.ts"
 import {pickFolderPath} from "@/lib/pickFolderPath.ts"
 import type {Collection} from "@/layout/services/collection.ts"
@@ -35,8 +35,10 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
         createCollectionMutation,
         deleteCollectionMutation,
         selectCollectionMutation,
+        isLoadingCollections,
     } = useCollection()
 
+    const isScanning = loading || isLoadingCollections
     const activeProjectId = activeProject?.id
 
     useEffect(() => {
@@ -51,15 +53,29 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
         queryClient.setQueryData<Collection[]>(collectionListQueryKey, (current = []) => updater(current))
     }
 
+    const handleRefresh = async () => {
+        setLoading(true)
+        try {
+            await refetchCollections()
+        } catch (error) {
+            CustomToast.error(error instanceof Error ? error.message : "Failed to refresh collections")
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const handleChangeProjectFolder = async () => {
         if (!activeProject) return
         const path = await pickFolderPath()
         if (!path) return
         try {
+            setLoading(true)
             await updateProjectMutation.mutateAsync({id: activeProject.id, data: {path}})
             await refetchCollections()
         } catch (error) {
             CustomToast.error(error instanceof Error ? error.message : "Failed to update project")
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -227,6 +243,16 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0"
+                    title="Rescan project folder"
+                    disabled={isScanning}
+                    onClick={handleRefresh}
+                >
+                    <RefreshCw className={cn("h-4 w-4", isScanning && "animate-spin text-indigo-500")}/>
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
                     title="Change project folder"
                     onClick={handleChangeProjectFolder}
                 >
@@ -241,8 +267,19 @@ const CollectionManage: React.FC<CollectionManageProps> = ({onOpenChange}) => {
                     <span className="col-span-2"/>
                 </div>
                 {renderHoverSeparator(0)}
-                {loading ? (
-                    <div className="px-3 py-6 text-center text-sm text-slate-400">Loading...</div>
+                {isScanning ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground">
+                        <div className="relative flex items-center justify-center">
+                            <div className="absolute h-10 w-10 rounded-full bg-indigo-500/10 animate-ping"/>
+                            <LoaderCircle className="h-7 w-7 animate-spin text-indigo-600 relative z-10"/>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 text-center">
+                            <span className="text-xs font-semibold text-foreground">Scanning for collections...</span>
+                            <span className="text-[11px] text-muted-foreground">
+                                Searching project folder for collection files
+                            </span>
+                        </div>
+                    </div>
                 ) : collections.length === 0 && inlineIndex === null ? (
                     <div className="px-3 py-6 text-center text-sm text-slate-400">
                         No collections in this project. Hover the line above to add one.

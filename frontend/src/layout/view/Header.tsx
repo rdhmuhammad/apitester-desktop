@@ -2,8 +2,6 @@ import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts";
 import RequestHeader from "@/layout/components/header/RequestHeader.tsx";
 import TestScenarioEditorHeader from "@/layout/components/sidebar/TestScenarioEditorHeader.tsx";
-import AutomationEditorHeader from "@/layout/components/header/AutomationEditorHeader.tsx";
-import InventoryEditorHeader from "@/layout/components/header/InventoryEditorHeader.tsx";
 import DocumentEditorHeader from "@/layout/components/header/DocumentEditorHeader.tsx";
 
 const HeaderLayout: React.FC = () => {
@@ -15,10 +13,6 @@ const HeaderLayout: React.FC = () => {
             <div className="w-full">
                 {activeEditorTab?.type === 'test' ? (
                     <TestScenarioEditorHeader/>
-                ) : activeEditorTab?.type === 'automation' ? (
-                    <AutomationEditorHeader/>
-                ) : activeEditorTab?.type === 'inventory' ? (
-                    <InventoryEditorHeader/>
                 ) : activeEditorTab?.type === 'document' ? (
                     <DocumentEditorHeader/>
                 ) : (

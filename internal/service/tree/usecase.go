@@ -19,25 +19,18 @@ import (
 
 type Usecase struct {
 	*base.Port
-	automationRepo db.RepositoryInterface[domain.Automation]
-	testRepo       db.RepositoryInterface[domain.TestSuite]
+	testRepo db.RepositoryInterface[domain.TestSuite]
 }
 
 func NewUsecase(lg logger.Logger, database *bbolt.DB) *Usecase {
-	automationRepo, err := db.NewRepository[domain.Automation](database)
-	if err != nil {
-		elog.Panicf(elog.EIDGenericError, "failed to initialize automation repo for tree usecase: %v", err)
-	}
-
 	testRepo, err := db.NewRepository[domain.TestSuite](database)
 	if err != nil {
 		elog.Panicf(elog.EIDGenericError, "failed to initialize test suite repo for tree usecase: %v", err)
 	}
 
 	return &Usecase{
-		Port:           base.NewPort(lg, database),
-		automationRepo: automationRepo,
-		testRepo:       testRepo,
+		Port:     base.NewPort(lg, database),
+		testRepo: testRepo,
 	}
 }
 
@@ -54,24 +47,6 @@ func (u *Usecase) GetRequestTree(ctx context.Context) ([]RequestTree, error) {
 	}
 
 	return buildRequestTree(docs.Item), nil
-}
-
-func (u *Usecase) GetAutomationTree(collectionID string) ([]RequestTree, error) {
-	collection, err := u.collection(collectionID)
-	if err != nil {
-		return nil, err
-	}
-	module, err := u.automationRepo.View(context.Background(), collection.AutomationID)
-	if err != nil {
-		return nil, u.ErrHandler.ErrorReturn(err)
-	}
-	if module == nil {
-		return nil, localerror.InvalidData("Automation module not found")
-	}
-
-	return buildFileTree(module.Path, "AUTOMATION", func(name string) bool {
-		return strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")
-	}, u.ErrHandler)
 }
 
 func (u *Usecase) GetTestSuiteTree(collectionID string) ([]RequestTree, error) {
