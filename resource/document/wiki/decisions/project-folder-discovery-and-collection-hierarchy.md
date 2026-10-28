@@ -40,7 +40,7 @@ Projects and collections maintain a coordinated selection model where a project 
 - **Scoped Collection Listing** (`GET /collection/list`): Returns only collections belonging to the currently selected project (or an empty slice when no project is selected).
 - **UI Gating When No Collection Is Active**:
   - In `CollectionManager` (`frontend/src/layout/components/collectionManager/index.tsx`), the **Variables**, **Scripts**, and **Auth Manager** tabs are disabled when there is no active collection, forcing focus to the **Collections** tab.
-  - In `SidebarLayout` (`frontend/src/layout/view/SidebarLayout.tsx`), only the Collections tree is empty when no collection is selected; project-level sections ( such as `DocumentationSidebar`, `TestScenarioSidebar`, and `AutomationSidebar`) remain visible for the selected project.
+  - In `SidebarLayout` (`frontend/src/layout/view/SidebarLayout.tsx`), only the Collections tree is empty when no collection is selected; project-level sections ( such as `DocumentationSidebar` and `TestScenarioSidebar`) remain visible for the selected project.
 
 ### 4. Scoped Collection Manager & Inline Collection Creation
 
@@ -56,8 +56,8 @@ The collection manager dialog (`frontend/src/layout/components/collectionManager
 ### 5. Filesystem File Deletion on Collection Removal
 
 In alignment with [[decisions/file-backed-restrequest-editing]]:
-- Deleting a collection (`DELETE /collection/:id`) deletes database records, testsuites, and automation references, and removes the physical `.json` file from disk (`os.Remove`).
-- Deleting a project (`DELETE /project/:id`) detaches the project by deleting its database record and cascading DB deletion to its child collection records (`collectionRepo`, `testSuiteRepo`, `automationRepo`), while leaving all files and folders on disk intact.
+- Deleting a collection (`DELETE /collection/:id`) deletes database records and testsuites references, and removes the physical `.json` file from disk (`os.Remove`).
+- Deleting a project (`DELETE /project/:id`) detaches the project by deleting its database record and cascading DB deletion to its child collection records (`collectionRepo`, `testSuiteRepo`), while leaving all files and folders on disk intact.
 
 ## Consequences
 

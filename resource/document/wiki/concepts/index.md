@@ -15,6 +15,7 @@
 
 - [[concepts/backend/file-backed-editor-sync]] - Filesystem-backed editor coordination, versioning, hashing, and conflict handling.
 - [[concepts/backend/postman-prerequest-script-dto]] - Postman pre-request script data transfer object specification across collection schema and sandbox runtime.
+- [[concepts/backend/postman-script-documentation/index]] - Comprehensive reference for Postman scripting, runtime sandbox APIs (pm.request, pm.response), and Collection SDK classes (Url, RequestAuth, HeaderList, RequestBody).
 - [[concepts/backend/usecase-design-rules]] - Reusable structural standards for usecase orchestration, error boundaries, parameter encapsulation, and execution lifecycles.
 
 ### Runtime & Architecture

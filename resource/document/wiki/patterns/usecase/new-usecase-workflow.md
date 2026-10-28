@@ -28,7 +28,6 @@ type Usecase struct {
 	errHandler     localerror.HandleError
 	collectionRepo db.RepositoryInterface[domain.Collection]
 	testSuiteRepo  db.RepositoryInterface[domain.TestSuite]
-	automationRepo db.RepositoryInterface[domain.Automation]
 }
 ```
 
@@ -47,10 +46,6 @@ func NewUsecase(
 	if err != nil {
 		panic(err)
 	}
-	automationRepo, err := db.NewRepository[domain.Automation](database, db.WithBucketName("Automation"))
-	if err != nil {
-		panic(err)
-	}
 
 	fw := watcher.New(lg)
 	if selected := findSelectedCollection(collectionRepo); selected != nil {
@@ -62,7 +57,6 @@ func NewUsecase(
 		watcher:        fw,
 		collectionRepo: collectionRepo,
 		testSuiteRepo:  testSuiteRepo,
-		automationRepo: automationRepo,
 	}
 }
 ```
@@ -98,7 +92,7 @@ The application composition layer opens the database and passes the shared `*bbo
 Usecase methods should own the feature workflow rather than expose storage details. For example, `CreateCollection`:
 
 - Generates the entity ID and timestamps.
-- Assigns related module IDs for the test suite and automation records.
+- Assigns related module IDs for the test suite record.
 - Persists the entity through `collectionRepo.Create`.
 - Converts persistence failures through the configured error handler.
 - Returns the created domain entity.

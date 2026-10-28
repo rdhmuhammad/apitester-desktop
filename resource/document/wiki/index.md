@@ -38,6 +38,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[patterns/frontend/api-service-and-query-hook-wiring]] - Typed Axios services and TanStack Query hooks for feature API wiring.
 - [[patterns/frontend/socket-io-service-and-hook-wiring]] - Socket.IO connection, event, response, cleanup, and cache wiring.
 - [[patterns/frontend/create-new-tabs-kind]] - Workflow for adding a new editor tab kind and its Redux slice.
+- [[patterns/frontend/script-editor-and-code-completion]] - Layered architecture for Sandpack script editor, static completion schemas, diagnostic hooks, and extendable autocomplete sources.
 
 ## Decisions
 
@@ -60,6 +61,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[concepts/path-variable-lifecycle]] - How `:word` endpoint segments become path variables, are synced, edited, and resolved at send time.
 - [[concepts/backend/file-backed-editor-sync]] - Target design for filesystem-backed editor coordination, versioning, hashing, and conflict handling.
 - [[concepts/backend/postman-prerequest-script-dto]] - Postman pre-request script data transfer object specification across collection schema and sandbox runtime.
+- [[concepts/backend/postman-script-documentation/index]] - Comprehensive reference for Postman scripting, runtime sandbox APIs (pm.request, pm.response), and Collection SDK classes (Url, RequestAuth, HeaderList, RequestBody).
 - [[concepts/backend/usecase-design-rules]] - Reusable structural standards for usecase orchestration, error boundaries, parameter encapsulation, and execution lifecycles.
 - [[concepts/frontend/redux-toolkit]] - Modern Redux Toolkit structure, state boundaries, and data flow.
 - [[concepts/frontend/playwright-component-coverage]] - Black-box E2E limitations, static test-to-component mapping, and automated resolution alternatives.

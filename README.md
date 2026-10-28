@@ -51,7 +51,7 @@ That's what motivated me to create this project.
 The goal of this project is to reduce repetitive work during development:
 1. **Automated Documentation & Generation**: Scan controllers in target services and automatically generate API documentation and collections (such as Postman-compatible collections).
 2. **Dedicated Desktop Client**: An Electron-based desktop application providing a Postman-like experience with multi-tab request editing, tree management, pre/post-request scripting sandbox, environment variable substitution, and real-time synchronization.
-3. **Automated Test Scenarios & Workflows**: Execute `.http` scenario test suites and manage Ansible automation playbooks and inventories directly inside the editor.
+3. **Automated Test Scenarios & Workflows**: Execute `.http` scenario test suites and manage HTTP test workflows directly inside the editor.
 4. **Zero-Setup Embedded Storage**: Powered by BoltDB (`bbolt`), eliminating the overhead of external database dependencies like MySQL or PostgreSQL.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -102,7 +102,7 @@ apitester-desktop/
 │   └── windows/                # Windows Service backend wrapper entry point
 ├── internal/
 │   ├── adapter/
-│   │   ├── controller/         # Gin REST controllers (collection, restrequest, tree, automation, testsuits)
+│   │   ├── controller/         # Gin REST controllers (collection, restrequest, tree, testsuits, documentation)
 │   │   └── socket/             # Socket.IO event handlers and rooms
 │   ├── domain/                 # Core domain entities and models
 │   ├── mockdata/               # Dynamic mock data generators
@@ -302,7 +302,6 @@ The updated flattened document will be generated at `resource/flatten_result/doc
 - [x] Embedded local storage with BoltDB (`bbolt`)
 - [x] Real-time updates with Socket.IO
 - [x] Automated test scenarios & `.http` file parser runner
-- [x] Automation deployment editor (Ansible playbooks & inventories)
 - [x] Collection mutation history and hash auditing
 - [x] Desktop packaging (Windows Service backend + Electron GUI + Inno Setup installer)
 - [x] Playwright end-to-end testing pipeline
