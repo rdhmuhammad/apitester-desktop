@@ -11,6 +11,7 @@
 - [[patterns/frontend/api-service-and-query-hook-wiring]]
 - [[patterns/frontend/socket-io-service-and-hook-wiring]]
 - [[patterns/frontend/create-new-tabs-kind]]
+- [[patterns/frontend/script-editor-and-code-completion]]
 
 ## Related pages
 

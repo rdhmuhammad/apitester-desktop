@@ -16,37 +16,15 @@ import {runPreRequestScript} from "@/layout/hooks/useScriptRunner.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import type {ScriptLog} from "@/types/response.ts";
 import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts";
-import {pmCompletionSource, requestCompletionSource} from "@/lib/pmCompletions.ts";
-import {jsCompletionSource} from "@/lib/jsCompletions.ts";
-import {cryptoJsCompletionSource} from "@/lib/cryptoJsCompletions.ts";
-import {linter} from "@codemirror/lint";
-import {getJavaScriptDiagnostic} from "@/pages/editor/components/RequestConfig/ScriptEditor.tsx";
-
-const SCRIPT_DEPENDENCIES = { "crypto-js": "^4.2.0" };
+import {SCRIPT_DEPENDENCIES} from "@/types/codeEditor.ts";
+import {DEFAULT_MOCK_REQUEST} from "@/types/scriptCompletionSchemas.ts";
+import {useCodeCompletions} from "@/hooks/useCodeCompletions.ts";
+import {useCodeDiagnostic} from "@/hooks/useCodeDiagnostic.ts";
 
 interface ScriptManageProps {
     isExpanded: boolean
     onExpand: () => void
     onCollapse: () => void
-}
-
-const defaultMockRequest: RestRequestResponse = {
-    id: "mock-req-id",
-    name: "Mock Request",
-    method: "GET",
-    url: {
-        raw: "https://api.example.com/users",
-        host: ["api", "example", "com"],
-        path: ["users"],
-        query: []
-    },
-    headers: [
-        { id: "h1", key: "Accept", value: "application/json" }
-    ],
-    query: [],
-    body: { mode: "raw", raw: '{\n  "title": "foo",\n  "body": "bar"\n}' },
-    script: "",
-    version: "1.0",
 }
 
 const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onCollapse}) => {
@@ -61,18 +39,17 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
 
     // Collapsible mock request form state
     const [isMockOpen, setIsMockOpen] = useState(false)
-    const [mockRequest, setMockRequest] = useState<RestRequestResponse>(defaultMockRequest)
+    const [mockRequest, setMockRequest] = useState<RestRequestResponse>(DEFAULT_MOCK_REQUEST)
     const [mutatedOutputRequest, setMutatedOutputRequest] = useState<RestRequestResponse | null>(null)
 
     useEffect(() => setScript(preScript), [preScript])
 
-    const completionSources = useMemo(() => [pmCompletionSource, requestCompletionSource, jsCompletionSource, cryptoJsCompletionSource], [])
-    const scriptDiagnostic = useMemo(() => getJavaScriptDiagnostic(script), [script])
-    const scriptLinter = useMemo(() => linter((view) => {
-        const diagnostic = getJavaScriptDiagnostic(view.state.doc.toString())
-        return diagnostic ? [diagnostic] : []
-    }, {delay: 200}), [])
-    const scriptExtensions = useMemo(() => [scriptLinter], [scriptLinter])
+    const completionSources = useCodeCompletions("prerequest")
+    const { diagnostic: scriptDiagnostic, linterExtension } = useCodeDiagnostic(script, {
+        language: "javascript",
+        globals: ["request", "pm"],
+    })
+    const scriptExtensions = useMemo(() => [linterExtension], [linterExtension])
 
     const handleSave = () => {
         if (!collection?.version) return
@@ -135,7 +112,7 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
     }
 
     const handleResetMock = () => {
-        setMockRequest(defaultMockRequest)
+        setMockRequest(DEFAULT_MOCK_REQUEST)
     }
 
     return (
@@ -181,7 +158,7 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
                             showSearch={true}
                             theme="dark"
                             dependencies={SCRIPT_DEPENDENCIES}
-                            autoComplete={completionSources}
+                            completionSources={completionSources}
                             extensions={scriptExtensions}
                             className="h-full"
                         />

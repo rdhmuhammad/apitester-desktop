@@ -3,13 +3,13 @@ import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {SandpackScriptEditor} from "@/components/ui/sandpack-script-editor.tsx";
 import {cn} from "@/lib/utils.ts";
-import {linter, type Diagnostic} from "@codemirror/lint";
 import React, {useCallback, useMemo, useRef, useState} from "react";
 import {useDebouncedCallback} from "use-debounce";
 import type {ItemUrl} from "@/pages/editor/types/api.ts";
 import {setFile, removeFile} from "@/lib/fileStore.ts";
 import type {RequestBody} from "@/pages/editor/types/api.ts";
 import {useCollectionVariables} from "@/layout/hooks/useCollectionVariables.ts";
+import {useCodeDiagnostic} from "@/hooks/useCodeDiagnostic.ts";
 import {VariableDialog} from "./VariableDialog.tsx";
 import {VariableInput} from "./VariableInput.tsx";
 import {createVariableExtensions, type VariableTriggerInfo} from "./codeMirrorVariableExtensions.ts";
@@ -25,27 +25,6 @@ interface IBodyEditor {
     onFormDataChange: (value: ItemUrl[]) => void
 }
 
-const getJsonDiagnostic = (value: string): Diagnostic | null => {
-    if (!value.trim()) return null
-
-    try {
-        JSON.parse(value)
-        return null
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Invalid JSON"
-        const positionMatch = /position (\d+)/i.exec(message)
-        const position = positionMatch ? Number(positionMatch[1]) : value.length - 1
-        const from = Math.min(position, Math.max(value.length - 1, 0))
-
-        return {
-            from,
-            to: Math.min(from + 1, value.length),
-            severity: "error",
-            message,
-        }
-    }
-}
-
 export const BodyEditor: React.FC<IBodyEditor> = (
     {
         contentType,
@@ -56,11 +35,10 @@ export const BodyEditor: React.FC<IBodyEditor> = (
 
     const selectBody = body
     const { variables } = useCollectionVariables()
-    const jsonDiagnostic = useMemo(() => getJsonDiagnostic(selectBody?.raw ?? ""), [selectBody?.raw])
-    const jsonLinter = useMemo(() => linter((view) => {
-        const diagnostic = getJsonDiagnostic(view.state.doc.toString())
-        return diagnostic ? [diagnostic] : []
-    }, {delay: 200}), [])
+    const { diagnostic: jsonDiagnostic, linterExtension: jsonLinter } = useCodeDiagnostic(
+        selectBody?.raw ?? "",
+        { language: "json" }
+    )
 
     const [cmDialogState, setCmDialogState] = useState<{
         open: boolean
