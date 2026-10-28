@@ -1,30 +1,30 @@
 # Postman Pre-Request Script DTO
 
-**Summary**: Data transfer object specifications for Postman pre-request scripts, detailing the collection serialization schema (v2.1.0 JSON) and the sandboxed execution context parameters (`pm.*`).
-**Sources**: `https://schema.getpostman.com/json/collection/v2.1.0/collection.json`, Postman Sandbox API Reference, `internal/service/collection/dto.go`
-**Last updated**: 2026-09-21
+**Summary**: Data transfer object specifications for Postman pre-request and post-request scripts, detailing the collection serialization schema (v2.1.0 JSON), Go and TypeScript DTO mappings, and the sandboxed Web Worker execution runtime (`pm.*` and Postman Collection SDK classes).
+**Sources**: `https://schema.getpostman.com/json/collection/v2.1.0/collection.json`, Postman Sandbox API Reference, `internal/service/collection/dto.go`, `internal/service/restrequest/dto.go`, `frontend/src/layout/hooks/useScriptRunner.ts`, `frontend/src/layout/hooks/useSendRequest.ts`
+**Last updated**: 2026-10-28
 
 ---
 
 ## Overview
 
-A pre-request script in Postman executes prior to dispatching an HTTP request. It can dynamically set headers, generate authentication tokens, calculate timestamps, or manage environment and collection variables.
+Pre-request (`listen: "prerequest"`) and post-request (`listen: "test"`) scripts in API Tester follow the Postman Collection v2.1.0 specification and the Postman Sandbox API.
 
-Representing and executing pre-request scripts involves two complementary DTO layers:
-1. **Collection Schema DTO**: How the script is persisted, imported, and exported within Postman collection JSON files.
-2. **Sandbox Runtime Context DTO**: The data models and objects provided to the JavaScript execution engine under the `pm.*` global namespace.
+Representing and executing scripts involves two complementary layers:
+1. **Collection Schema DTO**: How scripts, request URLs, headers, bodies, and authentication configurations are persisted, imported, and exported within Postman collection JSON files.
+2. **Sandbox Runtime Context DTO**: The data models and Postman Collection SDK classes (`Url`, `HeaderList`, `PropertyList`, `RequestBody`, `RequestAuth`) hydrated inside the isolated Web Worker under the `pm.*`, `request`, and `res` globals.
 
 ---
 
 ## 1. Collection Schema DTO (JSON Schema v2.1.0)
 
-In the Postman Collection format, scripts are stored in an `event` array attached to a collection, folder, or request item. For pre-request scripts, the event is identified by `listen: "prerequest"`.
+In the Postman Collection format, scripts are stored in an `event` array attached to a collection, folder, or request item.
 
 ### `Event` Object Specification
 
 | Property | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `listen` | `string` | **Yes** | Event lifecycle hook. Must be `"prerequest"` for pre-request scripts (or `"test"` for test scripts). |
+| `listen` | `string` | **Yes** | Event lifecycle hook (`"prerequest"` for pre-request scripts, `"test"` for post-request scripts). |
 | `script` | `Script` | **Yes** | The script payload containing executable code lines and metadata. |
 | `id` | `string` | No | Unique identifier for the event instance. |
 | `disabled` | `boolean` | No | Flag to disable script execution without deleting it (defaults to `false`). |
@@ -33,114 +33,88 @@ In the Postman Collection format, scripts are stored in an `event` array attache
 
 | Property | Type | Description |
 | :--- | :--- | :--- |
-| `exec` | `string[]` \| `string` | Script contents. Typically formatted as an array of strings representing individual lines of JavaScript code. |
+| `exec` | `string[]` \| `string` | Script contents formatted as an array of JavaScript source lines. |
 | `type` | `string` | MIME type of the script engine (standard: `"text/javascript"`). |
 | `id` | `string` | Optional unique identifier for referencing the script. |
 | `name` | `string` | Optional human-readable script name or description. |
 | `src` | `string` \| `Url` | Optional URL pointing to an external script resource. |
 
-### Serialized JSON Example
-
-```json
-{
-  "event": [
-    {
-      "listen": "prerequest",
-      "disabled": false,
-      "script": {
-        "id": "e39149aa-f3b1-4d10-8b1e-0a56bd31a90c",
-        "type": "text/javascript",
-        "name": "Pre-request Auth Generator",
-        "exec": [
-          "// Set dynamic timestamp and auth header",
-          "const timestamp = Date.now().toString();",
-          "pm.environment.set('timestamp', timestamp);",
-          "pm.request.headers.add({ key: 'X-Timestamp', value: timestamp });"
-        ]
-      }
-    }
-  ]
-}
-```
-
 ---
 
 ## 2. Local Codebase DTO Mapping
 
-In this repository, the Postman pre-request script schema is modeled in Go under `internal/service/collection/dto.go`:
+### Backend Go DTOs (`internal/service/collection/dto.go` & `internal/service/restrequest/dto.go`)
 
-* **`CollectionEvent`**:
+* **`CollectionEvent` & `EventScript`**:
   ```go
   type CollectionEvent struct {
-      Listen string      `json:"listen"`
-      Script EventScript `json:"script"`
+      ID       string      `json:"id,omitempty"`
+      Listen   string      `json:"listen"`
+      Script   EventScript `json:"script"`
+      Disabled bool        `json:"disabled,omitempty"`
   }
-  ```
-* **`EventScript`**:
-  ```go
-  type EventScript struct {
-      Exec []string `json:"exec"`
-      Type string   `json:"type"`
-  }
-  ```
-* **`UpdatePreScriptRequest`**:
-  ```go
-  type UpdatePreScriptRequest struct {
-      Exec []string `json:"exec"`
-      Type string   `json:"type"`
-  }
-  ```
-* **`UpdatePreScriptResponse`**:
-  ```go
-  type UpdatePreScriptResponse struct {
-      Script  string `json:"script"`
-      Version string `json:"version"`
-  }
-  ```
 
-Pre-request script retrieval joins `event.Script.Exec` lines via `strings.Join(lines, "\n")`, while mutation overwrites or appends the event with `Listen: "prerequest"`.
+  type EventScript struct {
+      ID   string   `json:"id,omitempty"`
+      Name string   `json:"name,omitempty"`
+      Exec []string `json:"exec"`
+      Type string   `json:"type"`
+      Src  any      `json:"src,omitempty"`
+  }
+  ```
+* **`RequestURL` & `URLAuth`**:
+  Includes `Raw`, `Protocol`, `Host`, `Port`, `Path`, `Query`, `Hash`, `Variable`, and `Auth *URLAuth` so Postman Collection v2.1 URL fields survive round-trip serialization.
+* **`RequestBody`**:
+  Supports `Mode` (`raw`, `urlencoded`, `formdata`, `file`, `graphql`), `Raw`, `URLEncoded []Property`, `FormData []Property`, `File`, `GraphQL`, `Options map[string]any`, and `Disabled`.
+* **`ReqAuth`**:
+  Supports `ID`, `Name`, `Type` (`bearer`, `basic`, `apikey`, `oauth2`, `noauth`), `Disabled`, `Bearer`, `Basic`, `APIKey`, and `OAuth2` property lists.
+* **`restrequest.RequestResponse`**:
+  Exposes both `PreScript string` (extracted from enabled `prerequest` events) and `Script string` (extracted from enabled `test` events).
 
 ---
 
-## 3. Postman Sandbox Runtime DTO (`pm.*` Context)
+## 3. Postman Sandbox Runtime DTO (`pm.*` Context in `useScriptRunner.ts`)
 
-When executing a pre-request script, the Postman sandbox exposes a structured execution context via the global `pm` object:
+Inside the isolated Web Worker (`frontend/src/layout/hooks/useScriptRunner.ts`), outgoing requests and incoming responses are hydrated into Postman Collection SDK instances (`Url`, `HeaderList`, `PropertyList`, `RequestBody`, `RequestAuth`), which are also exposed globally and via `require('postman-collection')`.
 
-### `pm.request` (Outgoing Request DTO)
-Provides read/write access to the pending HTTP request:
-* `pm.request.url`: URL model (`host`, `path`, `query`, `protocol`, `port`).
-* `pm.request.method`: HTTP method string (e.g. `GET`, `POST`, `PUT`).
-* `pm.request.headers`: Header list with helper methods (`.add()`, `.remove()`, `.upsert()`, `.get()`).
-* `pm.request.body`: Request payload body model (mode: `raw`, `urlencoded`, `formdata`).
-* `pm.request.auth`: Authentication configuration assigned to the request.
+### `pm.request` (`request` alias)
+Available in both **pre-request** (mutable) and **post-request** (read-only body) phases:
+* `pm.request.id` & `pm.request.name`: Request identifier and display name.
+* `pm.request.method`: HTTP method string (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`).
+* `pm.request.url`: `Url` SDK instance with `.raw` getter/setter, `protocol`, `host`, `port`, `path`, `query` (`PropertyList`), `variables` (`PropertyList`), `hash`, `auth`, `.update()`, `.toString()`, `.getPath()`, `.getHost()`, `.getQueryString()`, `.getRemote()`, `.addQueryParams()`, and `.removeQueryParams()`.
+* `pm.request.headers`: `HeaderList` SDK instance (decorated `Array` supporting both legacy `request.headers[0].key` indexing and `.add()`, `.upsert()`, `.remove()`, `.get()`, `.has()`, `.each()`, `.count()`, `.clear()`, `.toObject()`, `.toString()`).
+* `pm.request.body`: `RequestBody` SDK instance supporting `mode`, `raw`, `urlencoded` (`PropertyList`), `formdata` (`PropertyList`), `file`, `graphql`, `options`, `.update()`, `.isEmpty()`, and `.toString()`.
+* `pm.request.auth`: `RequestAuth` SDK instance supporting `type`, `.use(type, options)`, `.current()`, `.parameters()`, and `.clear(type)` (`bearer`, `basic`, `apikey`, `oauth2`, `noauth`).
+* Mutation Helpers: `pm.request.addHeader()`, `pm.request.removeHeader()`, `pm.request.upsertHeader()`, `pm.request.addQueryParams()`, `pm.request.removeQueryParams()`.
+
+### `pm.response` (`res` alias)
+Available in the **post-request** phase:
+* `pm.response.code` & `pm.response.status`: Numeric HTTP status code and status reason string (`statusCode` and `statusText` retained as aliases).
+* `pm.response.headers`: `HeaderList` SDK instance with case-insensitive `.get()`, `.has()`, `.toObject()`, plus direct lowercase property lookup (`res.headers['content-type']`) for backward compatibility.
+* `pm.response.responseTime`: Duration in milliseconds.
+* `pm.response.responseSize`: Byte size of the response payload.
+* `pm.response.text()`: Returns the exact raw response string (`rawText`).
+* `pm.response.json()`: Parses the response text (or returns the parsed JSON body).
+* `pm.response.to`: Chai-style response assertions (`to.have.status(codeOrText)`, `to.have.header(key, val?)`, `to.have.body(valOrRegex?)`, `to.have.jsonBody(path?, val?)`, `to.have.jsonSchema(schema)`, `to.be.ok`, `to.be.success`, `to.be.redirection`, `to.be.clientError`, `to.be.serverError`, `to.be.error`, `to.be.json`, and `.not` negation).
 
 ### Variable Scope DTOs
-Exposes tiered variable stores according to precedence:
-* `pm.variables`: Resolution lookup across all nested scopes (local > data > environment > collection > global).
-* `pm.environment`: Active environment key-value pairs (`.get()`, `.set()`, `.unset()`).
-* `pm.collectionVariables`: Collection-level variable store.
-* `pm.globals`: Workspace-wide global variable store.
-* `pm.iterationData`: Data row provided during collection runner or Newman test runs.
+Available in both **pre-request** and **post-request** phases with immediate in-memory updates and automatic collection variable persistence (`createVariableMutation`, `updateVariableMutation`, `deleteVariableMutation`):
+* `pm.environment`, `pm.collectionVariables`, `pm.variables`, `pm.globals`, `pm.iterationData`: Each exposes `.get(key)`, `.set(key, value)`, `.unset(key)`, `.has(key)`, `.clear()`, `.toObject()`, and `.replaceIn(template)`.
 
-### `pm.info` (Execution Metadata DTO)
-* `pm.info.eventName`: String literal `"prerequest"`.
-* `pm.info.iteration`: Zero-based current iteration index.
-* `pm.info.requestId`: Unique ID of the current request item.
-* `pm.info.requestName`: Name of the active request item.
-
-### `pm.execution` & Auxiliary APIs
-* `pm.execution.skipRequest()`: Aborts sending the current request.
-* `pm.execution.setNextRequest(target)`: Overrides collection workflow execution order.
-* `pm.cookies`: Access to cookie storage via cookie jar helpers.
-* `pm.sendRequest(request, callback)`: Dispatches asynchronous HTTP calls prior to the main request.
-
-*(Note: `pm.response` is unavailable in pre-request scripts since the response lifecycle has not yet occurred).*
+### `pm.info`, `pm.execution`, `pm.test`, and `pm.expect`
+* `pm.info`: `{ eventName: 'prerequest' | 'test', iteration: 1, iterationCount: 1, requestName, requestId }`.
+* `pm.execution.skipRequest()`: Aborts sending the HTTP request when invoked during a pre-request script.
+* `pm.execution.setNextRequest(target)`: Records the next request target on the execution result.
+* `pm.test(name, fn)`: Executes assertion callbacks and records pass/fail results into the `AssertionResult[]` output.
+* `pm.expect(actual)`: Supports Chai BDD chains (`.to.be.a()`, `.to.equal()`, `.to.eql()`, `.to.include()`, `.to.match()`, `.to.have.property()`, `.to.have.lengthOf()`, `.to.be.above()`, `.to.be.below()`, `.to.be.oneOf()`, `.to.be.true/false/null/undefined/empty/ok`, `.not`) alongside direct matchers.
 
 ---
 
 ## Related pages
 
 - [[concepts/index]]
+- [[concepts/backend/postman-script-documentation/index]]
+- [[patterns/frontend/script-editor-and-code-completion]]
 - [[concepts/backend/file-backed-editor-sync]]
 - [[decisions/file-backed-restrequest-editing]]
 - [[index]]

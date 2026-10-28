@@ -36,7 +36,7 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
 
     const { diagnostic: scriptDiagnostic, linterExtension } = useCodeDiagnostic(editorValue, {
         language: "javascript",
-        globals: ["response", "pm"],
+        globals: ["response", "request", "pm", "CryptoJS", "Url", "HeaderList", "RequestAuth", "RequestBody"],
     })
 
     const scriptExtensions = useMemo(() => [linterExtension], [linterExtension])

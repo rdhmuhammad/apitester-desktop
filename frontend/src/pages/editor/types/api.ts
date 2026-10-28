@@ -1,4 +1,4 @@
-export type ColtBodyType = "raw" | "formdata";
+export type ColtBodyType = "raw" | "formdata" | "urlencoded" | "file" | "graphql";
 
 export interface GetCollectionResponse {
   changed: boolean;
@@ -55,8 +55,14 @@ export interface ResponseCookie {
 }
 
 export interface ReqAuth {
+  id?: string;
+  name?: string;
   type: string;
+  disabled?: boolean;
   bearer?: ItemUrl[];
+  basic?: ItemUrl[];
+  apikey?: ItemUrl[];
+  oauth2?: ItemUrl[];
   authSource?: "inherit" | "onrequest" | "none" | string;
 }
 
@@ -73,7 +79,12 @@ export interface Request {
 export interface RequestBody {
   mode: ColtBodyType;
   raw?: string;
-  formdata?: ItemUrl[]
+  formdata?: ItemUrl[];
+  urlencoded?: ItemUrl[];
+  file?: { src?: string } | Record<string, unknown>;
+  graphql?: { query?: string; variables?: string } | Record<string, unknown>;
+  options?: Record<string, unknown>;
+  disabled?: boolean;
 }
 
 export interface ItemUrl {
@@ -92,11 +103,20 @@ export interface PathVariable {
   value: string;
 }
 
+export interface URLAuth {
+  user?: string;
+  password?: string;
+}
+
 export interface RequestURL {
   raw: string;
+  protocol?: string;
   host: string[];
+  port?: string;
   path: string[];
   query: ItemUrl[];
+  hash?: string;
+  auth?: URLAuth;
   variable?: PathVariable[];
 }
 
@@ -112,13 +132,18 @@ export interface AuthProperty {
 }
 
 export interface CollectionEvent {
+  id?: string;
   listen: string;
+  disabled?: boolean;
   script: EventScript;
 }
 
 export interface EventScript {
+  id?: string;
+  name?: string;
   exec: string[];
   type: string;
+  src?: string | RequestURL;
 }
 
 export interface CollectionVar {
@@ -129,4 +154,3 @@ export interface CollectionVar {
   type: string;
   isSelected?: boolean;
 }
-

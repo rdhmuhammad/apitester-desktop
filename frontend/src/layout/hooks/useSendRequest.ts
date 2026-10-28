@@ -1,19 +1,18 @@
-import {useAppDispatch} from "@/app/store/hooks.ts";
+import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import {setResponse, setScriptResult} from "@/app/slices/restApiSlice.ts";
 import {runPreRequestScript, runScript} from "@/layout/hooks/useScriptRunner.ts";
 import type {ItemUrl, PathVariable} from "@/pages/editor/types/api.ts";
 import type {RestRequestResponse} from "@/pages/editor/services/requestConfig.ts";
+import {requestConfigQueryKey} from "@/pages/editor/services/requestConfig.ts";
 import type {ScriptResultDto} from "@/app/slices/index.ts";
 import axios from "@/config/axios.ts";
 import type {ScriptLog, SendResponse} from "@/types/response.ts";
 import {type AxiosResponse, isCancel} from "axios";
 import {getFile} from "@/lib/fileStore.ts";
 import CustomToast from "@/components/common/toast";
-import {useAppSelector} from "@/app/store/hooks.ts";
 import {selectEditorActiveTabId} from "@/app/slices/editorTabsSlice.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts";
-import {requestConfigQueryKey} from "@/pages/editor/services/requestConfig.ts";
 import {useQueryClient} from "@tanstack/react-query";
 import {useEnvResolve, resolveVars, buildEnvVarsRecord} from "@/layout/hooks/useEnvResolve.ts";
 import {getHttpStatusText} from "@/lib/httpStatusCodes.ts";
@@ -83,12 +82,14 @@ export const buildRawRequest = (request: ISendRequest): string => {
     }
 
     let bodyStr = ''
-    if (request.contentType === 'application/json') {
+    if (request.contentType === 'application/json' || request.contentType === 'application/x-www-form-urlencoded') {
         bodyStr = request.raw ?? ''
     } else if (request.contentType === 'multipart/form-data' && request.formData) {
         bodyStr = request.formData
             .map(f => `${f.key}: ${f.value}`)
             .join('\n')
+    } else if (request.raw) {
+        bodyStr = request.raw
     }
 
     const lines = [
@@ -112,7 +113,9 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
 
 export const parseBlobResponse = async (blob: Blob, contentType: string): Promise<{
     data: unknown
+    rawText?: string
     size: string
+    byteSize: number
     isBinary: boolean
 }> => {
     const ct = (contentType ?? "").toLowerCase()
@@ -121,14 +124,15 @@ export const parseBlobResponse = async (blob: Blob, contentType: string): Promis
 
     if (isBinary) {
         const dataUrl = await blobToDataUrl(blob)
-        return {data: dataUrl, size: (blob.size / 1024).toFixed(2), isBinary}
+        return {data: dataUrl, size: (blob.size / 1024).toFixed(2), byteSize: blob.size, isBinary}
     }
 
     const text = await blob.text()
+    const byteSize = new Blob([text]).size
     try {
-        return {data: JSON.parse(text), size: (new Blob([text]).size / 1024).toFixed(2), isBinary}
+        return {data: JSON.parse(text), rawText: text, size: (byteSize / 1024).toFixed(2), byteSize, isBinary}
     } catch {
-        return {data: text, size: (new Blob([text]).size / 1024).toFixed(2), isBinary}
+        return {data: text, rawText: text, size: (byteSize / 1024).toFixed(2), byteSize, isBinary}
     }
 }
 
@@ -160,7 +164,7 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
         const response = await axios.request({
             method: request.method,
             headers: {
-                ...(isFormData ? {} : {"Content-Type": request.contentType}),
+                ...(isFormData || !request.contentType ? {} : {"Content-Type": request.contentType}),
                 ...request.headers.reduce((acc, it) => {
                     acc[it.key] = it.value ?? ""
                     return acc
@@ -169,16 +173,16 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             baseURL,
             url,
             params,
-            data: request.contentType === "application/json"
-                ? (request.raw ?? "{}") :
-                formData(request.formData ?? []),
+            data: isFormData
+                ? formData(request.formData ?? [])
+                : (request.raw ?? (request.contentType === "application/json" ? "{}" : undefined)),
             responseType: "blob",
             validateStatus: () => true, // Do not throw on non-2xx status codes
             signal: request.signal,
         }) as AxiosResponseWithDuration<Blob>
 
         const contentType = (response.headers["content-type"] as string)?.toLowerCase() ?? ""
-        const {data, size: responseSize, isBinary} = await parseBlobResponse(response.data as Blob, contentType)
+        const {data, rawText, size: responseSize, byteSize, isBinary} = await parseBlobResponse(response.data as Blob, contentType)
 
         const responseHeaders: Record<string, string> = {}
         if (response.headers) {
@@ -192,9 +196,11 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             protocol: "HTTP/1.1",
             responseTime: response.duration ?? 0,
             responseSize,
+            responseSizeBytes: byteSize,
             statusCode: response?.status ?? 0,
             statusText: getHttpStatusText(response?.status, response?.statusText),
             data,
+            rawText,
             contentType,
             isBinary,
             headers: responseHeaders,
@@ -207,9 +213,11 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
                 protocol: "HTTP/1.1",
                 responseTime: 0,
                 responseSize: "0",
+                responseSizeBytes: 0,
                 statusCode: 0,
                 statusText: "Canceled",
                 data: null,
+                rawText: "",
                 contentType: "",
                 isBinary: false,
                 headers: {},
@@ -229,9 +237,9 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
         // Handle network errors (e.g. ERR_CONNECTION_REFUSED, CORS)
         const blob = error?.response?.data
         const contentType = error?.response?.headers?.["content-type"] ?? ""
-        const {data, size, isBinary} = blob
+        const {data, rawText, size, byteSize, isBinary} = blob
             ? await parseBlobResponse(blob, contentType)
-            : {data: null, size: "0", isBinary: false}
+            : {data: null, rawText: "", size: "0", byteSize: 0, isBinary: false}
 
         CustomToast.error(error.message ?? "Request failed");
         return {
@@ -239,9 +247,11 @@ export const sendApiRequest = async (request: ISendRequest): Promise<SendRespons
             protocol: "HTTP/1.1",
             responseTime: error.duration ?? 0,
             responseSize: size,
+            responseSizeBytes: byteSize,
             statusCode: error.response?.status ?? 0,
             statusText: getHttpStatusText(error.response?.status, error.response?.statusText || error.message),
             data,
+            rawText,
             contentType,
             isBinary,
             headers: {},
@@ -261,7 +271,7 @@ const formatVariableValue = (val: unknown): string | null => {
     return String(val)
 }
 
-const applyMutatedRequestToSendConfig = (
+export const applyMutatedRequestToSendConfig = (
     baseConfig: ISendRequest,
     mutatedRequest: RestRequestResponse,
     vars: Record<string, string>,
@@ -279,18 +289,17 @@ const applyMutatedRequestToSendConfig = (
                 const v = (item as any).value !== undefined ? (item as any).value : ""
                 rawHeaders.push({
                     id: (item as any).id || crypto.randomUUID(),
-                    key: String(k),
+                    key: resolveVars(String(k), vars),
                     value: resolveVars(v, vars),
                     disabled: Boolean((item as any).disabled),
                 })
             }
         }
-        // Also check if non-numeric properties were set on the array itself: e.g. headers["X-Signature"] = "..."
         for (const [propKey, propVal] of Object.entries(mutatedRequest.headers)) {
             if (/^\d+$/.test(propKey) || typeof propVal === "function") continue
             rawHeaders.push({
                 id: crypto.randomUUID(),
-                key: propKey,
+                key: resolveVars(propKey, vars),
                 value: resolveVars(propVal, vars),
                 disabled: false,
             })
@@ -300,17 +309,58 @@ const applyMutatedRequestToSendConfig = (
             if (typeof value === "function") continue
             rawHeaders.push({
                 id: crypto.randomUUID(),
-                key,
+                key: resolveVars(key, vars),
                 value: resolveVars(value, vars),
                 disabled: false,
             })
         }
     }
 
+    // 1b. Auth normalization (apply mutatedRequest.auth if active and not disabled)
+    const auth = mutatedRequest.auth
+    const extraAuthQueryParams: ItemUrl[] = []
+    if (auth && !auth.disabled && auth.authSource !== "none" && auth.type && auth.type !== "noauth") {
+        const authType = auth.type.toLowerCase()
+        const upsertAuthHeader = (hdrKey: string, hdrVal: string) => {
+            const existingIdx = rawHeaders.findIndex(
+                (h) => !h.disabled && h.key.toLowerCase() === hdrKey.toLowerCase()
+            )
+            if (existingIdx !== -1) {
+                rawHeaders[existingIdx].value = hdrVal
+            } else {
+                rawHeaders.push({ id: crypto.randomUUID(), key: hdrKey, value: hdrVal, disabled: false })
+            }
+        }
+        if (authType === "bearer" && Array.isArray(auth.bearer)) {
+            const tokenEntry = auth.bearer.find((p) => p.key === "token") ?? auth.bearer[0]
+            const tokenVal = tokenEntry ? resolveVars(tokenEntry.value ?? "", vars) : ""
+            if (tokenVal) {
+                upsertAuthHeader("Authorization", /^bearer\s+/i.test(tokenVal) ? tokenVal : `Bearer ${tokenVal}`)
+            }
+        } else if (authType === "basic" && Array.isArray(auth.basic)) {
+            const user = resolveVars(auth.basic.find((p) => p.key === "username")?.value ?? "", vars)
+            const pass = resolveVars(auth.basic.find((p) => p.key === "password")?.value ?? "", vars)
+            if (user || pass) {
+                upsertAuthHeader("Authorization", `Basic ${btoa(`${user}:${pass}`)}`)
+            }
+        } else if (authType === "apikey" && Array.isArray(auth.apikey)) {
+            const k = resolveVars(auth.apikey.find((p) => p.key === "key")?.value ?? "", vars)
+            const v = resolveVars(auth.apikey.find((p) => p.key === "value")?.value ?? "", vars)
+            const where = resolveVars(auth.apikey.find((p) => p.key === "in")?.value ?? "header", vars)
+            if (k) {
+                if (where.toLowerCase() === "query") {
+                    extraAuthQueryParams.push({ id: crypto.randomUUID(), key: k, value: v, disabled: false })
+                } else {
+                    upsertAuthHeader(k, v)
+                }
+            }
+        }
+    }
+
     const contentTypeHeader = rawHeaders.find(
         (h) => h?.key?.toLowerCase() === "content-type" && !h.disabled
     )
-    const contentType = contentTypeHeader
+    let contentType = contentTypeHeader
         ? contentTypeHeader.value
         : baseConfig.contentType
 
@@ -319,7 +369,8 @@ const applyMutatedRequestToSendConfig = (
     )
 
     // 2. Query params normalization
-    const rawParamsSource = mutatedRequest.query ?? (mutatedRequest.url && typeof mutatedRequest.url === "object" ? (mutatedRequest.url as any).query : undefined) ?? baseConfig.requestParams
+    const urlQuerySource = mutatedRequest.url && typeof mutatedRequest.url === "object" ? (mutatedRequest.url as any).query : undefined
+    const rawParamsSource = (Array.isArray(urlQuerySource) && urlQuerySource.length > 0 ? urlQuerySource : mutatedRequest.query) ?? urlQuerySource ?? baseConfig.requestParams
     const requestParams: ItemUrl[] = []
 
     if (Array.isArray(rawParamsSource)) {
@@ -342,10 +393,14 @@ const applyMutatedRequestToSendConfig = (
             })
         }
     }
+    requestParams.push(...extraAuthQueryParams)
 
     // 3. URL & Endpoint normalization
-    let baseUrl = baseConfig.baseUrl
-    let endpoint = baseConfig.endpoint
+    let baseUrl = resolveVars(baseConfig.baseUrl, vars)
+    const pathVars: PathVariable[] = (mutatedRequest.url && typeof mutatedRequest.url === "object" && Array.isArray(mutatedRequest.url.variable))
+        ? mutatedRequest.url.variable
+        : []
+    let endpoint = resolvePathVariables(resolveVars(baseConfig.endpoint, vars), pathVars, vars)
 
     let rawUrlString: unknown = undefined
     if (typeof mutatedRequest.url === "string") {
@@ -364,31 +419,59 @@ const applyMutatedRequestToSendConfig = (
             try {
                 const parsed = new URL(rawUrl)
                 baseUrl = parsed.origin
-                endpoint = `${parsed.pathname}${parsed.search ? parsed.search : ""}${parsed.hash}`
+                const resolvedPathname = resolvePathVariables(parsed.pathname, pathVars, vars)
+                endpoint = `${resolvedPathname}${parsed.search ? parsed.search : ""}${parsed.hash}`
             } catch {
-                endpoint = rawUrl.split("?")[0]
+                endpoint = resolvePathVariables(rawUrl.split("?")[0], pathVars, vars)
             }
         } else {
-            endpoint = rawUrl.split("?")[0]
+            endpoint = resolvePathVariables(rawUrl.split("?")[0], pathVars, vars)
         }
     }
 
     // 4. Body normalization
-    let raw = baseConfig.raw
+    let raw = baseConfig.raw !== undefined ? resolveVars(baseConfig.raw, vars) : undefined
+    let formDataBody = baseConfig.formData
+
     if (typeof mutatedRequest.body === "string") {
         raw = resolveVars(mutatedRequest.body, vars)
     } else if (mutatedRequest.body && typeof mutatedRequest.body === "object") {
-        if ("raw" in mutatedRequest.body && (mutatedRequest.body as any).raw !== undefined) {
-            raw = resolveVars((mutatedRequest.body as any).raw, vars)
-        } else if (!("mode" in mutatedRequest.body) && !("formdata" in mutatedRequest.body)) {
-            // User set request.body = { ... } directly
-            raw = resolveVars(mutatedRequest.body, vars)
+        const bodyObj = mutatedRequest.body as any
+        if (bodyObj.disabled) {
+            raw = undefined
+            formDataBody = undefined
+        } else if (bodyObj.mode === "urlencoded" && Array.isArray(bodyObj.urlencoded)) {
+            const params = new URLSearchParams()
+            for (const item of bodyObj.urlencoded) {
+                if (item && !item.disabled && item.key) {
+                    params.append(resolveVars(item.key, vars), resolveVars(item.value ?? "", vars))
+                }
+            }
+            raw = params.toString()
+            if (!contentType) contentType = "application/x-www-form-urlencoded"
+        } else if (bodyObj.mode === "graphql" && bodyObj.graphql && typeof bodyObj.graphql === "object") {
+            const q = resolveVars(bodyObj.graphql.query ?? "", vars)
+            let v: unknown = bodyObj.graphql.variables
+            if (typeof v === "string") {
+                const resolvedV = resolveVars(v, vars)
+                try { v = JSON.parse(resolvedV) } catch { v = resolvedV }
+            }
+            raw = JSON.stringify({ query: q, variables: v })
+            if (!contentType) contentType = "application/json"
+        } else if ("raw" in bodyObj && bodyObj.raw !== undefined) {
+            raw = resolveVars(bodyObj.raw, vars)
+        } else if (!("mode" in bodyObj) && !("formdata" in bodyObj)) {
+            raw = resolveVars(bodyObj, vars)
+        }
+
+        if (!bodyObj.disabled && "formdata" in bodyObj && Array.isArray(bodyObj.formdata)) {
+            formDataBody = bodyObj.formdata.map((item: ItemUrl) => ({
+                ...item,
+                key: resolveVars(item.key ?? "", vars),
+                value: resolveVars(item.value ?? "", vars),
+            }))
         }
     }
-
-    const formDataBody = (mutatedRequest.body && typeof mutatedRequest.body === "object" && "formdata" in mutatedRequest.body)
-        ? (mutatedRequest.body as any).formdata
-        : baseConfig.formData
 
     return {
         baseUrl,
@@ -409,7 +492,14 @@ const applyMutatedRequestToSendConfig = (
 export const useRequestSender = () => {
     const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
-    const {activeCollection, preScript, variables, updateVariableMutation} = useCollection()
+    const {
+        activeCollection,
+        preScript,
+        variables,
+        createVariableMutation,
+        updateVariableMutation,
+        deleteVariableMutation,
+    } = useCollection()
     const {request} = useRequestConfig(activeCollection?.id ?? "", activeTabId)
     const queryClient = useQueryClient()
     const {selectedBaseUrl} = useEnvResolve()
@@ -442,10 +532,8 @@ export const useRequestSender = () => {
             )
         }
 
-        // endpoint = selectedBaseUrl + request.url.raw (backend keeps raw url with path+query)
         const rawEndpoint = currentReq.url?.raw ?? ""
         const endpoint = resolvePathVariables(rawEndpoint, currentReq.url?.variable, varsObj)
-        console.log(endpoint)
 
         const contentType = currentReq.headers?.find(
             h => h?.key.toLowerCase() === 'content-type' && !h.disabled
@@ -462,55 +550,63 @@ export const useRequestSender = () => {
             requestParams: (currentReq.url?.query ?? currentReq.query ?? [])
                 .filter(q => !q.disabled)
                 .map(q => ({...q, value: resolveVars(q.value ?? '', varsObj)})),
-            contentType,
+            contentType: resolveVars(contentType, varsObj),
             raw: currentReq.body?.raw ? resolveVars(currentReq.body.raw, varsObj) : undefined,
             formData: currentReq.body?.formdata,
             signal,
         }
 
+        const combinedPreScript = [preScript?.trim(), currentReq.preScript?.trim()].filter(Boolean).join("\n")
         const scriptValue = request.script ?? ""
         let finalConfig = config
+        let executedRequest: RestRequestResponse = currentReq
         const collectedResults: ScriptResultDto[] = []
         const collectedLogs: ScriptLog[] = []
         const mergedMutations: Record<string, string | null> = {}
 
-        // Helper: persist variable mutations via the backend UpdateVariable endpoint
+        // Helper: persist variable mutations via backend Variable endpoints
         const applyVariableMutations = async (mutations: Record<string, unknown>) => {
             for (const [key, rawValue] of Object.entries(mutations)) {
                 const value = formatVariableValue(rawValue)
 
-                // Update local varsObj for subsequent resolves within this request
                 if (value === null) {
                     delete varsObj[key]
                 } else {
                     varsObj[key] = value
                 }
 
-                // Persist to backend (and invalidate react-query cache)
                 const existing = variables.find(v => v.key === key)
+                const baseVersion = activeCollection?.version ?? ""
                 if (existing) {
                     if (value === null) {
-                        // Deletion — no-op here; service has no delete-by-key, skip silently
+                        await deleteVariableMutation.mutateAsync({
+                            id: existing.id,
+                            baseVersion,
+                        }).catch(() => {})
                     } else {
                         await updateVariableMutation.mutateAsync({
                             id: existing.id,
-                            baseVersion: activeCollection?.version ?? "",
+                            baseVersion,
                             key: existing.key,
                             value,
-                        }).catch(() => {/* Handled by onError in mutation */})
+                        }).catch(() => {})
                     }
+                } else if (value !== null) {
+                    await createVariableMutation.mutateAsync({
+                        baseVersion,
+                        key,
+                        value,
+                    }).catch(() => {})
                 }
-                // If the variable doesn't exist yet we skip creation here — pre-request scripts
-                // should only mutate existing env vars.
             }
         }
 
         // 1. Pre-request script phase (mutates request payload before sending)
-        if (preScript?.trim() && currentReq) {
+        if (combinedPreScript && currentReq) {
             try {
                 const initialFullUrl = selectedBaseUrl
-                    ? (endpoint ? `${selectedBaseUrl.replace(/\/+$/, "")}/${endpoint.replace(/^\/+/, "")}` : selectedBaseUrl)
-                    : endpoint
+                    ? (rawEndpoint ? `${selectedBaseUrl.replace(/\/+$/, "")}/${rawEndpoint.replace(/^\/+/, "")}` : selectedBaseUrl)
+                    : rawEndpoint
 
                 const initialRequest: RestRequestResponse = {
                     ...currentReq,
@@ -522,7 +618,7 @@ export const useRequestSender = () => {
                 }
 
                 const preOutput = await runPreRequestScript({
-                    script: preScript,
+                    script: combinedPreScript,
                     request: initialRequest,
                     variables: varsObj,
                 })
@@ -546,7 +642,28 @@ export const useRequestSender = () => {
                     })
                 }
 
-                finalConfig = applyMutatedRequestToSendConfig(config, preOutput.request, varsObj, initialFullUrl)
+                executedRequest = preOutput.request
+                const uninterpolatedBaseConfig: ISendRequest = {
+                    ...config,
+                    endpoint: rawEndpoint,
+                }
+                finalConfig = applyMutatedRequestToSendConfig(uninterpolatedBaseConfig, preOutput.request, varsObj, initialFullUrl)
+
+                if (preOutput.skipRequest) {
+                    collectedLogs.push({
+                        type: "info",
+                        message: "Request execution skipped by pm.execution.skipRequest()",
+                        timestamp: Date.now(),
+                        scriptType: "prerequest",
+                    })
+                    dispatch(setScriptResult({
+                        requestId: request.id,
+                        result: collectedResults,
+                        mutations: mergedMutations,
+                        logs: collectedLogs,
+                    }))
+                    return
+                }
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err)
                 CustomToast.error(`Pre-request script error: ${msg}`)
@@ -577,6 +694,7 @@ export const useRequestSender = () => {
                 const {result, mutations, logs} = await runScript({
                     script: scriptValue,
                     response,
+                    request: executedRequest,
                     variables: varsObj,
                 })
 

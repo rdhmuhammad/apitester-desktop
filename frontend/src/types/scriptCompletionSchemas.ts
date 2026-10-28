@@ -18,6 +18,38 @@ export const PATH_VARIABLE_COMPLETION_NODES: CompletionNode[] = [
     { label: "value", detail: "string" },
 ]
 
+export const PROPERTY_LIST_METHOD_NODES: CompletionNode[] = [
+    { label: "add(item)", detail: "(item: { key: string, value: string }) => Header", apply: 'add({ key: "${1}", value: "${2}" })' },
+    { label: "append(item)", detail: "(item: { key: string, value: string }) => Header", apply: 'append({ key: "${1}", value: "${2}" })' },
+    { label: "prepend(item)", detail: "(item: { key: string, value: string }) => Header", apply: 'prepend({ key: "${1}", value: "${2}" })' },
+    { label: "insert(item, before)", detail: "(item: object, before?: string | number) => Header", apply: 'insert({ key: "${1}", value: "${2}" }, ${3})' },
+    { label: "insertAfter(item, after)", detail: "(item: object, after?: string | number) => Header", apply: 'insertAfter({ key: "${1}", value: "${2}" }, ${3})' },
+    { label: "upsert(item)", detail: "(item: { key: string, value: string }) => boolean", apply: 'upsert({ key: "${1}", value: "${2}" })' },
+    { label: "remove(predicate)", detail: "(keyOrPredicate: string | ((item: any) => boolean)) => void", apply: 'remove("${1}")' },
+    { label: "clear()", detail: "() => void", apply: "clear()" },
+    { label: "get(key)", detail: "(key: string) => string | undefined", apply: 'get("${1}")' },
+    { label: "one(key)", detail: "(key: string) => ItemUrl | undefined", apply: 'one("${1}")', children: ITEM_URL_COMPLETION_NODES },
+    { label: "has(key, value?)", detail: "(key: string, value?: string) => boolean", apply: 'has("${1}")' },
+    { label: "idx(index)", detail: "(index: number) => ItemUrl | undefined", apply: "idx(${1:0})", children: ITEM_URL_COMPLETION_NODES },
+    { label: "indexOf(item)", detail: "(item: string | object) => number", apply: 'indexOf("${1}")' },
+    { label: "count()", detail: "() => number", apply: "count()" },
+    { label: "all()", detail: "() => ItemUrl[]", apply: "all()" },
+    { label: "each(iterator)", detail: "(fn: (item: ItemUrl) => void) => void", apply: "each((${1:item}) => {\n\t${2}\n})" },
+    { label: "map(iterator)", detail: "(fn: (item: ItemUrl) => any) => any[]", apply: "map((${1:item}) => ${2})" },
+    { label: "filter(predicate)", detail: "(fn: (item: ItemUrl) => boolean) => ItemUrl[]", apply: "filter((${1:item}) => ${2})" },
+    { label: "find(predicate)", detail: "(fn: (item: ItemUrl) => boolean) => ItemUrl | undefined", apply: "find((${1:item}) => ${2})" },
+    { label: "reduce(iterator, acc)", detail: "(fn: (acc: any, item: ItemUrl) => any, init: any) => any", apply: "reduce((${1:acc}, ${2:item}) => ${3}, ${4})" },
+    { label: "toObject(excludeDisabled?)", detail: "(excludeDisabled?: boolean, caseSensitive?: boolean, multiValue?: boolean, sanitizeKeys?: boolean) => Record<string, any>", apply: "toObject(${1:true})" },
+    { label: "toString()", detail: "() => string", apply: "toString()" },
+    { label: "toJSON()", detail: "() => ItemUrl[]", apply: "toJSON()" },
+]
+
+export const HEADER_LIST_COMPLETION_NODES: CompletionNode[] = [
+    ...ITEM_URL_COMPLETION_NODES,
+    ...PROPERTY_LIST_METHOD_NODES,
+    { label: "contentSize()", detail: "() => number", apply: "contentSize()" },
+]
+
 export const EXAMPLE_RESPONSE_COMPLETION_NODES: CompletionNode[] = [
     { label: "id", detail: "string" },
     { label: "name", detail: "string" },
@@ -46,124 +78,207 @@ export const REQUEST_COMPLETION_NODES: CompletionNode[] = [
     { label: "method", detail: "string (e.g. GET, POST, PUT, DELETE)" },
     {
         label: "url",
-        detail: "RequestURL",
+        detail: "Url (Postman Collection SDK)",
         children: [
             { label: "raw", detail: "string (full URL string)" },
+            { label: "protocol", detail: 'string (e.g. "https", "http")' },
             { label: "host", detail: "string[]" },
+            { label: "port", detail: "string" },
             { label: "path", detail: "string[]" },
-            { label: "query", detail: "ItemUrl[]", children: ITEM_URL_COMPLETION_NODES },
-            { label: "variable", detail: "PathVariable[]", children: PATH_VARIABLE_COMPLETION_NODES },
+            { label: "hash", detail: "string" },
+            {
+                label: "auth",
+                detail: "{ user?: string, password?: string }",
+                children: [
+                    { label: "user", detail: "string" },
+                    { label: "password", detail: "string" },
+                ],
+            },
+            { label: "query", detail: "PropertyList<QueryParam>", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "variable", detail: "PropertyList<PathVariable>", children: [...PATH_VARIABLE_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "variables", detail: "VariableList", children: [...PATH_VARIABLE_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "addQueryParams(params)", detail: "(params: Record<string, string> | string | ItemUrl[]) => Url", apply: 'addQueryParams({ ${1:key}: "${2:value}" })' },
+            { label: "removeQueryParams(params)", detail: "(params: string | string[]) => Url", apply: 'removeQueryParams("${1:key}")' },
+            { label: "getQueryString()", detail: "() => string", apply: "getQueryString()" },
+            { label: "getHost()", detail: "() => string", apply: "getHost()" },
+            { label: "getPath(unresolved?)", detail: "(unresolved?: boolean) => string", apply: "getPath()" },
+            { label: "getPathWithQuery()", detail: "() => string", apply: "getPathWithQuery()" },
+            { label: "getRemote(forcePort?)", detail: "(forcePort?: boolean) => string", apply: "getRemote()" },
+            { label: "update(url)", detail: "(url: string | RequestURL) => void", apply: 'update("${1}")' },
+            { label: "toString(forceProtocol?)", detail: "(forceProtocol?: boolean) => string", apply: "toString()" },
+            { label: "toJSON()", detail: "() => RequestURL", apply: "toJSON()" },
         ],
     },
-    { label: "headers", detail: "ItemUrl[]", children: ITEM_URL_COMPLETION_NODES },
-    { label: "query", detail: "ItemUrl[]", children: ITEM_URL_COMPLETION_NODES },
+    { label: "headers", detail: "HeaderList", children: HEADER_LIST_COMPLETION_NODES },
+    { label: "query", detail: "PropertyList<QueryParam>", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
     {
         label: "body",
-        detail: "RequestBody",
+        detail: "RequestBody (Postman Collection SDK)",
         children: [
-            { label: "mode", detail: '"raw" | "formdata"' },
+            { label: "mode", detail: '"raw" | "urlencoded" | "formdata" | "file" | "graphql"' },
             { label: "raw", detail: "string" },
-            { label: "formdata", detail: "ItemUrl[]", children: ITEM_URL_COMPLETION_NODES },
+            { label: "urlencoded", detail: "PropertyList<QueryParam>", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "formdata", detail: "PropertyList<FormParam>", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "file", detail: "{ src?: string }" },
+            {
+                label: "graphql",
+                detail: "{ query?: string, variables?: string }",
+                children: [
+                    { label: "query", detail: "string" },
+                    { label: "variables", detail: "string" },
+                ],
+            },
+            { label: "options", detail: "Record<string, any>" },
+            { label: "disabled", detail: "boolean" },
+            { label: "update(options)", detail: "(options: Partial<RequestBody> | string) => RequestBody", apply: 'update({ mode: "${1:raw}", raw: ${2} })' },
+            { label: "isEmpty()", detail: "() => boolean", apply: "isEmpty()" },
+            { label: "toString()", detail: "() => string", apply: "toString()" },
+            { label: "toJSON()", detail: "() => RequestBody", apply: "toJSON()" },
         ],
     },
     {
         label: "auth",
-        detail: "ReqAuth",
+        detail: "RequestAuth (Postman Collection SDK)",
         children: [
-            { label: "type", detail: "string" },
-            { label: "bearer", detail: "ItemUrl[]", children: ITEM_URL_COMPLETION_NODES },
+            { label: "id", detail: "string" },
+            { label: "name", detail: "string" },
+            { label: "type", detail: '"bearer" | "basic" | "apikey" | "oauth2" | "noauth" | string' },
+            { label: "disabled", detail: "boolean" },
+            { label: "bearer", detail: "PropertyList", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "basic", detail: "PropertyList", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "apikey", detail: "PropertyList", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
+            { label: "oauth2", detail: "PropertyList", children: [...ITEM_URL_COMPLETION_NODES, ...PROPERTY_LIST_METHOD_NODES] },
             { label: "authSource", detail: '"inherit" | "onrequest" | "none" | string' },
+            { label: "use(type, options)", detail: "(type: string, options: ItemUrl[] | Record<string, string>) => RequestAuth", apply: 'use("${1:bearer}", [{ key: "${2:token}", value: "${3}" }])' },
+            { label: "update(options, type?)", detail: "(options: ItemUrl[] | Record<string, string>, type?: string) => RequestAuth", apply: 'update([{ key: "${1:token}", value: "${2}" }])' },
+            { label: "clear(type?)", detail: "(type?: string) => RequestAuth", apply: 'clear("${1:bearer}")' },
+            { label: "parameters()", detail: "() => PropertyList", apply: "parameters()", children: PROPERTY_LIST_METHOD_NODES },
+            { label: "toJSON()", detail: "() => ReqAuth", apply: "toJSON()" },
         ],
     },
     { label: "script", detail: "string" },
     { label: "responses", detail: "ExampleResponse[]", children: EXAMPLE_RESPONSE_COMPLETION_NODES },
     { label: "version", detail: "string" },
+    { label: "toJSON()", detail: "() => RestRequestResponse", apply: "toJSON()" },
+]
+
+const ASSERTION_LEAF_NODES: CompletionNode[] = [
+    { label: "toBe(expected)", detail: "(expected: any) => void", apply: "toBe(${1})" },
+    { label: "equal(value)", detail: "(value: any) => void", apply: "equal(${1})" },
+    { label: "eql(value)", detail: "(value: any) => void (deep equality)", apply: "eql(${1})" },
+    { label: "include(value)", detail: "(value: any) => void", apply: "include(${1})" },
+    { label: "contain(value)", detail: "(value: any) => void", apply: "contain(${1})" },
+    { label: "match(regex)", detail: "(regex: RegExp | string) => void", apply: "match(${1})" },
+    { label: "above(n)", detail: "(n: number) => void", apply: "above(${1})" },
+    { label: "below(n)", detail: "(n: number) => void", apply: "below(${1})" },
+    { label: "a(type)", detail: '(type: string) => void', apply: 'a("${1:object}")' },
+    { label: "an(type)", detail: '(type: string) => void', apply: 'an("${1:array}")' },
+    { label: "exist", detail: "assert value is not null/undefined" },
+    { label: "ok", detail: "assert truthy or HTTP 2xx" },
+    { label: "true", detail: "assert true" },
+    { label: "false", detail: "assert false" },
+    { label: "null", detail: "assert null" },
+    { label: "undefined", detail: "assert undefined" },
+    { label: "empty", detail: "assert empty" },
+    { label: "success", detail: "assert HTTP 2xx status" },
+    { label: "redirection", detail: "assert HTTP 3xx status" },
+    { label: "clientError", detail: "assert HTTP 4xx status" },
+    { label: "serverError", detail: "assert HTTP 5xx status" },
+    { label: "error", detail: "assert HTTP 4xx/5xx status" },
+    { label: "json", detail: "assert valid JSON body" },
+    { label: "status(code)", detail: "(code: number | string) => void", apply: "status(${1:200})" },
+    { label: "header(key, value?)", detail: "(key: string, value?: string) => void", apply: 'header("${1:Content-Type}")' },
+    { label: "body(expected?)", detail: "(expected?: any) => void", apply: "body(${1})" },
+    { label: "jsonBody(expected?)", detail: "(expected?: any) => void", apply: "jsonBody(${1})" },
+    { label: "jsonSchema(schema)", detail: "(schema: object) => void", apply: "jsonSchema(${1:schema})" },
+    { label: "property(name, value?)", detail: "(name: string, value?: any) => Assertion", apply: 'property("${1}")' },
+    { label: "length(n)", detail: "(length: number) => Assertion", apply: "length(${1})" },
+    { label: "lengthOf(n)", detail: "(length: number) => Assertion", apply: "lengthOf(${1})" },
+    { label: "keys(...keys)", detail: "(...keys: string[]) => Assertion", apply: 'keys("${1}")' },
 ]
 
 export const EXPECT_CHAIN_COMPLETION_NODES: CompletionNode[] = [
-    { label: "toBe(expected)", detail: "(expected: any) => void", apply: "toBe(${1})" },
+    ...ASSERTION_LEAF_NODES,
+    {
+        label: "to",
+        detail: "BDD language chain",
+        children: [
+            ...ASSERTION_LEAF_NODES,
+            {
+                label: "be",
+                detail: "BDD language chain",
+                children: [
+                    ...ASSERTION_LEAF_NODES,
+                    {
+                        label: "at",
+                        detail: "BDD language chain",
+                        children: [
+                            { label: "least(n)", detail: "(n: number) => void", apply: "least(${1})" },
+                            { label: "most(n)", detail: "(n: number) => void", apply: "most(${1})" },
+                        ],
+                    },
+                ],
+            },
+            {
+                label: "have",
+                detail: "BDD language chain",
+                children: ASSERTION_LEAF_NODES,
+            },
+            {
+                label: "not",
+                detail: "negate assertion",
+                children: [
+                    ...ASSERTION_LEAF_NODES,
+                    { label: "be", detail: "BDD language chain", children: ASSERTION_LEAF_NODES },
+                    { label: "have", detail: "BDD language chain", children: ASSERTION_LEAF_NODES },
+                ],
+            },
+        ],
+    },
     {
         label: "not",
         detail: "negate assertion",
         children: [
-            { label: "toBe(expected)", detail: "(expected: any) => void", apply: "toBe(${1})" },
+            ...ASSERTION_LEAF_NODES,
+            { label: "to", detail: "BDD language chain", children: ASSERTION_LEAF_NODES },
+            { label: "be", detail: "BDD language chain", children: ASSERTION_LEAF_NODES },
+            { label: "have", detail: "BDD language chain", children: ASSERTION_LEAF_NODES },
         ],
     },
-    { label: "include(value)", detail: "(value: any) => void", apply: "include(${1})" },
-    { label: "equal(value)", detail: "(value: any) => void", apply: "equal(${1})" },
-    { label: "exist", detail: "assert value is truthy" },
     {
         label: "be",
         detail: "language chain",
-        children: [
-            { label: "true", detail: "assert true" },
-            { label: "false", detail: "assert false" },
-            { label: "null", detail: "assert null" },
-            { label: "undefined", detail: "assert undefined" },
-            { label: "empty", detail: "assert empty" },
-        ],
+        children: ASSERTION_LEAF_NODES,
     },
     {
         label: "have",
         detail: "language chain",
-        children: [
-            { label: "property(name)", detail: "(name: string) => Assertion", apply: 'property("${1}")' },
-            { label: "length(length)", detail: "(length: number) => Assertion", apply: "length(${1})" },
-        ],
+        children: ASSERTION_LEAF_NODES,
     },
 ]
 
-export const PM_COMPLETION_NODES: CompletionNode[] = [
-    {
-        label: "environment",
-        detail: "pm.environment",
-        children: [
-            { label: "get(key)", detail: "(key: string) => string | undefined", apply: 'get("${1}")' },
-            { label: "set(key, value)", detail: "(key: string, value: string) => void", apply: 'set("${1}", "${2}")' },
-            { label: "unset(key)", detail: "(key: string) => void", apply: 'unset("${1}")' },
-            { label: "toObject()", detail: "() => Record<string, string>", apply: "toObject()" },
-        ],
-    },
-    {
-        label: "collectionVariables",
-        detail: "pm.collectionVariables",
-        children: [
-            { label: "get(key)", detail: "(key: string) => string | undefined", apply: 'get("${1}")' },
-            { label: "set(key, value)", detail: "(key: string, value: string) => void", apply: 'set("${1}", "${2}")' },
-            { label: "has(key)", detail: "(key: string) => boolean", apply: 'has("${1}")' },
-            { label: "unset(key)", detail: "(key: string) => void", apply: 'unset("${1}")' },
-            { label: "clear()", detail: "() => void", apply: "clear()" },
-        ],
-    },
-    {
-        label: "variables",
-        detail: "pm.variables",
-        children: [
-            { label: "get(key)", detail: "(key: string) => string | undefined", apply: 'get("${1}")' },
-            { label: "set(key, value)", detail: "(key: string, value: string) => void", apply: 'set("${1}", "${2}")' },
-            { label: "unset(key)", detail: "(key: string) => void", apply: 'unset("${1}")' },
-            { label: "toObject()", detail: "() => Record<string, string>", apply: "toObject()" },
-        ],
-    },
-    {
-        label: "request",
-        detail: "pm.request (RestRequestResponse)",
-        children: REQUEST_COMPLETION_NODES,
-    },
-    {
-        label: "expect",
-        detail: "pm.expect(value: any)",
-        apply: "expect(${1})",
-    },
+const VARIABLE_SCOPE_COMPLETION_NODES: CompletionNode[] = [
+    { label: "get(key)", detail: "(key: string) => string | undefined", apply: 'get("${1}")' },
+    { label: "set(key, value)", detail: "(key: string, value: string) => void", apply: 'set("${1}", "${2}")' },
+    { label: "has(key)", detail: "(key: string) => boolean", apply: 'has("${1}")' },
+    { label: "unset(key)", detail: "(key: string) => void", apply: 'unset("${1}")' },
+    { label: "clear()", detail: "() => void", apply: "clear()" },
+    { label: "toObject()", detail: "() => Record<string, string>", apply: "toObject()" },
+    { label: "replaceIn(template)", detail: "(template: string) => string", apply: 'replaceIn("${1}")' },
 ]
 
 export const RESPONSE_COMPLETION_NODES: CompletionNode[] = [
-    { label: "statusCode", detail: "{ statusCode: number }" },
-    { label: "statusText", detail: "{ statusText: string }" },
-    { label: "data", detail: "Object" },
-    { label: "headers", detail: "{ headers: Record<string, string> }" },
-    { label: "json()", detail: "{ json(): any }", apply: "json()" },
-    { label: "text()", detail: "{ text(): string }", apply: "text()" },
+    { label: "code", detail: "number (HTTP status code, e.g. 200)" },
+    { label: "status", detail: 'string (HTTP status phrase, e.g. "OK")' },
+    { label: "statusCode", detail: "number (HTTP status code)" },
+    { label: "statusText", detail: "string (HTTP status phrase)" },
+    { label: "headers", detail: "HeaderList", children: HEADER_LIST_COMPLETION_NODES },
+    { label: "responseTime", detail: "number (duration in ms)" },
+    { label: "responseSize", detail: "number (payload size in bytes)" },
+    { label: "data", detail: "any (parsed response data)" },
+    { label: "json()", detail: "() => any (parse JSON body)", apply: "json()" },
+    { label: "text()", detail: "() => string (raw UTF-8 body)", apply: "text()" },
+    { label: "to", detail: "Chai BDD assertions on response", children: EXPECT_CHAIN_COMPLETION_NODES },
 ]
 
 export const CRYPTO_JS_COMPLETION_NODES: CompletionNode[] = [
@@ -265,6 +380,78 @@ export const CRYPTO_JS_COMPLETION_NODES: CompletionNode[] = [
     },
 ]
 
+export const PM_COMPLETION_NODES: CompletionNode[] = [
+    {
+        label: "environment",
+        detail: "pm.environment",
+        children: VARIABLE_SCOPE_COMPLETION_NODES,
+    },
+    {
+        label: "collectionVariables",
+        detail: "pm.collectionVariables",
+        children: VARIABLE_SCOPE_COMPLETION_NODES,
+    },
+    {
+        label: "variables",
+        detail: "pm.variables",
+        children: VARIABLE_SCOPE_COMPLETION_NODES,
+    },
+    {
+        label: "globals",
+        detail: "pm.globals",
+        children: VARIABLE_SCOPE_COMPLETION_NODES,
+    },
+    {
+        label: "iterationData",
+        detail: "pm.iterationData",
+        children: VARIABLE_SCOPE_COMPLETION_NODES,
+    },
+    {
+        label: "request",
+        detail: "pm.request (Postman Sandbox Request)",
+        children: REQUEST_COMPLETION_NODES,
+    },
+    {
+        label: "response",
+        detail: "pm.response (Postman Sandbox Response)",
+        children: RESPONSE_COMPLETION_NODES,
+    },
+    {
+        label: "info",
+        detail: "pm.info (Execution Metadata)",
+        children: [
+            { label: "eventName", detail: '"prerequest" | "test"' },
+            { label: "iteration", detail: "number" },
+            { label: "iterationCount", detail: "number" },
+            { label: "requestName", detail: "string" },
+            { label: "requestId", detail: "string" },
+        ],
+    },
+    {
+        label: "execution",
+        detail: "pm.execution",
+        children: [
+            { label: "skipRequest()", detail: "() => void (abort sending request)", apply: "skipRequest()" },
+            { label: "setNextRequest(target)", detail: "(target: string | null) => void", apply: 'setNextRequest("${1}")' },
+        ],
+    },
+    {
+        label: "test(name, specFn)",
+        detail: "pm.test(name: string, specFn: () => void)",
+        apply: 'test("${1:Status code is 200}", function () {\n\t${2}\n})',
+    },
+    {
+        label: "expect",
+        detail: "pm.expect(value: any)",
+        apply: "expect(${1})",
+    },
+    {
+        label: "CryptoJS",
+        detail: "CryptoJS library",
+        children: CRYPTO_JS_COMPLETION_NODES,
+    },
+]
+
 export const PM_NAMESPACE_SCHEMA: CompletionNamespaceSchema = {
     root: "pm",
     detail: "Postman Sandbox API",
@@ -281,6 +468,7 @@ export const PM_NAMESPACE_SCHEMA: CompletionNamespaceSchema = {
 export const RESPONSE_NAMESPACE_SCHEMA: CompletionNamespaceSchema = {
     root: "response",
     detail: "HTTP Response payload",
+    allowIndexAccess: true,
     members: RESPONSE_COMPLETION_NODES,
 }
 
@@ -499,6 +687,8 @@ export const PRE_REQUEST_COMPLETION_SCHEMAS: CompletionNamespaceSchema[] = [
 export const POST_REQUEST_COMPLETION_SCHEMAS: CompletionNamespaceSchema[] = [
     PM_NAMESPACE_SCHEMA,
     RESPONSE_NAMESPACE_SCHEMA,
+    REQUEST_NAMESPACE_SCHEMA,
+    CRYPTO_JS_NAMESPACE_SCHEMA,
 ]
 
 export const DEFAULT_MOCK_REQUEST: RestRequestResponse = {
@@ -507,6 +697,7 @@ export const DEFAULT_MOCK_REQUEST: RestRequestResponse = {
     method: "GET",
     url: {
         raw: "https://api.example.com/users",
+        protocol: "https",
         host: ["api", "example", "com"],
         path: ["users"],
         query: [],

@@ -10,10 +10,12 @@ export interface SendResponse {
     rawRequest: string;
     responseTime: number;
     responseSize: string;
+    responseSizeBytes?: number;
     protocol: string;
     statusCode: number;
     statusText: string;
     data: any;
+    rawText?: string;
     contentType?: string;
     isBinary?: boolean;
     headers?: Record<string, string>;
@@ -25,4 +27,3 @@ export interface ScriptLog {
     timestamp: number
     scriptType?: "prerequest" | "postrequest"
 }
-

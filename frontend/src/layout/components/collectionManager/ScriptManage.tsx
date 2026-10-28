@@ -47,7 +47,7 @@ const ScriptManage: React.FC<ScriptManageProps> = ({isExpanded, onExpand, onColl
     const completionSources = useCodeCompletions("prerequest")
     const { diagnostic: scriptDiagnostic, linterExtension } = useCodeDiagnostic(script, {
         language: "javascript",
-        globals: ["request", "pm"],
+        globals: ["request", "pm", "CryptoJS", "Url", "HeaderList", "RequestAuth", "RequestBody"],
     })
     const scriptExtensions = useMemo(() => [linterExtension], [linterExtension])
 

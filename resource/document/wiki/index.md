@@ -60,7 +60,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[concepts/base-url-lifecycle]] - End-to-end lifecycle, variable categorization, template resolution, and dispatch mechanism of baseUrl.
 - [[concepts/path-variable-lifecycle]] - How `:word` endpoint segments become path variables, are synced, edited, and resolved at send time.
 - [[concepts/backend/file-backed-editor-sync]] - Target design for filesystem-backed editor coordination, versioning, hashing, and conflict handling.
-- [[concepts/backend/postman-prerequest-script-dto]] - Postman pre-request script data transfer object specification across collection schema and sandbox runtime.
+- [[concepts/backend/postman-prerequest-script-dto]] - Postman pre-request and post-request script DTO specifications across collection schema, Go/TS models, and Web Worker sandbox runtime.
 - [[concepts/backend/postman-script-documentation/index]] - Comprehensive reference for Postman scripting, runtime sandbox APIs (pm.request, pm.response), and Collection SDK classes (Url, RequestAuth, HeaderList, RequestBody).
 - [[concepts/backend/usecase-design-rules]] - Reusable structural standards for usecase orchestration, error boundaries, parameter encapsulation, and execution lifecycles.
 - [[concepts/frontend/redux-toolkit]] - Modern Redux Toolkit structure, state boundaries, and data flow.

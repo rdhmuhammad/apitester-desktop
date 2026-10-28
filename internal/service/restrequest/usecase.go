@@ -741,10 +741,15 @@ func removeRequest(items []collectionService.CollectionItem, id string) ([]colle
 
 func requestResponse(_ *domain.Collection, content []byte, item *collectionService.CollectionItem) RequestResponse {
 	script := ""
+	preScript := ""
 	for _, event := range item.Event {
+		if event.Disabled {
+			continue
+		}
 		if strings.EqualFold(event.Listen, "test") || strings.EqualFold(event.Listen, "post-request") {
 			script = strings.Join(event.Script.Exec, "\n")
-			break
+		} else if strings.EqualFold(event.Listen, "prerequest") || strings.EqualFold(event.Listen, "pre-request") {
+			preScript = strings.Join(event.Script.Exec, "\n")
 		}
 	}
 	return RequestResponse{
@@ -756,6 +761,7 @@ func requestResponse(_ *domain.Collection, content []byte, item *collectionServi
 		Query:     item.Request.URL.Query,
 		Body:      item.Request.Body,
 		Auth:      item.Request.Auth,
+		PreScript: preScript,
 		Script:    script,
 		Responses: item.Response,
 		Version:   version(content),

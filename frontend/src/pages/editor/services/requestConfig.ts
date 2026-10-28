@@ -24,6 +24,7 @@ export interface RestRequestResponse {
     query: ItemUrl[]
     body?: RequestBody
     auth?: ReqAuth
+    preScript?: string
     script: string
     responses?: ExampleResponse[]
     version: string

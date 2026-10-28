@@ -58,6 +58,7 @@ type RequestResponse struct {
 	Query     []collectionService.Property           `json:"query"`
 	Body      *collectionService.RequestBody         `json:"body,omitempty"`
 	Auth      *collectionService.ReqAuth             `json:"auth,omitempty"`
+	PreScript string                                 `json:"preScript,omitempty"`
 	Script    string                                 `json:"script"`
 	Responses []collectionService.CollectionResponse `json:"responses,omitempty"`
 	Version   string                                 `json:"version"`

@@ -20,7 +20,6 @@ type ActiveCollectionResponse struct {
 	Path         string    `json:"path"`
 	IsSelected   bool      `json:"is_selected"`
 	TestSuiteID  string    `json:"testsuite_id"`
-	AutomationID string    `json:"automation_id"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	CreatedAt    time.Time `json:"created_at"`
 }
@@ -117,9 +116,14 @@ type Header struct {
 }
 
 type RequestBody struct {
-	Mode     string     `json:"mode"`
-	Raw      string     `json:"raw"`
-	FormData []Property `json:"formdata,omitempty"`
+	Mode       string         `json:"mode"`
+	Raw        string         `json:"raw"`
+	FormData   []Property     `json:"formdata,omitempty"`
+	URLEncoded []Property     `json:"urlencoded,omitempty"`
+	File       any            `json:"file,omitempty"`
+	GraphQL    any            `json:"graphql,omitempty"`
+	Options    map[string]any `json:"options,omitempty"`
+	Disabled   bool           `json:"disabled,omitempty"`
 }
 
 type PathVariable struct {
@@ -128,11 +132,20 @@ type PathVariable struct {
 	Value string `json:"value"`
 }
 
+type URLAuth struct {
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
 type RequestURL struct {
 	Raw      string         `json:"raw"`
+	Protocol string         `json:"protocol,omitempty"`
 	Host     []string       `json:"host"`
+	Port     string         `json:"port,omitempty"`
 	Path     []string       `json:"path"`
 	Query    []Property     `json:"query"`
+	Hash     string         `json:"hash,omitempty"`
+	Auth     *URLAuth       `json:"auth,omitempty"`
 	Variable []PathVariable `json:"variable,omitempty"`
 }
 
@@ -233,8 +246,14 @@ type Property struct {
 }
 
 type ReqAuth struct {
+	ID         string     `json:"id,omitempty"`
+	Name       string     `json:"name,omitempty"`
 	Type       string     `json:"type"`
+	Disabled   bool       `json:"disabled,omitempty"`
 	Bearer     []Property `json:"bearer,omitempty"`
+	Basic      []Property `json:"basic,omitempty"`
+	APIKey     []Property `json:"apikey,omitempty"`
+	OAuth2     []Property `json:"oauth2,omitempty"`
 	AuthSource string     `json:"authSource" binding:"omitempty,oneof=inherit onrequest none"`
 }
 
@@ -247,13 +266,18 @@ func (r *ReqAuth) SetType(auth string) {
 }
 
 type CollectionEvent struct {
-	Listen string      `json:"listen"`
-	Script EventScript `json:"script"`
+	ID       string      `json:"id,omitempty"`
+	Listen   string      `json:"listen"`
+	Disabled bool        `json:"disabled,omitempty"`
+	Script   EventScript `json:"script"`
 }
 
 type EventScript struct {
+	ID   string   `json:"id,omitempty"`
+	Name string   `json:"name,omitempty"`
 	Exec []string `json:"exec"`
 	Type string   `json:"type"`
+	Src  any      `json:"src,omitempty"`
 }
 
 type UpdatePreScriptRequest struct {
