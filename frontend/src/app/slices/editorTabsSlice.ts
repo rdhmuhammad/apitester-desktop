@@ -19,7 +19,7 @@ const editorTabsSlice = createSlice({
     initialState: initialEditorTabsState,
     reducers: {
         syncEditorTabs(state, action: PayloadAction<EditorTab[]>) {
-            state.tabs = action.payload;
+            state.tabs = (action.payload || []).filter((tab): tab is EditorTab => Boolean(tab?.id));
             if (!state.tabs.some(tab => tab.id === state.activeTabId)) {
                 state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
             }
@@ -39,6 +39,7 @@ const editorTabsSlice = createSlice({
             return initialEditorTabsState;
         },
         openEditorTab(state, action: PayloadAction<EditorTab>) {
+            if (!action.payload?.id) return;
             if (!state.tabs.some(tab => tab.id === action.payload.id)) {
                 state.tabs.push(action.payload);
             }

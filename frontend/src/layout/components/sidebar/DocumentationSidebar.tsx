@@ -20,7 +20,9 @@ import {
 import {cn} from "@/lib/utils.ts"
 import {useDocumentation} from "@/pages/editor/hooks/useDocumentation.ts"
 import {
+    documentContentQueryKey,
     documentTreeQueryKey,
+    DocumentationServices,
     type DocumentTree,
 } from "@/pages/editor/services/documentation.ts"
 import {useCollection} from "@/layout/hooks/useCollection.ts"
@@ -215,7 +217,7 @@ const DocTreeNode: React.FC<{
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
+                        className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                         {isOpen ? (
                             <ChevronDown className="h-4 w-4 text-slate-500 shrink-0"/>
@@ -227,7 +229,7 @@ const DocTreeNode: React.FC<{
                         ) : (
                             <Folder className="h-4 w-4 text-sky-500 shrink-0"/>
                         )}
-                        {renderNameOrInput("truncate")}
+                        {renderNameOrInput("whitespace-nowrap")}
                     </button>
                     <button
                         type="button"
@@ -274,7 +276,7 @@ const DocTreeNode: React.FC<{
                 type="button"
                 onClick={onClick}
                 className={cn(
-                    "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent",
+                    "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent",
                     isActive && "bg-sky-100 dark:bg-sky-950/60",
                 )}
             >
@@ -291,7 +293,7 @@ const DocTreeNode: React.FC<{
                 >
                     {isHtml ? "HTML" : "MD"}
                 </span>
-                {renderNameOrInput("truncate flex-1 text-sidebar-foreground")}
+                {renderNameOrInput("whitespace-nowrap flex-1 text-sidebar-foreground")}
                 {isHtml && (
                     <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 shrink-0"/>
                 )}
@@ -355,6 +357,14 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
         if (!activeProject?.id) return
         void refetchDocumentTree()
     }, [activeProject?.id, activeCollection?.id, refetchDocumentTree])
+
+    useEffect(() => {
+        return DocumentationServices.onDocumentRefresh((shouldRefresh) => {
+            if (shouldRefresh) {
+                void refetchDocumentTree()
+            }
+        })
+    }, [refetchDocumentTree])
 
     const countDocs = (nodes: DocumentTree[]): number => {
         let count = 0
@@ -548,14 +558,25 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
         const target = nodeToDelete
         setNodeToDelete(null)
 
-        const affectedDocIds = collectMarkdownIds(target)
+        const targetFolderPrefix = target.category === "FOLD" ? `${target.id}/` : null
+        const affectedDocIds = new Set(collectMarkdownIds(target))
+        if (target.category === "DOC_MD") {
+            affectedDocIds.add(target.id)
+        }
+
+        // Close any open editor tabs for deleted document(s) before deleting from disk
+        for (const tab of openTabs) {
+            if (
+                tab.type === "document" &&
+                (affectedDocIds.has(tab.id) || (targetFolderPrefix && tab.id.startsWith(targetFolderPrefix)))
+            ) {
+                dispatch(removeEditorTab(tab.id))
+                queryClient.removeQueries({queryKey: documentContentQueryKey(tab.id)})
+            }
+        }
+
         try {
             await deleteItemMutation.mutateAsync(target.id)
-            for (const docId of affectedDocIds) {
-                if (openTabs.some((t) => t.id === docId)) {
-                    dispatch(removeEditorTab(docId))
-                }
-            }
             await queryClient.invalidateQueries({queryKey: documentTreeQueryKey})
         } catch {
             // Error toast handled by mutation
@@ -814,7 +835,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     const deleteFileCount = nodeToDelete?.category === "FOLD" ? countAllFolderFiles(nodeToDelete) : 0
 
     const treeContent = (
-        <div className="space-y-0.5">
+        <div className="min-w-full w-max space-y-0.5">
             {creatingItem?.parentId === "" && renderCreateRow(0)}
             {!hasVisibleNodes ? (
                 <div className="px-4 py-4 text-center text-xs text-slate-400">
@@ -827,7 +848,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     )
 
     return (
-        <div className="mt-4">
+        <div className="mt-4 min-w-0">
             <div className="flex items-center justify-between border-b border-sidebar-border px-2 py-2">
                 <div className="flex items-center gap-1.5">
                     <BookOpen className="h-4 w-4 text-sky-600"/>
@@ -845,7 +866,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
                 </button>
             </div>
 
-            <div className="relative py-1">
+            <div className="relative py-1 overflow-x-auto overflow-y-hidden">
                 {searchQuery ? (
                     treeContent
                 ) : (

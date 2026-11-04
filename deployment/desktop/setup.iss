@@ -2,7 +2,7 @@
 ; Compile with: ISCC.exe setup.iss
 
 #define MyAppName "Apitester"
-#define MyAppVersion "0.0.1"
+#define MyAppVersion "0.1.1"
 #define MyAppPublisher "Ridho Muhammad"
 #define MyAppURL "https://apitester.app"
 

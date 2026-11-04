@@ -123,13 +123,13 @@ const DragNode: React.FC<{
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
+                        className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                         {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0"/> :
                             <ChevronRight className="h-4 w-4 text-slate-500 shrink-0"/>}
                         {isOpen ? <FolderOpen className="h-4 w-4 text-indigo-500 shrink-0"/> :
                             <Folder className="h-4 w-4 text-indigo-500 shrink-0"/>}
-                        {renderNameOrInput("truncate")}
+                        {renderNameOrInput("whitespace-nowrap")}
                     </button>
                     {onDelete && (
                         <button
@@ -173,11 +173,11 @@ const DragNode: React.FC<{
             <button
                 type="button"
                 onClick={onClick}
-                className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent', isActive && 'bg-indigo-100 dark:bg-indigo-950/60')}
+                className={cn('flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent', isActive && 'bg-indigo-100 dark:bg-indigo-950/60')}
             >
                 <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>
                 <span className={`w-12 text-xs font-semibold shrink-0 ${methodColorClass[node.method ?? "GET"]}`}>{node.method ?? "GET"}</span>
-                {renderNameOrInput("truncate text-sidebar-foreground")}
+                {renderNameOrInput("whitespace-nowrap text-sidebar-foreground")}
             </button>
             {onDelete && (
                 <button

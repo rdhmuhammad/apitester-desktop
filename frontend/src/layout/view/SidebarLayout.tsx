@@ -12,6 +12,7 @@ import {
     removeEditorTab,
     renameEditorTab,
     selectEditorActiveTabId,
+    selectEditorTabs,
 } from "@/app/slices/editorTabsSlice.ts";
 import {requestConfigQueryKey} from "@/pages/editor/services/requestConfig.ts";
 import type {ColtReqMethod} from "@/pages/editor/types/editor.ts";
@@ -36,6 +37,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog.tsx";
+
+const EMPTY_TREE: RequestTree[] = []
 
 const collectRequestIds = (node: RequestTree): string[] => {
     const ids: string[] = []
@@ -188,7 +191,8 @@ const SidebarLayout: React.FC = () => {
     const [dropPosition, setDropPosition] = useState<DropPosition>(null)
     const dropPositionRef = useRef<DropPosition>(null)
     const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const activeTabsId = useAppSelector(selectEditorActiveTabId)
+    const activeTabId = useAppSelector(selectEditorActiveTabId)
+    const openTabs = useAppSelector(selectEditorTabs)
     const [nodeToDelete, setNodeToDelete] = useState<RequestTree | null>(null)
     const [contextMenu, setContextMenu] = useState<{x: number; y: number; node: RequestTree} | null>(null)
     const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -207,7 +211,7 @@ const SidebarLayout: React.FC = () => {
         renameTreeItemMutation,
         isUpdatingTree,
     } = useCollection()
-    const tree = activeCollection ? rawTree : []
+    const tree = activeCollection ? rawTree : EMPTY_TREE
 
     const sensors = useSensors(
         useSensor(PointerSensor, {activationConstraint: {distance: 5}})
@@ -265,23 +269,7 @@ const SidebarLayout: React.FC = () => {
     useEffect(() => {
         queryClient.removeQueries({queryKey: ["collection", "tree"]})
         setExpandedFolders({})
-    }, [activeCollection, queryClient]);
-
-    useEffect(() => {
-        setExpandedFolders((prev) => {
-            const record: Record<string, boolean> = {}
-            const loadExpandFolder = (nodes: RequestTree[]) => {
-                for (const node of nodes) {
-                    if (node.category === "FOLD") {
-                        record[node.id] = prev[node.id] ?? false
-                        if (node.item) loadExpandFolder(node.item)
-                    }
-                }
-            }
-            loadExpandFolder(tree)
-            return record
-        })
-    }, [tree]);
+    }, [activeCollection?.id, queryClient]);
 
     const computeDropPosition = useCallback((event: DragOverEvent): DropPosition => {
         const targetRect = event.over?.rect
@@ -401,9 +389,10 @@ const SidebarLayout: React.FC = () => {
         const affectedRequestIds = collectRequestIds(nodeToDelete)
 
         // Close any open editor tabs for deleted request(s)
-        for (const reqId of affectedRequestIds) {
-            if (activeTabsId.includes(reqId)) {
-                dispatch(removeEditorTab(reqId))
+        const affectedSet = new Set(affectedRequestIds)
+        for (const tab of openTabs) {
+            if (affectedSet.has(tab.id)) {
+                dispatch(removeEditorTab(tab.id))
             }
         }
 
@@ -596,7 +585,7 @@ const SidebarLayout: React.FC = () => {
         const isChildParentMatch = isParentMatch || matchesCurrent
 
         const isOpen = Boolean(expandedFolders[node.id]);
-        const isActive = node.isActive || activeTabsId.includes(node.id) || node.id === activeDragId
+        const isActive = node.isActive || activeTabId === node.id || node.id === activeDragId
         const isCreatingInside = creatingItem?.parentId === node.id
 
         return (
@@ -648,7 +637,7 @@ const SidebarLayout: React.FC = () => {
     }
 
     const treeContent = activeCollection ? (
-        <div className="">
+        <div className="min-w-full w-max">
             {creatingItem?.parentId === "" && renderCreateRow(0)}
             {tree.map((collection) => {
                 return renderNode(collection)
@@ -678,7 +667,7 @@ const SidebarLayout: React.FC = () => {
                     />
                 </div>
             </div>
-            <div className="flex flex-col overflow-y-auto px-3 pb-2 bg-sidebar flex-1">
+            <div className="overflow-y-auto overflow-x-hidden px-3 pb-2 bg-sidebar flex-1">
                 <div className="mb-2 px-2 mt-2 flex items-center justify-between">
                     <div className="flex items-center space-x-1.5">
                         <FolderGit2 className="w-4 h-4 text-indigo-600"/>
@@ -696,7 +685,7 @@ const SidebarLayout: React.FC = () => {
                         </button>
                     )}
                 </div>
-                <div className="relative">
+                <div className="relative overflow-x-auto overflow-y-hidden">
                     {searchQuery ? (
                         treeContent
                     ) : (

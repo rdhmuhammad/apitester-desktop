@@ -207,6 +207,8 @@ func (u *Usecase) DeleteItem(ctx context.Context, id string) error {
 		return u.ErrHandler.ErrorReturn(err)
 	}
 
+	u.NotifyChanges(nil)
+
 	return nil
 }
 

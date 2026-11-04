@@ -32,6 +32,7 @@ export type DocumentToolbarAction =
     | {type: "undo"}
     | {type: "redo"}
     | {type: "toggle-source"}
+    | {type: "format"; action: string}
     | {type: "heading"; level: 0 | 1 | 2 | 3 | 4 | 5 | 6}
     | {type: "bold"}
     | {type: "italic"}

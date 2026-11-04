@@ -1,0 +1,6 @@
+{
+  "name": "Obsidian Markdown Editor",
+  "description": "An Obsidian-style Markdown editor featuring Live Preview hybrid rendering, bi-directional wiki-linking, transclusion embeds, interactive callouts, split panes, and backlink graphs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

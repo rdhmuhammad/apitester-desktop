@@ -129,12 +129,19 @@ const RequestHeader: React.FC = () => {
                             if (tab.type !== "request") return true
                             return reqMap.has(tab.id)
                         }).map(tab => {
-                            let nextTab = reqMap.get(tab.id) ?? {} as RequestTree
+                            if (tab.type !== "request") {
+                                return tab
+                            }
+                            const nextTab = reqMap.get(tab.id)
+                            if (!nextTab) {
+                                return tab
+                            }
                             return {
+                                ...tab,
                                 id: nextTab.id,
                                 label: nextTab.name,
-                                method: nextTab.method as ColtReqMethod,
-                                type: "request"
+                                method: (nextTab.method || "GET") as ColtReqMethod,
+                                type: "request",
                             } as EditorTab
                         })
 

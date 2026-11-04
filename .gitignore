@@ -12,6 +12,8 @@ deployment/desktop/installer
 deployment/desktop/wheelhouse
 .agents
 /.obsidian/
+.aistudio
+**/.aistudio
 
 # Google Drive credentials & local configs
 *service-account*.json

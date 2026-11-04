@@ -38,14 +38,14 @@ exports.default = async function afterPack(context) {
         LegalCopyright: "Ridho muhammad 2026",
         InternalName: "apitester",
         OriginalFilename: "apitester.exe",
-        FileVersion: "0.0.1",
-        ProductVersion: "0.0.1",
+        FileVersion: "0.1.1",
+        ProductVersion: "0.1.1",
       }
     )
   }
 
-  vi.setFileVersion(0, 0, 1, 0)
-  vi.setProductVersion(0, 0, 1, 0)
+  vi.setFileVersion(0, 1, 1, 0)
+  vi.setProductVersion(0, 1, 1, 0)
   vi.outputToResourceEntries(res.entries)
 
   res.outputResource(exe)

@@ -1,348 +1,293 @@
-import {useEffect, useState} from "react"
+import React, { useEffect, useState } from 'react';
 import {
-    Bold,
-    CheckSquare,
-    ChevronDown,
-    Code,
-    Code2,
-    FileText,
-    Grid3X3,
-    Image,
-    Italic,
-    Link2,
-    List,
-    ListOrdered,
-    Redo2,
-    Strikethrough,
-    Type,
-    Undo2,
-} from "lucide-react"
-import {Button} from "@/components/ui/button.tsx"
+  Bold,
+  Italic,
+  Strikethrough,
+  Code,
+  List,
+  ListOrdered,
+  CheckSquare,
+  Quote,
+  Table as TableIcon,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Layers,
+  Heading1,
+  Heading2,
+  Heading3,
+  Undo2,
+  Redo2,
+  Sparkles,
+  Code2,
+  FileText,
+} from 'lucide-react';
+import { useAppSelector } from '@/app/store/hooks.ts';
+import { selectEditorActiveTab } from '@/app/slices/editorTabsSlice.ts';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.tsx"
-import {useAppSelector} from "@/app/store/hooks.ts"
-import {selectEditorActiveTab} from "@/app/slices/editorTabsSlice.ts"
-import {
-    dispatchDocumentToolbarAction,
-    type DocumentToolbarState,
-    onDocumentToolbarState,
-} from "@/pages/editor/services/documentation.ts"
-import {cn} from "@/lib/utils.ts"
-
-const HEADING_LABELS: Record<0 | 1 | 2 | 3 | 4 | 5 | 6, string> = {
-    0: "Paragraph",
-    1: "Heading 1",
-    2: "Heading 2",
-    3: "Heading 3",
-    4: "Heading 4",
-    5: "Heading 5",
-    6: "Heading 6",
-}
+  dispatchDocumentToolbarAction,
+  type DocumentToolbarState,
+  onDocumentToolbarState,
+} from '@/pages/editor/services/documentation.ts';
+import { cn } from '@/lib/utils.ts';
 
 const preventBlur = (e: React.MouseEvent) => {
-    e.preventDefault()
-}
+  e.preventDefault();
+};
 
 const DocumentEditorHeader: React.FC = () => {
-    const activeTab = useAppSelector(selectEditorActiveTab)
-    const [toolbarState, setToolbarState] = useState<DocumentToolbarState>({
-        sourceMode: false,
-        canUndo: false,
-        canRedo: false,
-        headingLevel: 0,
-    })
-    const [tableMenuOpen, setTableMenuOpen] = useState(false)
-    const [hoverCols, setHoverCols] = useState(1)
-    const [hoverRows, setHoverRows] = useState(1)
+  const activeTab = useAppSelector(selectEditorActiveTab);
+  const [toolbarState, setToolbarState] = useState<DocumentToolbarState>({
+    sourceMode: false,
+    canUndo: false,
+    canRedo: false,
+    headingLevel: 0,
+  });
 
-    const visibleCols = Math.min(20, Math.max(11, hoverCols + 1))
-    const visibleRows = Math.min(20, Math.max(5, hoverRows + 1))
+  useEffect(() => {
+    return onDocumentToolbarState((nextState) => {
+      setToolbarState(nextState);
+    });
+  }, []);
 
-    useEffect(() => {
-        return onDocumentToolbarState((nextState) => {
-            setToolbarState(nextState)
-        })
-    }, [])
+  const handleFormatAction = (actionType: string) => {
+    dispatchDocumentToolbarAction({ type: 'format', action: actionType });
+  };
 
-    return (
-        <div className="flex w-full items-center justify-between gap-3">
-            <div className="flex items-center gap-1 overflow-x-auto py-1">
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={!toolbarState.canUndo}
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "undo"})}
-                    title="Undo (Ctrl+Z)"
-                    className="h-8 w-8 p-0"
-                >
-                    <Undo2 className="h-4 w-4"/>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={!toolbarState.canRedo}
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "redo"})}
-                    title="Redo (Ctrl+Y)"
-                    className="h-8 w-8 p-0"
-                >
-                    <Redo2 className="h-4 w-4"/>
-                </Button>
-
-                <div className="mx-1 h-5 w-px bg-border"/>
-
-                <Button
-                    type="button"
-                    variant={toolbarState.sourceMode ? "secondary" : "ghost"}
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "toggle-source"})}
-                    title={toolbarState.sourceMode ? "Switch to Live Editor" : "View Raw Markdown Source"}
-                    className={cn(
-                        "h-8 gap-1.5 px-2.5 text-xs font-medium",
-                        toolbarState.sourceMode && "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
-                    )}
-                >
-                    <Code2 className="h-3.5 w-3.5"/>
-                    Source
-                </Button>
-
-                <div className="mx-1 h-5 w-px bg-border"/>
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onMouseDown={preventBlur}
-                            className="h-8 gap-1 px-2 text-xs font-medium"
-                            title="Text / Heading style"
-                        >
-                            <Type className="h-3.5 w-3.5 text-muted-foreground"/>
-                            <span>{HEADING_LABELS[toolbarState.headingLevel] ?? "Paragraph"}</span>
-                            <ChevronDown className="h-3 w-3 text-muted-foreground"/>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-40">
-                        {([0, 1, 2, 3, 4, 5, 6] as const).map((level) => (
-                            <DropdownMenuItem
-                                key={level}
-                                onClick={() => dispatchDocumentToolbarAction({type: "heading", level})}
-                                className={cn(
-                                    "text-xs",
-                                    toolbarState.headingLevel === level && "font-semibold text-indigo-600"
-                                )}
-                            >
-                                {HEADING_LABELS[level]}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                <div className="mx-1 h-5 w-px bg-border"/>
-
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "bold"})}
-                    title="Bold (**text**)"
-                    className="h-8 w-8 p-0 font-bold"
-                >
-                    <Bold className="h-4 w-4"/>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "italic"})}
-                    title="Italic (*text*)"
-                    className="h-8 w-8 p-0 italic"
-                >
-                    <Italic className="h-4 w-4"/>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "strikethrough"})}
-                    title="Strikethrough (~~text~~)"
-                    className="h-8 w-8 p-0"
-                >
-                    <Strikethrough className="h-4 w-4"/>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "code"})}
-                    title="Inline or Fenced Code (`code`)"
-                    className="h-8 w-8 p-0"
-                >
-                    <Code className="h-4 w-4"/>
-                </Button>
-
-                <div className="mx-1 h-5 w-px bg-border"/>
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onMouseDown={preventBlur}
-                            title="Insert List"
-                            className="h-8 gap-0.5 px-1.5"
-                        >
-                            <List className="h-4 w-4"/>
-                            <ChevronDown className="h-3 w-3 text-muted-foreground"/>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-40">
-                        <DropdownMenuItem
-                            onClick={() => dispatchDocumentToolbarAction({type: "list", kind: "ul"})}
-                            className="text-xs"
-                        >
-                            <List className="mr-2 h-3.5 w-3.5"/>
-                            Bullet List
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={() => dispatchDocumentToolbarAction({type: "list", kind: "ol"})}
-                            className="text-xs"
-                        >
-                            <ListOrdered className="mr-2 h-3.5 w-3.5"/>
-                            Numbered List
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={() => dispatchDocumentToolbarAction({type: "list", kind: "task"})}
-                            className="text-xs"
-                        >
-                            <CheckSquare className="mr-2 h-3.5 w-3.5"/>
-                            Task List
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "link"})}
-                    title="Insert Link ([text](url))"
-                    className="h-8 w-8 p-0"
-                >
-                    <Link2 className="h-4 w-4"/>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onMouseDown={preventBlur}
-                    onClick={() => dispatchDocumentToolbarAction({type: "image"})}
-                    title="Insert Image (![alt](url))"
-                    className="h-8 w-8 p-0"
-                >
-                    <Image className="h-4 w-4"/>
-                </Button>
-                <DropdownMenu
-                    open={tableMenuOpen}
-                    onOpenChange={(open) => {
-                        setTableMenuOpen(open)
-                        if (open) {
-                            setHoverCols(1)
-                            setHoverRows(1)
-                        }
-                    }}
-                >
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onMouseDown={preventBlur}
-                            title="Insert Table"
-                            className="h-8 w-8 p-0"
-                        >
-                            <Grid3X3 className="h-4 w-4"/>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        align="start"
-                        onMouseDown={preventBlur}
-                        className="w-auto p-3"
-                    >
-                        <div
-                            className="flex flex-col gap-1"
-                            onMouseLeave={() => {
-                                setHoverCols(1)
-                                setHoverRows(1)
-                            }}
-                        >
-                            {Array.from({length: visibleRows}, (_, rIdx) => {
-                                const r = rIdx + 1
-                                return (
-                                    <div key={r} className="flex items-center gap-1">
-                                        {Array.from({length: visibleCols}, (_, cIdx) => {
-                                            const c = cIdx + 1
-                                            const active = c <= hoverCols && r <= hoverRows
-                                            return (
-                                                <button
-                                                    key={c}
-                                                    type="button"
-                                                    onMouseDown={preventBlur}
-                                                    onMouseEnter={() => {
-                                                        setHoverCols(c)
-                                                        setHoverRows(r)
-                                                    }}
-                                                    onClick={() => {
-                                                        dispatchDocumentToolbarAction({
-                                                            type: "table",
-                                                            cols: c,
-                                                            rows: r,
-                                                        })
-                                                        setTableMenuOpen(false)
-                                                    }}
-                                                    className={cn(
-                                                        "h-4 w-4 rounded-[2px] border transition-colors",
-                                                        active
-                                                            ? "border-blue-500 bg-blue-100 dark:border-blue-400 dark:bg-blue-900/60"
-                                                            : "border-slate-300 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/40"
-                                                    )}
-                                                />
-                                            )
-                                        })}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                        <div className="mt-2 text-center text-xs font-medium text-foreground">
-                            {hoverCols} x {hoverRows}
-                        </div>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-                <FileText className="h-4 w-4 text-sky-600"/>
-                <span className="max-w-[220px] truncate font-medium text-foreground">
-                    {activeTab?.label || "Document"}
-                </span>
-            </div>
+  return (
+    <div
+      onMouseDown={preventBlur}
+      className="flex w-full items-center justify-between gap-3 text-xs select-none"
+    >
+      {/* Formatting & History Actions */}
+      <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+        {/* Undo / Redo */}
+        <div className="flex items-center gap-0.5 pr-1 border-r border-border">
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => dispatchDocumentToolbarAction({ type: 'undo' })}
+            disabled={!toolbarState.canUndo}
+            title="Undo (Ctrl+Z)"
+            className={cn(
+              'p-1.5 rounded transition-colors flex items-center justify-center',
+              toolbarState.canUndo
+                ? 'text-foreground hover:bg-muted'
+                : 'text-muted-foreground/40 cursor-not-allowed'
+            )}
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => dispatchDocumentToolbarAction({ type: 'redo' })}
+            disabled={!toolbarState.canRedo}
+            title="Redo (Ctrl+Y)"
+            className={cn(
+              'p-1.5 rounded transition-colors flex items-center justify-center',
+              toolbarState.canRedo
+                ? 'text-foreground hover:bg-muted'
+                : 'text-muted-foreground/40 cursor-not-allowed'
+            )}
+          >
+            <Redo2 className="h-3.5 w-3.5" />
+          </button>
         </div>
-    )
-}
 
-export default DocumentEditorHeader
+        {/* Source Mode Toggle */}
+        <div className="flex items-center px-1 border-r border-border">
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => dispatchDocumentToolbarAction({ type: 'toggle-source' })}
+            title={toolbarState.sourceMode ? 'Switch to Live Preview' : 'View Raw Markdown Source'}
+            className={cn(
+              'flex items-center gap-1.5 px-2 py-1 rounded font-medium text-xs transition-colors',
+              toolbarState.sourceMode
+                ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            )}
+          >
+            <Code2 className="h-3.5 w-3.5" />
+            <span>Source</span>
+          </button>
+        </div>
+
+        {/* Headings */}
+        <div className="flex items-center gap-0.5 px-1 border-r border-border">
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('h1')}
+            title="Heading 1 (# Heading)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Heading1 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('h2')}
+            title="Heading 2 (## Heading)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Heading2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('h3')}
+            title="Heading 3 (### Heading)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Heading3 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Basic typography styling */}
+        <div className="flex items-center gap-0.5 px-1 border-r border-border">
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('bold')}
+            title="Bold (**text**)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Bold className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('italic')}
+            title="Italic (*text*)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Italic className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('strike')}
+            title="Strikethrough (~~text~~)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Strikethrough className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('code')}
+            title="Inline Code (`code`)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Code className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Lists & Tasks */}
+        <div className="flex items-center gap-0.5 px-1 border-r border-border">
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('bullet')}
+            title="Bullet List (- item)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <List className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('number')}
+            title="Numbered List (1. item)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <ListOrdered className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('task')}
+            title="Task List (- [ ] item)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <CheckSquare className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Blocks & Inserts */}
+        <div className="flex items-center gap-0.5 px-1">
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('quote')}
+            title="Blockquote (> quote)"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Quote className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('callout')}
+            title="Insert Callout (> [!tip])"
+            className="p-1.5 rounded text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 hover:bg-muted transition-colors"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('table')}
+            title="Insert Table"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <TableIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('image')}
+            title='Insert Image (<img src="..." alt="..." width="300"/>)'
+            className="p-1.5 rounded text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 hover:bg-muted transition-colors"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('link')}
+            title="Insert Wiki-Link ([[Document]])"
+            className="p-1.5 rounded text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 hover:bg-muted transition-colors"
+          >
+            <LinkIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={preventBlur}
+            onClick={() => handleFormatAction('embed')}
+            title="Insert Transclusion Embed (![[Document]])"
+            className="p-1.5 rounded text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 hover:bg-muted transition-colors"
+          >
+            <Layers className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Mode Indicator & Active Tab Info */}
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="hidden md:inline-flex items-center rounded-full bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-300">
+          {toolbarState.sourceMode ? 'Raw Source Mode' : 'Live Preview Mode'}
+        </span>
+        <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+          <FileText className="h-3.5 w-3.5 text-sky-600" />
+          <span className="max-w-[200px] truncate font-medium text-foreground">
+            {activeTab?.label || 'Document'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DocumentEditorHeader;

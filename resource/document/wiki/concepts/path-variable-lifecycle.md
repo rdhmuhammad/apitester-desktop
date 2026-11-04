@@ -37,6 +37,7 @@ Socket event `request:edit:path:variable` (`EditPathVariable`, payload `key` + `
 
 ## Related pages
 
+- [[concepts/query-params-lifecycle]]
 - [[concepts/base-url-lifecycle]]
 - [[decisions/debounced-request-config-mutations]]
 - [[tasks/backlog]]

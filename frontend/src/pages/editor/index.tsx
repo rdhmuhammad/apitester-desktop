@@ -197,15 +197,15 @@ const Editor: React.FC = () => {
                         <div className="flex items-end justify-between gap-3">
                             <TabsList
                                 className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-slate-200 dark:border-border bg-transparent p-0">
-                                {allTabs.map((tab) => (
+                                {allTabs.filter(tab => Boolean(tab?.id)).map((tab) => (
                                     <TabsTrigger
                                         key={tab.id}
                                         value={tab.id}
                                         className="group relative h-11 flex-none rounded-none border border-transparent border-b-0 bg-transparent px-3 text-slate-500 shadow-none transition-all hover:bg-white dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 data-[state=active]:border-slate-200 dark:data-[state=active]:border-border data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-slate-900 dark:data-[state=active]:text-foreground data-[state=active]:shadow-[0_-1px_0_0_rgba(255,255,255,1),0_6px_18px_-14px_rgba(15,23,42,0.45)] dark:data-[state=active]:shadow-none"
                                     >
                                         <span
-                                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-[0.16em] ${methodStyle[tab.method]}`}>
-                                            {tab.method}
+                                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-[0.16em] ${methodStyle[tab.method] ?? "bg-slate-100 text-slate-700"}`}>
+                                            {tab.method || "DOC"}
                                         </span>
                                         {editingTabId === tab.id ? (
                                             <input
