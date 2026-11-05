@@ -95,6 +95,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
 
     const jsonExtensions = useMemo(() => [jsonLinter, ...cmVarExtensions], [jsonLinter, cmVarExtensions])
     const debouncedJsonChange = useDebouncedCallback(onJsonChange, 400)
+    const debouncedFormDataChange = useDebouncedCallback(onFormDataChange, 350)
 
     const toggleMultipartField = (field: keyof ItemUrl, pId: string) => {
         const body = (selectBody?.formdata ?? []).map((item) => {
@@ -121,7 +122,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
         const body = (selectBody?.formdata ?? []).map((item) =>
             item.id === pId ? {...item, [field]: value} : item
         )
-        onFormDataChange(body)
+        debouncedFormDataChange(body)
     }
 
     const removeFormdataField = (pId: string) => {

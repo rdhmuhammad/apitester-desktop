@@ -323,6 +323,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
 
     const {
         documentTree: rawDocumentTree,
+        isLoadingTree,
         isMovingDocument,
         refetchDocumentTree,
         createDocumentMutation,
@@ -833,9 +834,10 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
     const draggedNode = activeDragId ? findDocNodeById(documentTree, activeDragId) : null
     const hasVisibleNodes = documentTree.some((node) => node.show) || creatingItem?.parentId === ""
     const deleteFileCount = nodeToDelete?.category === "FOLD" ? countAllFolderFiles(nodeToDelete) : 0
+    const isTreeBusy = isLoadingTree || isMovingDocument
 
     const treeContent = (
-        <div className="min-w-full w-max space-y-0.5">
+        <div className="relative min-w-full w-max space-y-0.5">
             {creatingItem?.parentId === "" && renderCreateRow(0)}
             {!hasVisibleNodes ? (
                 <div className="px-4 py-4 text-center text-xs text-slate-400">
@@ -843,6 +845,14 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
                 </div>
             ) : (
                 documentTree.map((node) => renderNode(node))
+            )}
+            {isTreeBusy && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-md bg-black/60 backdrop-blur-[1px] transition-opacity">
+                    <LoaderCircle className="h-6 w-6 animate-spin text-white"/>
+                    <span className="mt-1 text-xs font-medium text-white/90">
+                        {isMovingDocument ? "Moving document..." : "Loading documents..."}
+                    </span>
+                </div>
             )}
         </div>
     )
@@ -895,12 +905,6 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
                     </DndContext>
                 )}
 
-                {isMovingDocument && (
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1px] rounded-md transition-opacity">
-                        <LoaderCircle className="h-6 w-6 animate-spin text-white"/>
-                        <span className="mt-1 text-xs font-medium text-white/90">Moving document...</span>
-                    </div>
-                )}
             </div>
 
             {contextMenu && (

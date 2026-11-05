@@ -2,6 +2,44 @@ import React from 'react';
 import type { FileItem } from './types.ts';
 import { parseFrontmatter } from './markdownUtils.ts';
 
+const CODE_STYLE_PROPERTIES = {
+  'background-color': 'backgroundColor',
+  color: 'color',
+  padding: 'padding',
+  'border-radius': 'borderRadius',
+} as const;
+
+const MATH_ARROWS: Record<string, string> = {
+  '$\\rightarrow$': '→',
+  '$\\leftarrow$': '←',
+  '$\\uparrow$': '↑',
+  '$\\downarrow$': '↓',
+};
+
+const parseCodeStyle = (rawStyle: string): React.CSSProperties => {
+  const style: React.CSSProperties = {};
+
+  for (const declaration of rawStyle.split(';')) {
+    const [rawProperty, ...rawValue] = declaration.split(':');
+    const property = CODE_STYLE_PROPERTIES[
+      rawProperty?.trim().toLowerCase() as keyof typeof CODE_STYLE_PROPERTIES
+    ];
+    const value = rawValue.join(':').trim();
+    if (property && value) style[property] = value;
+  }
+
+  return style;
+};
+
+const parseHtmlCodeTag = (text: string) => {
+  const match = text.match(
+    /^<code(?:\s+style=(?:"([^"]*)"|'([^']*)'))?\s*>([\s\S]*?)<\/code>$/i
+  );
+  if (!match) return null;
+
+  return { content: match[3], style: parseCodeStyle(match[1] ?? match[2] ?? '') };
+};
+
 interface FormattedInlineTextProps {
   text: string;
   files: FileItem[];
@@ -30,8 +68,9 @@ export const FormattedInlineText: React.FC<FormattedInlineTextProps> = ({
   // 4. Italic *text* or _text_
   // 5. Code `text`
   // 6. Strikethrough ~~text~~
-  // 7. Tags #tag
-  const tokenRegex = /(\[\[.*?\]\]|\{\{.*?\}\}|\*\*.*?\*\*|\*.*?\*|`.*?`|~~.*?~~|(?:^|\s)#[a-zA-Z0-9_\-/]+)/g;
+  // 7. Math arrows $\rightarrow$, $\leftarrow$, $\uparrow$, $\downarrow$
+  // 8. Tags #tag
+  const tokenRegex = /(<code(?:\s+style=(?:"[^"]*"|'[^']*'))?\s*>.*?<\/code>|\$\\(?:right|left|up|down)arrow\$|\[\[.*?\]\]|\{\{.*?\}\}|\*\*.*?\*\*|\*.*?\*|`.*?`|~~.*?~~|(?:^|\s)#[a-zA-Z0-9_\-/]+)/gi;
 
   const parts = text.split(tokenRegex);
 
@@ -39,6 +78,20 @@ export const FormattedInlineText: React.FC<FormattedInlineTextProps> = ({
     <>
       {parts.map((part, i) => {
         if (!part) return null;
+
+        const htmlCode = parseHtmlCodeTag(part);
+        if (htmlCode) {
+          return (
+            <code key={i} className="font-mono" style={htmlCode.style}>
+              {htmlCode.content}
+            </code>
+          );
+        }
+
+        const mathArrow = MATH_ARROWS[part];
+        if (mathArrow) {
+          return <span key={i} aria-label="arrow">{mathArrow}</span>;
+        }
 
         // 1. Wiki-link [[...]]
         if (part.startsWith('[[') && part.endsWith(']]')) {

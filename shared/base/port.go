@@ -116,6 +116,7 @@ func (p *Port) LoadCollection(ctx context.Context, id string) (*domain.Collectio
 // collection's UpdatedAt timestamp in the repository.
 // Content must already be marshalled (e.g. via json.MarshalIndent).
 func (p *Port) SaveCollection(ctx context.Context, collection *domain.Collection, content []byte) ([]byte, error) {
+	p.NotifyWatcher(collection.Path, content)
 	if err := os.WriteFile(collection.Path, content, 0644); err != nil {
 		return nil, p.ErrHandler.ErrorReturn(err)
 	}
@@ -225,11 +226,11 @@ func (p *Port) Update(ctx context.Context, collectionID, requestID, operation, f
 	if err != nil {
 		return nil, err
 	}
-	saved, err := p.SaveCollection(ctx, collection, newContent)
-	if err != nil {
+	if err := p.RecordHistory(ctx, collection, requestID, operation, field, oldValue, newValue, oldContent, newContent); err != nil {
 		return nil, err
 	}
-	if err := p.RecordHistory(ctx, collection, requestID, operation, field, oldValue, newValue, oldContent, saved); err != nil {
+	saved, err := p.SaveCollection(ctx, collection, newContent)
+	if err != nil {
 		return nil, err
 	}
 	return saved, nil

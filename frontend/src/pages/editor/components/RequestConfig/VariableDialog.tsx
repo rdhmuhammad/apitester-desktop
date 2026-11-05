@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useTransition } from "react"
 import { Search } from "lucide-react"
 import { CollectionServices } from "@/layout/services/collection.ts"
 import { useCollectionVariables } from "@/layout/hooks/useCollectionVariables.ts"
+import { useDebounce } from "use-debounce"
 import { cn } from "@/lib/utils.ts"
 
 export interface VariableDialogProps {
@@ -26,8 +27,11 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
     const dialogRef = useRef<HTMLDivElement>(null)
     const searchInputRef = useRef<HTMLInputElement>(null)
     const { variables } = useCollectionVariables()
+    const variablesRef = useRef(variables)
+    variablesRef.current = variables
 
     const [searchTerm, setSearchTerm] = useState(initialSearch)
+    const [debouncedSearch] = useDebounce(searchTerm, 150)
     const [remoteKeys, setRemoteKeys] = useState<{key: string, type: string}[]>([])
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [, startTransition] = useTransition()
@@ -44,7 +48,7 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
         if (!open) return
         let isMounted = true
 
-        CollectionServices.searchVariables(searchTerm)
+        CollectionServices.searchVariables(debouncedSearch)
             .then((keys) => {
                 if (isMounted) {
                     setRemoteKeys(keys)
@@ -53,10 +57,10 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
             .catch(() => {
                 if (isMounted) {
                     // Fallback to local filtering if remote fails
-                    const filtered = variables
+                    const filtered = variablesRef.current
                         .map((v) => ({ key: v.key, type: 'variable' }))
                         .filter((k) =>
-                            k.key.toLowerCase().includes(searchTerm.toLowerCase())
+                            k.key.toLowerCase().includes(debouncedSearch.toLowerCase())
                         )
                     setRemoteKeys(filtered)
                 }
@@ -65,7 +69,7 @@ export const VariableDialog = React.forwardRef<VariableDialogRef, VariableDialog
         return () => {
             isMounted = false
         }
-    }, [open, searchTerm, variables])
+    }, [open, debouncedSearch])
 
     // Determine the list of keys to display
     const displayedKeys = React.useMemo(() => {

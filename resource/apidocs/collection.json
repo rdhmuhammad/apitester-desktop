@@ -1296,12 +1296,6 @@
             "disabled": false
           },
           {
-            "id": "1a674a21-a168-4bba-b63b-6ac20e081dfa",
-            "key": "value new",
-            "value": "",
-            "disabled": false
-          },
-          {
             "id": "baa6bd57-9acf-430d-8885-9767b30047b4",
             "key": "Authorization",
             "value": "Bearer parent-bearer-token-123",
@@ -1310,10 +1304,10 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"phone\": \"0821862666743\",\n  \"username\": \"ridho muhammad \"\n}\n"
+          "raw": "{\n  \"phone\": \"{{mock.phone}}\",\n  \"username\": \"{{mock.firstName}}\"\n}\n"
         },
         "url": {
-          "raw": "/api/v1/adjustment/verify-signature/:test/:test?teh={{mock.firstName}}",
+          "raw": "/api/v1/adjustment/verify-signature",
           "host": [
             "{{base_url}}"
           ],
@@ -1321,24 +1315,9 @@
             "api",
             "v1",
             "adjustment",
-            "verify-signature",
-            ":test",
-            ":test"
+            "verify-signature"
           ],
-          "query": [
-            {
-              "id": "59220696-f59b-45bb-93c8-edc0abcd0a6f",
-              "key": "teh",
-              "value": "{{mock.firstName}}"
-            }
-          ],
-          "variable": [
-            {
-              "id": "dde7b7d2-a067-4611-b645-0c0c158d268b",
-              "key": "test",
-              "value": "ahai"
-            }
-          ]
+          "query": []
         }
       },
       "response": [

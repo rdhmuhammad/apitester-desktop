@@ -64,7 +64,8 @@ export function createVariableExtensions(
         regexp: /\{\{([^{}]+)\}\}/g,
         decoration: (match) => {
             const key = match[1].trim()
-            const isValid = variablesMap.has(key)
+            const isMock = key.startsWith("mock.")
+            const isValid = isMock || variablesMap.has(key)
             return Decoration.mark({
                 class: isValid ? "cm-var-valid" : "cm-var-invalid",
             })
@@ -98,7 +99,8 @@ export function createVariableExtensions(
 
             if (pos >= from && pos <= to) {
                 const key = match[1].trim()
-                const isFound = variablesMap.has(key)
+                const isMock = key.startsWith("mock.")
+                const isFound = isMock || variablesMap.has(key)
                 const val = variablesMap.get(key)
 
                 return {
@@ -109,7 +111,11 @@ export function createVariableExtensions(
                         const dom = document.createElement("div")
                         dom.className = "cm-var-tooltip"
                         if (isFound) {
-                            dom.innerHTML = `<span style="font-weight: 600;">${key}: </span><span>${val ?? ""}</span>`
+                            if (isMock) {
+                                dom.innerHTML = `<span style="font-weight: 600;">${key}: </span><span style="color: #93c5fd;">calculate during send request</span>`
+                            } else {
+                                dom.innerHTML = `<span style="font-weight: 600;">${key}: </span><span>${val ?? ""}</span>`
+                            }
                         } else {
                             dom.innerHTML = `<span style="color: #f87171;">Variable not found</span>`
                         }

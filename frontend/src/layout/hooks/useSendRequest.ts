@@ -33,6 +33,8 @@ type AxiosResponseWithDuration<T = unknown> = AxiosResponse<T> & {
     duration?: number
 }
 
+const HTTP_HEADER_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+
 // Replaces `:key` path segments with the matching variable value; blank values keep `:key`.
 export const resolvePathVariables = (
     endpoint: string,
@@ -137,6 +139,15 @@ export const parseBlobResponse = async (blob: Blob, contentType: string): Promis
 }
 
 export const sendApiRequest = async (request: ISendRequest): Promise<SendResponse | null> => {
+    const invalidHeader = request.headers.find((header) => !HTTP_HEADER_NAME.test(header?.key ?? ""))
+    if (invalidHeader) {
+        const name = invalidHeader.key || "(empty)"
+        CustomToast.error(
+            `Invalid header name ${JSON.stringify(name)}. Header names cannot contain spaces or other invalid characters. Use a name such as "X-Request-ID"; if this is a value, move it to the Value column.`
+        )
+        return null
+    }
+
     const isFormData = request.contentType === "multipart/form-data"
     const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI)
     // requestParams is the single source of query params; url.raw may already carry "?a=b",

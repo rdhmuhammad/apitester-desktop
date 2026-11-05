@@ -460,19 +460,22 @@ func (u *Usecase) update(ctx context.Context, req updateReq) (RequestResponse, e
 		}
 	}
 
-	updated, err := u.saveCollection(ctx, collection, docs)
+	contentToSave, err := json.MarshalIndent(docs, "", "  ")
 	if err != nil {
-		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
+		return RequestResponse{}, err
 	}
-
-	u.NotifyWatcher(collection.Path, updated)
 
 	newValue := req.NewValue
 	if fn, ok := newValue.(func() any); ok {
 		newValue = fn()
 	}
 
-	if err := u.RecordHistory(ctx, collection, req.RequestID, req.Operation, req.Field, oldValue, newValue, content, updated); err != nil {
+	if err := u.RecordHistory(ctx, collection, req.RequestID, req.Operation, req.Field, oldValue, newValue, content, contentToSave); err != nil {
+		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
+
+	updated, err := u.Port.SaveCollection(ctx, collection, contentToSave)
+	if err != nil {
 		return RequestResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
@@ -504,14 +507,17 @@ func (u *Usecase) updateTree(ctx context.Context, req updateTreeReq) (UpdateTree
 	oldItems := docs.Item
 	docs.Item = newItems
 
-	updated, err := u.saveCollection(ctx, collection, docs)
+	contentToSave, err := json.MarshalIndent(docs, "", "  ")
 	if err != nil {
 		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
-	u.NotifyWatcher(collection.Path, updated)
+	if err := u.RecordHistory(ctx, collection, "", "update_tree", "item", oldItems, newItems, content, contentToSave); err != nil {
+		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
+	}
 
-	if err := u.RecordHistory(ctx, collection, "", "update_tree", "item", oldItems, newItems, content, updated); err != nil {
+	updated, err := u.Port.SaveCollection(ctx, collection, contentToSave)
+	if err != nil {
 		return UpdateTreeResponse{}, u.ErrHandler.ErrorReturn(err)
 	}
 
@@ -551,12 +557,15 @@ func (u *Usecase) saveAndRecord(
 	oldValue, newValue any,
 	oldContent []byte,
 ) ([]byte, error) {
-	updated, err := u.saveCollection(ctx, collection, docs)
+	content, err := json.MarshalIndent(docs, "", "  ")
 	if err != nil {
 		return nil, err
 	}
-	u.NotifyWatcher(collection.Path, updated)
-	if err := u.RecordHistory(ctx, collection, itemID, operation, field, oldValue, newValue, oldContent, updated); err != nil {
+	if err := u.RecordHistory(ctx, collection, itemID, operation, field, oldValue, newValue, oldContent, content); err != nil {
+		return nil, err
+	}
+	updated, err := u.Port.SaveCollection(ctx, collection, content)
+	if err != nil {
 		return nil, err
 	}
 	return updated, nil

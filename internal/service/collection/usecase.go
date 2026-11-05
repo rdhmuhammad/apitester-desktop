@@ -70,6 +70,9 @@ func NewUsecase(
 func (u *Usecase) NotifyChanges(data []byte) {
 	currentHash := u.Version(data)
 
+	u.WriteMu.Lock()
+	defer u.WriteMu.Unlock()
+
 	selected := u.FindSelectedCollection(context.Background())
 	if selected == nil {
 		return
