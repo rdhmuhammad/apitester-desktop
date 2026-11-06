@@ -2,7 +2,8 @@
 ; Compile with: ISCC.exe setup.iss
 
 #define MyAppName "Apitester"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.2.0"
+#define MyBackendPort "8999"
 #define MyAppPublisher "Ridho Muhammad"
 #define MyAppURL "https://apitester.app"
 
@@ -65,3 +66,58 @@ end;
 [UninstallRun]
 Filename: "{sys}\sc.exe"; Parameters: "stop Apitester-backend"; Flags: runhidden
 Filename: "{sys}\sc.exe"; Parameters: "delete Apitester-backend"; Flags: runhidden
+
+[Code]
+function IsBackendPortInUse: Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{cmd}'),
+    '/C netstat -ano -p TCP | findstr LISTENING | findstr :{#MyBackendPort}',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function StopExistingBackendService: Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\sc.exe'),
+    'stop Apitester-backend', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function RemoveExistingBackendService: Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\sc.exe'),
+    'delete Apitester-backend', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  I: Integer;
+begin
+  Result := '';
+
+  if not StopExistingBackendService then
+  begin
+    Result := 'Unable to stop the existing Apitester backend service.';
+    exit;
+  end;
+
+  for I := 1 to 20 do
+  begin
+    if not IsBackendPortInUse then
+      break;
+    Sleep(500);
+  end;
+
+  if IsBackendPortInUse then
+  begin
+    Result := 'Backend port {#MyBackendPort} is still in use by another application.';
+    exit;
+  end;
+
+  if not RemoveExistingBackendService then
+    Result := 'Unable to remove the existing Apitester backend service.';
+end;

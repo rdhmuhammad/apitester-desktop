@@ -1,8 +1,8 @@
 # Desktop Production Build and Packaging Pipeline
 
-**Summary**: Production build and packaging workflow for Apitester Desktop, compiling the Windows service backend, portable Electron frontend, and generating the Inno Setup Windows installer (`Apitester-Setup.exe`).
+**Summary**: Production build and packaging workflow for Apitester Desktop, compiling the Windows service backend, portable Electron frontend, and generating the Inno Setup Windows installer (`Apitester-Setup.exe`) with automatic old-service replacement and TCP 8999 checking.
 **Sources**: `cmd/windows/main.go`, `frontend/package.json`, `deployment/desktop/setup.iss`
-**Last updated**: 2026-09-21
+**Last updated**: 2026-11-05
 
 ---
 
@@ -45,12 +45,12 @@ cd ..
   - `tsc -p electron/tsconfig.json`: Compiles Electron main and worker processes.
   - `copy-preload`: Copies preload scripts into the dist directory.
   - `electron-builder --win`: Packages the application with `target: "portable"` and runs `afterPack.cjs` to apply version and icon metadata.
-- **Output artifact**: `frontend/release/Apitester 0.0.1.exe`.
+- **Output artifact**: `frontend/release/Apitester 0.2.0.exe`.
 
 Copy the generated executable to the deployment staging directory:
 
 ```powershell
-Copy-Item "frontend/release/Apitester 0.0.1.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
+Copy-Item "frontend/release/Apitester 0.2.0.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
 ```
 
 ### 3. Build Installer (`Apitester-Setup.exe`)
@@ -71,6 +71,7 @@ Run the Inno Setup 6 compiler against `deployment/desktop/setup.iss`:
     sc.exe create Apitester-backend binPath= "{app}\apitester-backend.exe --env \"{app}\.env.prod\"" start= auto
     ```
   - Starts the backend service: `sc.exe start Apitester-backend`.
+  - Before file installation, stops and removes the existing `Apitester-backend` service, waits up to 10 seconds for TCP port 8999 to clear, and blocks only if another application still owns the port.
   - Creates desktop and start menu shortcuts for `{app}\apitester.exe`.
   - Launches `{app}\apitester.exe` upon setup completion.
   - On uninstall: stops and deletes `Apitester-backend` via `sc.exe`, and prompts to purge `{commonappdata}\Apitester`.
@@ -95,7 +96,7 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "Frontend build failed" }
 Pop-Location
 
 # Copy to deployment/desktop/build/apitester.exe
-Copy-Item "frontend/release/Apitester 0.0.1.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
+Copy-Item "frontend/release/Apitester 0.2.0.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
 
 # 3. Compile Inno Setup Installer
 Write-Host "Compiling Inno Setup Installer..." -ForegroundColor Cyan
