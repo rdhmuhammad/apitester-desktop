@@ -8,6 +8,8 @@ exports.default = async function afterPack(context) {
 
   const appOutDir = context.appOutDir
   const productName = context.packager.appInfo.productName
+  const version = context.packager.appInfo.version
+  const parts = version.split(".").map(Number)
   const exePath = path.join(appOutDir, `${productName}.exe`)
 
   if (!fs.existsSync(exePath)) {
@@ -38,14 +40,14 @@ exports.default = async function afterPack(context) {
         LegalCopyright: "Ridho muhammad 2026",
         InternalName: "apitester",
         OriginalFilename: "apitester.exe",
-        FileVersion: "0.1.1",
-        ProductVersion: "0.1.1",
+        FileVersion: version,
+        ProductVersion: version,
       }
     )
   }
 
-  vi.setFileVersion(0, 1, 1, 0)
-  vi.setProductVersion(0, 1, 1, 0)
+  vi.setFileVersion(parts[0], parts[1], parts[2], 0)
+  vi.setProductVersion(parts[0], parts[1], parts[2], 0)
   vi.outputToResourceEntries(res.entries)
 
   res.outputResource(exe)

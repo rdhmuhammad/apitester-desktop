@@ -1,8 +1,8 @@
 # Desktop Production Build and Packaging Pipeline
 
-**Summary**: Production build and packaging workflow for Apitester Desktop, compiling the Windows service backend, portable Electron frontend, and generating the Inno Setup Windows installer (`Apitester-Setup.exe`) with automatic old-service replacement and TCP 8999 checking.
-**Sources**: `cmd/windows/main.go`, `frontend/package.json`, `deployment/desktop/setup.iss`
-**Last updated**: 2026-11-05
+**Summary**: Production build and packaging workflow for Apitester Desktop, including in-place upgrades, optional user-data removal, and a user-selected backend port shared by the service and Electron frontend.
+**Sources**: `cmd/windows/main.go`, `frontend/package.json`, `frontend/electron/main.ts`, `frontend/electron/preload.cjs`, `frontend/src/config/backend.ts`, `deployment/desktop/setup.iss`
+**Last updated**: 2026-11-07
 
 ---
 
@@ -11,7 +11,7 @@
 Apitester Desktop consists of two primary runtime binaries and an installer:
 1. **Backend Service (`apitester-backend.exe`)**: A Go HTTP/Socket server implemented with Windows Service bindings (`golang.org/x/sys/windows/svc`) in `cmd/windows/main.go`. It runs as a background Windows service (`Apitester-backend`) initialized with `--env <path-to-.env.prod>`.
 2. **Frontend UI (`apitester.exe`)**: An Electron application wrapping the React + Vite single-page application, packaged as a portable Win32 executable.
-3. **Inno Setup Installer (`Apitester-Setup.exe`)**: A Windows installer script (`deployment/desktop/setup.iss`) that copies the application binaries and configuration to `C:\Program Files\Apitester`, configures and starts the backend Windows service via `sc.exe`, registers shortcuts, and launches the UI.
+3. **Inno Setup Installer (`Apitester-Setup-vX.Y.Z.exe`)**: A Windows installer script (`deployment/desktop/setup.iss`) that copies the application binaries and configuration to `C:\Program Files\Apitester`, configures and starts the backend Windows service via `sc.exe`, registers shortcuts, and launches the UI.
 
 The packaging pipeline compiles both targets into `deployment/desktop/build/` and executes the Inno Setup compiler (`ISCC.exe`) to produce the standalone distribution installer in `deployment/desktop/installer/`.
 
@@ -50,28 +50,33 @@ cd ..
 Copy the generated executable to the deployment staging directory:
 
 ```powershell
-Copy-Item "frontend/release/Apitester 0.2.0.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
+$version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+Copy-Item "frontend/release/Apitester $version.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
 ```
 
-### 3. Build Installer (`Apitester-Setup.exe`)
+### 3. Build Installer (`Apitester-Setup-vX.Y.Z.exe`)
 
 Run the Inno Setup 6 compiler against `deployment/desktop/setup.iss`:
 
 ```powershell
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" deployment/desktop/setup.iss
+$version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" deployment/desktop/setup.iss
 ```
 
-- **Output artifact**: `deployment/desktop/installer/Apitester-Setup.exe`.
+- **Output artifact**: `deployment/desktop/installer/Apitester-Setup-vX.Y.Z.exe`.
 - **Installer Actions**:
   - Installs files from `deployment/desktop/build/*` into `{app}` (`C:\Program Files\Apitester`).
-  - Installs `.env.prod` into `{app}\.env.prod`.
-  - Creates the database directory: `{app}\resource\db`.
+  - Shows an **Upgrade options** page with an unchecked checkbox to clear saved data and logs from `{commonappdata}\Apitester`.
+  - Shows a **Backend configuration** page whose port defaults to the previous installation's `APP_PORT`, or 8999 for a new installation, and validates the range 1-65535. The existing configuration is read when this page is first shown, after the installer has initialized the selected application directory.
+  - Stops and deletes the existing `Apitester-backend` service, checks that the selected TCP port is free, then overwrites application files in place and optionally clears user data.
+  - Generates `{app}\.env.prod` with the selected `APP_PORT` plus database and log paths under `{commonappdata}\Apitester`.
+  - Creates the database and log directories under `{commonappdata}\Apitester`.
   - Registers the backend service via `sc.exe`:
     ```cmd
     sc.exe create Apitester-backend binPath= "{app}\apitester-backend.exe --env \"{app}\.env.prod\"" start= auto
     ```
   - Starts the backend service: `sc.exe start Apitester-backend`.
-  - Before file installation, stops and removes the existing `Apitester-backend` service, waits up to 10 seconds for TCP port 8999 to clear, and blocks only if another application still owns the port.
+  - Electron reads the installed `.env.prod` from `PORTABLE_EXECUTABLE_DIR`, passes the resulting backend URL through its preload bridge, and uses it for Axios and every Socket.IO connection. This keeps the frontend on the same user-selected port as the service without rebuilding the bundled Vite assets.
   - Creates desktop and start menu shortcuts for `{app}\apitester.exe`.
   - Launches `{app}\apitester.exe` upon setup completion.
   - On uninstall: stops and deletes `Apitester-backend` via `sc.exe`, and prompts to purge `{commonappdata}\Apitester`.
@@ -96,14 +101,16 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "Frontend build failed" }
 Pop-Location
 
 # Copy to deployment/desktop/build/apitester.exe
-Copy-Item "frontend/release/Apitester 0.2.0.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
+$version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+Copy-Item "frontend/release/Apitester $version.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
 
 # 3. Compile Inno Setup Installer
 Write-Host "Compiling Inno Setup Installer..." -ForegroundColor Cyan
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" deployment/desktop/setup.iss
+$version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" deployment/desktop/setup.iss
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
 
-Write-Host "Build complete: deployment/desktop/installer/Apitester-Setup.exe" -ForegroundColor Green
+Write-Host "Build complete: deployment/desktop/installer/Apitester-Setup-v$version.exe" -ForegroundColor Green
 ```
 
 ---
@@ -111,4 +118,5 @@ Write-Host "Build complete: deployment/desktop/installer/Apitester-Setup.exe" -F
 ## Related pages
 
 - [[decisions/index]]
+- [[decisions/github-release-updates]]
 - [[index]]

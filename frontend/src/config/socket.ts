@@ -1,4 +1,5 @@
 import {io, type Socket} from "socket.io-client";
+import {getBackendUrl} from "@/config/backend.ts";
 
 export const SOCKET_NAMESPACES = {
     collection: "/collection",
@@ -16,18 +17,8 @@ export const SOCKET_EVENTS = {
 
 export type SocketQuery = Record<string, string | number | boolean>;
 
-function getSocketUrl() {
-    const configuredUrl = import.meta.env.VITE_SOCKET_URL;
-    if (configuredUrl) {
-        return configuredUrl.replace(/\/+$/, "");
-    }
-    console.log(configuredUrl)
-    const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
-    return new URL(apiUrl, window.location.origin).origin;
-}
-
 export function createSocket(namespace = "", query?: SocketQuery): Socket {
-    return io(`${getSocketUrl()}${namespace}`, {
+    return io(`${getBackendUrl()}${namespace}`, {
         autoConnect: false,
         path: import.meta.env.VITE_SOCKET_PATH || "/socket.io",
         query,

@@ -1,6 +1,7 @@
 import {io} from "socket.io-client"
+import {getBackendUrl} from "@/config/backend.ts"
 
-const URL = (import.meta.env.VITE_SOCKET_URL || "http://localhost:8993").replace(/\/+$/, "")
+const URL = getBackendUrl()
 
 export const socketRestRequest = io(`${URL}/restrequest`, {
     path: "/socket.io",

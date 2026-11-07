@@ -195,7 +195,7 @@ Before running the project locally, ensure the following tools are installed:
 
 ### 🏗️ Production Desktop Build & Installer
 
-To package Apitester into a standalone Windows installer (`Apitester-Setup.exe`):
+To package Apitester into a standalone Windows installer:
 
 1. **Build Backend Service Binary**:
    ```powershell
@@ -207,15 +207,18 @@ To package Apitester into a standalone Windows installer (`Apitester-Setup.exe`)
    cd frontend
    pnpm run build:electron:dist
    cd ..
-   Copy-Item "frontend/release/Apitester 0.0.1.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
+   $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+   Copy-Item "frontend/release/Apitester $version.exe" -Destination "deployment/desktop/build/apitester.exe" -Force
    ```
 
 3. **Compile Inno Setup Installer**:
    ```powershell
-   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" deployment/desktop/setup.iss
+   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$version" deployment/desktop/setup.iss
    ```
 
-The compiled installer will be output to `deployment/desktop/installer/Apitester-Setup.exe`. Upon installation, it places the application in `C:\Program Files\Apitester`, registers `apitester-backend.exe` as an automatic Windows Service via `sc.exe`, and creates desktop shortcuts for `apitester.exe`.
+The compiled installer is `deployment/desktop/installer/Apitester-Setup-vX.Y.Z.exe`. Upon installation, it places the application in `C:\Program Files\Apitester`, registers `apitester-backend.exe` as an automatic Windows Service via `sc.exe`, and creates desktop shortcuts for `apitester.exe`.
+
+Download published installers from [GitHub Releases](https://github.com/rdhmuhammad/apitester-desktop/releases). Early releases use a self-signed certificate, so Windows may show an Unknown Publisher or SmartScreen warning. See the [code signing policy](CODE_SIGNING.md) for the release process, publisher certificate, and privacy notes.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

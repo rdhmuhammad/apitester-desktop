@@ -10,10 +10,19 @@ import {useTheme} from "next-themes"
 const TitleBar: React.FC = () => {
     const [managerOpen, setManagerOpen] = useState(false)
     const [isMaximized, setIsMaximized] = useState(false)
+    const [update, setUpdate] = useState<UpdateState>({status: "idle"})
     const [socketStatus, setSocketStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
         socketCollection.connected ? 'connected' : 'connecting'
     )
     const {theme, setTheme} = useTheme()
+
+    useEffect(() => {
+        const api = window.electronAPI
+        if (!api?.onUpdateState) return
+        const unsubscribe = api.onUpdateState(setUpdate)
+        void api.getUpdateState().then(setUpdate)
+        return unsubscribe
+    }, [])
 
     useEffect(() => {
         const onConnect = () => setSocketStatus('connected')
@@ -121,6 +130,20 @@ const TitleBar: React.FC = () => {
 
             {/* Right: window control buttons — no-drag */}
             <div className="no-drag flex items-center h-full shrink-0">
+                {(update.status === "available" || update.status === "downloading" || update.status === "installing" || update.status === "error") && (
+                    <button
+                        type="button"
+                        disabled={update.status === "downloading" || update.status === "installing"}
+                        onClick={() => void (update.status === "available" ? window.electronAPI.startUpdate() : window.electronAPI.checkForUpdate())}
+                        title={update.message}
+                        className="h-6 px-2 mx-1 rounded text-xs text-primary hover:bg-muted disabled:opacity-70"
+                    >
+                        {update.status === "available" && `Update v${update.version}`}
+                        {update.status === "downloading" && `Downloading ${update.progress ?? 0}%`}
+                        {update.status === "installing" && "Installing…"}
+                        {update.status === "error" && (/verification|mismatch|metadata/i.test(update.message ?? "") ? "Update verification failed" : "Update failed — Retry")}
+                    </button>
+                )}
                 <button
                     onClick={handleMinimize}
                     className="h-8 w-11 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

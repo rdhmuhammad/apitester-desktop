@@ -4,6 +4,8 @@ vendor
 .idea
 .env.stag
 .env.prod
+*.pfx
+*.p12
 
 graphify-out
 .opencode

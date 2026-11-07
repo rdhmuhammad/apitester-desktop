@@ -1,6 +1,8 @@
 import {app, BrowserWindow, dialog, ipcMain, Menu, session, shell} from "electron"
+import {readFileSync} from "fs"
 import path from "path"
 import {fileURLToPath} from "url"
+import {checkForUpdate, getUpdateState, initializeUpdater, startUpdate} from "./updater.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -13,6 +15,19 @@ app.commandLine.appendSwitch("allow-insecure-localhost", "true")
 app.commandLine.appendSwitch("ignore-certificate-errors", "true")
 
 let mainWindow: BrowserWindow | null = null
+
+function getBackendPort() {
+    try {
+        const executableDir = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath)
+        const envPath = path.join(executableDir, ".env.prod")
+        const match = readFileSync(envPath, "utf8").match(/^APP_PORT\s*=\s*(\d+)\s*$/m)
+        const port = Number(match?.[1])
+        if (port >= 1 && port <= 65535) return String(port)
+    } catch {
+        // Development builds and incomplete installs use the default port.
+    }
+    return "8999"
+}
 
 function createWindow() {
     if (!isDev) {
@@ -34,6 +49,7 @@ function createWindow() {
             nodeIntegration: false,
             webSecurity: false,
             allowRunningInsecureContent: true,
+            additionalArguments: [`--apitester-backend-url=http://localhost:${getBackendPort()}`],
         },
     })
 
@@ -49,7 +65,12 @@ function createWindow() {
     mainWindow.on("closed", () => {
         mainWindow = null
     })
+    initializeUpdater(mainWindow)
 }
+
+ipcMain.handle("update-get-state", () => getUpdateState())
+ipcMain.handle("update-check", () => checkForUpdate())
+ipcMain.handle("update-start", () => startUpdate())
 
 ipcMain.handle("open-file-dialog", async () => {
     const result = await dialog.showOpenDialog(mainWindow!, {

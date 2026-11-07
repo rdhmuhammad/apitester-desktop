@@ -13,5 +13,5 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["main.ts"]
+  "include": ["main.ts", "updater.ts", "release.ts"]
 }

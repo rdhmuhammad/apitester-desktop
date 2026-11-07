@@ -1,0 +1,159 @@
+name: Windows release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pnpm and Inno Setup
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+      - name: Validate version
+        shell: pwsh
+        run: |
+          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -cne "v$version" -or $version -cnotmatch '^\d+\.\d+\.\d+$') {
+            throw "Tag $env:GITHUB_REF_NAME must match frontend/package.json version v$version"
+          }
+      - name: Build Windows binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force deployment/desktop/build | Out-Null
+          Copy-Item frontend/public/app.ico deployment/desktop/build/app.ico
+          Copy-Item frontend/public/app.ico deployment/desktop/build/favicon.ico
+          go build -ldflags='-s -w' -o deployment/desktop/build/apitester-backend.exe ./cmd/windows
+          if ($LASTEXITCODE -ne 0) { throw 'Backend build failed' }
+          Push-Location frontend
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
+          pnpm build:electron:dist
+          if ($LASTEXITCODE -ne 0) { throw 'Electron build failed' }
+          Pop-Location
+          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+          Copy-Item -LiteralPath "frontend/release/Apitester $version.exe" -Destination deployment/desktop/build/apitester.exe
+      - name: Sign application binaries
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_SIGNING_CERT_BASE64 -or -not $env:WINDOWS_SIGNING_CERT_PASSWORD) {
+            throw 'Configure WINDOWS_SIGNING_CERT_BASE64 and WINDOWS_SIGNING_CERT_PASSWORD before publishing a release'
+          }
+          $certificate = Join-Path $env:RUNNER_TEMP 'apitester-signing.pfx'
+          try {
+            [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64))
+            $certificateInfo = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+              $certificate,
+              $env:WINDOWS_SIGNING_CERT_PASSWORD,
+              [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+            )
+          } catch {
+            throw "WINDOWS_SIGNING_CERT_BASE64 is not a valid PFX or the password is incorrect: $($_.Exception.Message)"
+          }
+          if (-not $certificateInfo.HasPrivateKey) { throw 'The signing certificate does not contain a private key' }
+          $now = Get-Date
+          if ($certificateInfo.NotBefore -gt $now -or $certificateInfo.NotAfter -le $now) {
+            throw "The signing certificate is not valid at the current time. Valid from $($certificateInfo.NotBefore) to $($certificateInfo.NotAfter)"
+          }
+          $codeSigningUsage = $certificateInfo.Extensions |
+            Where-Object { $_ -is [Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension] } |
+            ForEach-Object EnhancedKeyUsages |
+            Where-Object Value -EQ '1.3.6.1.5.5.7.3.3'
+          if (-not $codeSigningUsage) { throw 'The certificate is missing the Code Signing enhanced key usage' }
+
+          $publicCertificate = Join-Path $env:RUNNER_TEMP 'apitester-signing.cer'
+          [IO.File]::WriteAllBytes(
+            $publicCertificate,
+            $certificateInfo.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+          )
+          "SIGNING_CERT_THUMBPRINT=$($certificateInfo.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          Import-Certificate -FilePath $publicCertificate -CertStoreLocation 'Cert:\CurrentUser\Root' -ErrorAction Stop | Out-Null
+          Import-Certificate -FilePath $publicCertificate -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' -ErrorAction Stop | Out-Null
+          $certificateInfo.Dispose()
+
+          $signTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse |
+            Where-Object FullName -Match '\\x64\\' | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signTool) { throw 'Windows signtool.exe not found' }
+          foreach ($binary in @('deployment/desktop/build/apitester.exe', 'deployment/desktop/build/apitester-backend.exe')) {
+            & $signTool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certificate /p $env:WINDOWS_SIGNING_CERT_PASSWORD $binary
+            if ($LASTEXITCODE -ne 0) { throw "Signing failed: $binary" }
+          }
+      - name: Compile and sign installer
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DMyAppVersion=$version" deployment/desktop/setup.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+          $installer = "deployment/desktop/installer/Apitester-Setup-v$version.exe"
+          $certificate = Join-Path $env:RUNNER_TEMP 'apitester-signing.pfx'
+          $signTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse |
+            Where-Object FullName -Match '\\x64\\' | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          & $signTool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certificate /p $env:WINDOWS_SIGNING_CERT_PASSWORD $installer
+          if ($LASTEXITCODE -ne 0) { throw 'Installer signing failed' }
+          foreach ($binary in @(
+            'deployment/desktop/build/apitester.exe',
+            'deployment/desktop/build/apitester-backend.exe',
+            $installer
+          )) {
+            & $signTool verify /pa /all /v $binary
+            if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $binary" }
+            $signature = Get-AuthenticodeSignature -FilePath $binary
+            if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature for ${binary}: $($signature.Status)" }
+            if ($signature.SignerCertificate.Thumbprint -cne $env:SIGNING_CERT_THUMBPRINT) {
+              throw "Unexpected signing certificate for $binary"
+            }
+            if (-not $signature.TimeStamperCertificate) { throw "Missing trusted timestamp for $binary" }
+          }
+      - name: Remove signing material
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'apitester-signing.pfx') -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'apitester-signing.cer') -Force -ErrorAction SilentlyContinue
+          if ($env:SIGNING_CERT_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\Root\$env:SIGNING_CERT_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath "Cert:\CurrentUser\TrustedPublisher\$env:SIGNING_CERT_THUMBPRINT" -Force -ErrorAction SilentlyContinue
+          }
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+          $installer = "deployment/desktop/installer/Apitester-Setup-v$version.exe"
+          gh release create $env:GITHUB_REF_NAME $installer --generate-notes --verify-tag --draft
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
+          $expectedDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:GITHUB_REF_NAME" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Draft release lookup failed' }
+            $asset = $release.assets | Where-Object name -EQ "Apitester-Setup-v$version.exe" | Select-Object -First 1
+            if ($asset.digest -cmatch '^sha256:[a-fA-F0-9]{64}$') { break }
+            Start-Sleep -Seconds 2
+          }
+          if (-not $asset -or $asset.digest -cne "sha256:$($expectedDigest.ToLowerInvariant())") {
+            throw 'Draft release SHA-256 digest does not match the built installer'
+          }
+          gh release edit $env:GITHUB_REF_NAME --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

@@ -1,8 +1,9 @@
 import Axios from "axios";
 import type {AxiosError, AxiosResponse, InternalAxiosRequestConfig} from "axios";
+import {getApiUrl} from "@/config/backend.ts";
 
 const getBaseURL = () => {
-    return import.meta.env.VITE_API_URL || "/api/v1"
+    return getApiUrl()
 }
 
 export const axios = Axios.create({
