@@ -8,7 +8,7 @@
 
 ## Release contract
 
-`frontend/package.json` provides the version. A stable tag `vX.Y.Z` publishes an exact asset named `Apitester-Setup-vX.Y.Z.exe`. The Windows release workflow builds the Go service and portable Electron UI, signs the binaries and installer, verifies the asset digest in a draft release, then publishes it.
+`frontend/package.json` provides the version. A stable tag `vX.Y.Z` publishes an exact asset named `Apitester-Setup-vX.Y.Z.exe`. The Windows release workflow builds the Go service and portable Electron UI, signs the binaries and installer, verifies the asset digest in a draft release, then publishes it. Since GitHub's release-by-tag API hides draft releases, the workflow locates its draft through the authenticated release list and publishes it by release ID.
 
 The workflow currently accepts a temporary self-signed PFX through the `WINDOWS_SIGNING_CERT_BASE64` and `WINDOWS_SIGNING_CERT_PASSWORD` secrets. It validates the PFX lifetime, private key, and Code Signing enhanced key usage before use. The runner signs the frontend, backend, and installer with the same thumbprint and a timestamp, verifies each Authenticode signature while allowing only the expected untrusted-root result, then removes the temporary PFX before publishing. It does not add the self-signed certificate to the runner's trusted root store. See [[decisions/self-signed-windows-release-signing]] for the owner setup and release checklist.
 

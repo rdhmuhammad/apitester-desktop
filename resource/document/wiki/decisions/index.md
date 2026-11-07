@@ -8,7 +8,7 @@
 
 - [[decisions/desktop-production-build]] - Production packaging pipeline for Windows service backend, portable Electron frontend, and Inno Setup installer.
 - [[decisions/github-release-updates]] - Direct GitHub release checks, verified installer download, and Windows upgrade flow.
-- [[decisions/self-signed-windows-release-signing]] - Temporary self-signed PFX preparation, configured GitHub secrets, untrusted-root release verification, and remaining owner checklist.
+- [[decisions/self-signed-windows-release-signing]] - Temporary self-signed PFX preparation, configured GitHub secrets, draft-safe release verification, and remaining owner checklist.
 - [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with serialized direct writes and no current version check.
 - [[decisions/collection-history-for-restrequest-mutations]] - Append-only audit records with old and new content hashes for successful mutations.
 - [[decisions/debounced-request-config-mutations]] - Frontend debounce, optimistic cache, version coordination, and serialized request configuration mutations.

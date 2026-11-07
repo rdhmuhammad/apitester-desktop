@@ -147,18 +147,34 @@ jobs:
         run: |
           $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
           $installer = "deployment/desktop/installer/Apitester-Setup-v$version.exe"
-          gh release create $env:RELEASE_TAG $installer --generate-notes --verify-tag --draft
-          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
-          $expectedDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
-          for ($attempt = 1; $attempt -le 5; $attempt++) {
-            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
-            if ($LASTEXITCODE -ne 0) { throw 'Draft release lookup failed' }
-            $asset = $release.assets | Where-Object name -EQ "Apitester-Setup-v$version.exe" | Select-Object -First 1
-            if ($asset.digest -cmatch '^sha256:[a-fA-F0-9]{64}$') { break }
-            Start-Sleep -Seconds 2
+          $expectedDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+
+          function Find-Release {
+            $releases = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Release lookup failed' }
+            $releases | Where-Object tag_name -CEQ $env:RELEASE_TAG | Select-Object -First 1
           }
-          if (-not $asset -or $asset.digest -cne "sha256:$($expectedDigest.ToLowerInvariant())") {
+
+          $release = Find-Release
+          if (-not $release) {
+            gh release create $env:RELEASE_TAG $installer --generate-notes --verify-tag --draft
+            if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
+          }
+
+          for ($attempt = 1; $attempt -le 10; $attempt++) {
+            if (-not $release) { $release = Find-Release }
+            if (-not $release) {
+              Start-Sleep -Seconds 2
+              continue
+            }
+            $asset = $release.assets | Where-Object name -EQ "Apitester-Setup-v$version.exe" | Select-Object -First 1
+            if ($asset.digest -CEQ "sha256:$expectedDigest") { break }
+            Start-Sleep -Seconds 2
+            $release = Find-Release
+          }
+
+          if (-not $release -or -not $asset -or $asset.digest -CNE "sha256:$expectedDigest") {
             throw 'Draft release SHA-256 digest does not match the built installer'
           }
-          gh release edit $env:RELEASE_TAG --draft=false
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

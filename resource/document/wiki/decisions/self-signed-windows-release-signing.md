@@ -120,10 +120,10 @@ Download the installer on a clean Windows VM and verify:
 - [ ] Store the PFX and its password separately in secure backups.
 - [x] Add `WINDOWS_SIGNING_CERT_BASE64` to GitHub Actions secrets.
 - [x] Add `WINDOWS_SIGNING_CERT_PASSWORD` to GitHub Actions secrets.
-- [ ] Confirm the first tagged workflow signs and verifies all three binaries.
+- [x] Confirm the first release workflow signs and verifies all three binaries.
 - [ ] Test fresh installation and an in-place update on a clean Windows VM.
 - [ ] Rotate the certificate and replace both GitHub secrets before it expires.
-- [ ] Publish a stable release and public project documentation.
+- [x] Publish a stable release and public project documentation.
 - [x] Add a public **Code signing policy**, privacy statement, and maintainer/reviewer/approver roles before applying to SignPath Foundation. See `CODE_SIGNING.md`.
 - [ ] Replace self-signing with SignPath after approval; do not distribute the temporary PFX.
 
