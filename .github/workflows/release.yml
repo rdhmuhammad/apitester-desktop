@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'v[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -13,6 +22,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -30,8 +41,8 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_NAME -cne "v$version" -or $version -cnotmatch '^\d+\.\d+\.\d+$') {
-            throw "Tag $env:GITHUB_REF_NAME must match frontend/package.json version v$version"
+          if ($env:RELEASE_TAG -cne "v$version" -or $version -cnotmatch '^\d+\.\d+\.\d+$') {
+            throw "Tag $env:RELEASE_TAG must match frontend/package.json version v$version"
           }
       - name: Build Windows binaries
         shell: pwsh
@@ -50,6 +61,7 @@ jobs:
           $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
           Copy-Item -LiteralPath "frontend/release/Apitester $version.exe" -Destination deployment/desktop/build/apitester.exe
       - name: Sign application binaries
+        timeout-minutes: 10
         shell: pwsh
         env:
           WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
@@ -80,20 +92,14 @@ jobs:
             Where-Object Value -EQ '1.3.6.1.5.5.7.3.3'
           if (-not $codeSigningUsage) { throw 'The certificate is missing the Code Signing enhanced key usage' }
 
-          $publicCertificate = Join-Path $env:RUNNER_TEMP 'apitester-signing.cer'
-          [IO.File]::WriteAllBytes(
-            $publicCertificate,
-            $certificateInfo.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-          )
           "SIGNING_CERT_THUMBPRINT=$($certificateInfo.Thumbprint)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          Import-Certificate -FilePath $publicCertificate -CertStoreLocation 'Cert:\CurrentUser\Root' -ErrorAction Stop | Out-Null
-          Import-Certificate -FilePath $publicCertificate -CertStoreLocation 'Cert:\CurrentUser\TrustedPublisher' -ErrorAction Stop | Out-Null
           $certificateInfo.Dispose()
 
           $signTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse |
             Where-Object FullName -Match '\\x64\\' | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $signTool) { throw 'Windows signtool.exe not found' }
           foreach ($binary in @('deployment/desktop/build/apitester.exe', 'deployment/desktop/build/apitester-backend.exe')) {
+            Write-Host "Signing $binary"
             & $signTool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certificate /p $env:WINDOWS_SIGNING_CERT_PASSWORD $binary
             if ($LASTEXITCODE -ne 0) { throw "Signing failed: $binary" }
           }
@@ -116,10 +122,10 @@ jobs:
             'deployment/desktop/build/apitester-backend.exe',
             $installer
           )) {
-            & $signTool verify /pa /all /v $binary
-            if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $binary" }
             $signature = Get-AuthenticodeSignature -FilePath $binary
-            if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature for ${binary}: $($signature.Status)" }
+            if (@('Valid', 'NotTrusted') -cnotcontains $signature.Status.ToString()) {
+              throw "Invalid Authenticode signature for ${binary}: $($signature.Status)"
+            }
             if ($signature.SignerCertificate.Thumbprint -cne $env:SIGNING_CERT_THUMBPRINT) {
               throw "Unexpected signing certificate for $binary"
             }
@@ -130,11 +136,6 @@ jobs:
         shell: pwsh
         run: |
           Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'apitester-signing.pfx') -Force -ErrorAction SilentlyContinue
-          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'apitester-signing.cer') -Force -ErrorAction SilentlyContinue
-          if ($env:SIGNING_CERT_THUMBPRINT) {
-            Remove-Item -LiteralPath "Cert:\CurrentUser\Root\$env:SIGNING_CERT_THUMBPRINT" -Force -ErrorAction SilentlyContinue
-            Remove-Item -LiteralPath "Cert:\CurrentUser\TrustedPublisher\$env:SIGNING_CERT_THUMBPRINT" -Force -ErrorAction SilentlyContinue
-          }
       - name: Publish GitHub release
         shell: pwsh
         env:
@@ -142,11 +143,11 @@ jobs:
         run: |
           $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
           $installer = "deployment/desktop/installer/Apitester-Setup-v$version.exe"
-          gh release create $env:GITHUB_REF_NAME $installer --generate-notes --verify-tag --draft
+          gh release create $env:RELEASE_TAG $installer --generate-notes --verify-tag --draft
           if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
           $expectedDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
           for ($attempt = 1; $attempt -le 5; $attempt++) {
-            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:GITHUB_REF_NAME" | ConvertFrom-Json
+            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
             if ($LASTEXITCODE -ne 0) { throw 'Draft release lookup failed' }
             $asset = $release.assets | Where-Object name -EQ "Apitester-Setup-v$version.exe" | Select-Object -First 1
             if ($asset.digest -cmatch '^sha256:[a-fA-F0-9]{64}$') { break }
@@ -155,5 +156,5 @@ jobs:
           if (-not $asset -or $asset.digest -cne "sha256:$($expectedDigest.ToLowerInvariant())") {
             throw 'Draft release SHA-256 digest does not match the built installer'
           }
-          gh release edit $env:GITHUB_REF_NAME --draft=false
+          gh release edit $env:RELEASE_TAG --draft=false
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

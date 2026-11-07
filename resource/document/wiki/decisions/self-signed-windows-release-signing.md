@@ -12,7 +12,7 @@ API Tester keeps its Inno Setup installer and temporarily signs the frontend exe
 
 Public users should still expect Windows SmartScreen or Unknown Publisher warnings. Do not instruct users to install the public `.cer` into a trusted certificate store. Public trust will come later from a service such as SignPath Foundation.
 
-The GitHub runner imports the public certificate only into its temporary current-user `Root` and `TrustedPublisher` stores so Authenticode can verify the signatures it just created. The workflow removes both trust entries and all temporary certificate files before publishing.
+The GitHub runner checks Authenticode without adding the self-signed certificate to its trusted root store. `NotTrusted` is expected for this temporary publisher; a missing signature, hash mismatch, different signer, or missing timestamp still fails publication. The workflow removes the temporary PFX before publishing.
 
 ## One-time certificate preparation
 
@@ -83,12 +83,11 @@ The Windows release workflow:
 
 1. Decodes the PFX into the temporary runner directory.
 2. Rejects an unreadable, password-mismatched, expired, not-yet-valid, private-key-free, or non-code-signing certificate.
-3. Temporarily imports only the public certificate into the runner's current-user `Root` and `TrustedPublisher` stores.
-4. Signs `apitester.exe` and `apitester-backend.exe` with SHA-256 and an RFC 3161 timestamp.
-5. Compiles the Inno Setup installer and signs it with the same certificate.
-6. Verifies all three signatures, their signer thumbprint, and their timestamp.
-7. Removes the PFX, public certificate, and runner trust entry even when an earlier step fails.
-8. Creates a draft GitHub release, requires GitHub's SHA-256 asset digest, and only then publishes it.
+3. Signs `apitester.exe` and `apitester-backend.exe` with SHA-256 and an RFC 3161 timestamp.
+4. Compiles the Inno Setup installer and signs it with the same certificate.
+5. Checks all three Authenticode signatures, their signer thumbprint, and their timestamp. It accepts only `Valid` or `NotTrusted` status because the self-signed certificate has no public trust chain.
+6. Removes the temporary PFX even when an earlier step fails.
+7. Creates a draft GitHub release, requires GitHub's SHA-256 asset digest to match the built installer, and only then publishes it.
 
 This extends [[decisions/github-release-updates]]. The updater continues to verify the downloaded byte count and GitHub SHA-256 digest before executing the installer.
 
@@ -103,6 +102,8 @@ git push origin "v$version"
 ```
 
 Before tagging, commit the intended release source and confirm that the version is a stable `major.minor.patch` value. After pushing, review the **Windows release** run under GitHub Actions. Confirm that all three signature checks pass and that the release contains exactly `Apitester-Setup-vX.Y.Z.exe` with a `sha256:` digest.
+
+If a tag-triggered run needs a workflow correction before publication, update the workflow on `main` and use **Actions → Windows release → Run workflow** with the existing tag in the required `tag` input. The corrected workflow checks out that tag's source and builds the same version. Do not move a published tag.
 
 Download the installer on a clean Windows VM and verify:
 
