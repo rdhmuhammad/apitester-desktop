@@ -12,7 +12,7 @@ API Tester keeps its Inno Setup installer and temporarily signs the frontend exe
 
 Public users should still expect Windows SmartScreen or Unknown Publisher warnings. Do not instruct users to install the public `.cer` into a trusted certificate store. Public trust will come later from a service such as SignPath Foundation.
 
-The GitHub runner checks Authenticode without adding the self-signed certificate to its trusted root store. `NotTrusted` is expected for this temporary publisher; a missing signature, hash mismatch, different signer, or missing timestamp still fails publication. The workflow removes the temporary PFX before publishing.
+The GitHub runner checks Authenticode without adding the self-signed certificate to its trusted root store. An untrusted-root result is expected for this temporary publisher; a missing signature, hash mismatch, different signer, or missing timestamp still fails publication. The workflow removes the temporary PFX before publishing.
 
 ## One-time certificate preparation
 
@@ -85,7 +85,7 @@ The Windows release workflow:
 2. Rejects an unreadable, password-mismatched, expired, not-yet-valid, private-key-free, or non-code-signing certificate.
 3. Signs `apitester.exe` and `apitester-backend.exe` with SHA-256 and an RFC 3161 timestamp.
 4. Compiles the Inno Setup installer and signs it with the same certificate.
-5. Checks all three Authenticode signatures, their signer thumbprint, and their timestamp. It accepts only `Valid` or `NotTrusted` status because the self-signed certificate has no public trust chain.
+5. Checks all three Authenticode signatures, their signer thumbprint, and their timestamp. It accepts `Valid`, `NotTrusted`, or `UnknownError` only when the message identifies an untrusted root. The self-signed certificate has no public trust chain.
 6. Removes the temporary PFX even when an earlier step fails.
 7. Creates a draft GitHub release, requires GitHub's SHA-256 asset digest to match the built installer, and only then publishes it.
 

@@ -123,8 +123,12 @@ jobs:
             $installer
           )) {
             $signature = Get-AuthenticodeSignature -FilePath $binary
-            if (@('Valid', 'NotTrusted') -cnotcontains $signature.Status.ToString()) {
-              throw "Invalid Authenticode signature for ${binary}: $($signature.Status)"
+            $status = $signature.Status.ToString()
+            Write-Host "Authenticode ${binary}: $status ($($signature.StatusMessage))"
+            $untrustedRoot = $status -ceq 'UnknownError' -and
+              $signature.StatusMessage -match '(?i)(0x800B0109|CERT_E_UNTRUSTEDROOT|root certificate.+not trusted)'
+            if (@('Valid', 'NotTrusted') -cnotcontains $status -and -not $untrustedRoot) {
+              throw "Invalid Authenticode signature for ${binary}: $status ($($signature.StatusMessage))"
             }
             if ($signature.SignerCertificate.Thumbprint -cne $env:SIGNING_CERT_THUMBPRINT) {
               throw "Unexpected signing certificate for $binary"
