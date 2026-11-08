@@ -37,7 +37,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[patterns/frontend/index]] - Frontend pattern pages.
 - [[patterns/frontend/api-service-and-query-hook-wiring]] - Typed Axios services and TanStack Query hooks for feature API wiring.
 - [[patterns/frontend/socket-io-service-and-hook-wiring]] - Socket.IO connection, event, response, cleanup, and cache wiring.
-- [[patterns/frontend/create-new-tabs-kind]] - Workflow for adding a new editor tab kind and its Redux slice.
+- [[patterns/frontend/create-new-tabs-kind]] - Workflow for adding editor tab kinds and shared close, pin, and rename actions.
 - [[patterns/frontend/script-editor-and-code-completion]] - Layered architecture for Sandpack script editor, static completion schemas, diagnostic hooks, and extendable autocomplete sources.
 
 ## Decisions

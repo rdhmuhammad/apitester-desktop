@@ -5,4 +5,5 @@ export interface EditorTab {
   label: string
   method: ColtReqMethod | 'TEST' | 'DOC'
   type: 'request' | 'test' | 'document'
+  pinned?: boolean
 }

@@ -19,7 +19,11 @@ const editorTabsSlice = createSlice({
     initialState: initialEditorTabsState,
     reducers: {
         syncEditorTabs(state, action: PayloadAction<EditorTab[]>) {
-            state.tabs = (action.payload || []).filter((tab): tab is EditorTab => Boolean(tab?.id));
+            const pinnedIds = new Set(state.tabs.filter(tab => tab.pinned).map(tab => tab.id));
+            state.tabs = (action.payload || [])
+                .filter((tab): tab is EditorTab => Boolean(tab?.id))
+                .map(tab => ({...tab, pinned: tab.pinned ?? pinnedIds.has(tab.id)}))
+                .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
             if (!state.tabs.some(tab => tab.id === state.activeTabId)) {
                 state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
             }
@@ -42,6 +46,7 @@ const editorTabsSlice = createSlice({
             if (!action.payload?.id) return;
             if (!state.tabs.some(tab => tab.id === action.payload.id)) {
                 state.tabs.push(action.payload);
+                state.tabs.sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
             }
             state.activeTabId = action.payload.id;
         },
@@ -53,6 +58,31 @@ const editorTabsSlice = createSlice({
             if (state.activeTabId === action.payload) {
                 state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
             }
+        },
+        closeAllEditorTabs(state) {
+            state.tabs = state.tabs.filter(tab => tab.pinned);
+            const keptIds = new Set(state.tabs.map(tab => tab.id));
+            for (const tabId of Object.keys(state.activeExampleIdByTab)) {
+                if (!keptIds.has(tabId)) delete state.activeExampleIdByTab[tabId];
+            }
+            if (!keptIds.has(state.activeTabId)) {
+                state.activeTabId = state.tabs[state.tabs.length - 1]?.id ?? '';
+            }
+        },
+        closeOtherEditorTabs(state, action: PayloadAction<string>) {
+            if (!state.tabs.some(tab => tab.id === action.payload)) return;
+            state.tabs = state.tabs.filter(tab => tab.id === action.payload || tab.pinned);
+            const keptIds = new Set(state.tabs.map(tab => tab.id));
+            for (const tabId of Object.keys(state.activeExampleIdByTab)) {
+                if (!keptIds.has(tabId)) delete state.activeExampleIdByTab[tabId];
+            }
+            state.activeTabId = action.payload;
+        },
+        togglePinEditorTab(state, action: PayloadAction<string>) {
+            const tab = state.tabs.find(tab => tab.id === action.payload);
+            if (!tab) return;
+            tab.pinned = !tab.pinned;
+            state.tabs.sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
         },
         renameEditorTab(state, action: PayloadAction<{id: string; newId?: string; label: string}>) {
             const tab = state.tabs.find(tab => tab.id === action.payload.id);
@@ -88,6 +118,9 @@ export const {
     resetEditorTabs,
     openEditorTab,
     removeEditorTab,
+    closeAllEditorTabs,
+    closeOtherEditorTabs,
+    togglePinEditorTab,
     renameEditorTab,
     updateEditorTab,
 } = editorTabsSlice.actions;

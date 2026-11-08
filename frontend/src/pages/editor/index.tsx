@@ -14,21 +14,24 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 
 // React & Utils Imports
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {cn} from "@/lib/utils.ts";
-import {BookOpen, FileCode2, FileText, Plus, XIcon} from "lucide-react";
+import {BookOpen, FileCode2, FileText, Pin, Plus, XIcon} from "lucide-react";
 
 
 // Store Imports
 import {useAppDispatch, useAppSelector} from "@/app/store/hooks.ts";
 import type {ColtReqMethod, EditorTab} from "@/pages/editor/types/editor.ts";
 import {
+    closeAllEditorTabs,
+    closeOtherEditorTabs,
     openEditorTab,
     removeEditorTab,
     renameEditorTab,
     selectEditorActiveTabId,
     selectEditorTabs,
     setEditorActiveTab,
+    togglePinEditorTab,
 } from "@/app/slices/editorTabsSlice.ts";
 import {useCollection} from "@/layout/hooks/useCollection.ts";
 import {
@@ -53,6 +56,8 @@ const methodStyle: Record<ColtReqMethod | 'TEST' | 'DOC', string> = {
     DOC: "bg-sky-100 text-sky-700",
 };
 
+const contextMenuItemClass = "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
+
 const Editor: React.FC = () => {
     const dispatch = useAppDispatch()
     const queryClient = useQueryClient()
@@ -68,7 +73,25 @@ const Editor: React.FC = () => {
     const [editValue, setEditValue] = useState('')
     const [isCreatingRequest, setIsCreatingRequest] = useState(false)
     const [isCreatingDocument, setIsCreatingDocument] = useState(false)
+    const [contextMenu, setContextMenu] = useState<{x: number; y: number; tabId: string} | null>(null)
     const editInputRef = useRef<HTMLInputElement | null>(null)
+    const contextTab = allTabs.find(tab => tab.id === contextMenu?.tabId)
+
+    useEffect(() => {
+        if (!contextMenu) return
+        const close = () => setContextMenu(null)
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') close()
+        }
+        window.addEventListener('pointerdown', close)
+        window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('scroll', close, true)
+        return () => {
+            window.removeEventListener('pointerdown', close)
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('scroll', close, true)
+        }
+    }, [contextMenu])
 
     const handleCreateRequest = useCallback(async () => {
         if (!collectionId || isCreatingRequest) return
@@ -176,6 +199,16 @@ const Editor: React.FC = () => {
         dispatch(removeEditorTab(tab.id))
     }
 
+    const handleOpenContextMenu = (event: React.MouseEvent, tab: EditorTab) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setContextMenu({
+            x: Math.max(4, Math.min(event.clientX, window.innerWidth - 180)),
+            y: Math.max(4, Math.min(event.clientY, window.innerHeight - 190)),
+            tabId: tab.id,
+        })
+    }
+
     return (
         <div className="h-full overflow-auto bg-[linear-gradient(180deg,#eef4ff_0%,#f8fafc_22%,#f8fafc_100%)] dark:bg-[linear-gradient(180deg,#0b1120_0%,#090d16_22%,#020617_100%)]">
             <div className={cn(
@@ -201,12 +234,16 @@ const Editor: React.FC = () => {
                                     <TabsTrigger
                                         key={tab.id}
                                         value={tab.id}
+                                        onContextMenu={(event) => handleOpenContextMenu(event, tab)}
                                         className="group relative h-11 flex-none rounded-none border border-transparent border-b-0 bg-transparent px-3 text-slate-500 shadow-none transition-all hover:bg-white dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 data-[state=active]:border-slate-200 dark:data-[state=active]:border-border data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-slate-900 dark:data-[state=active]:text-foreground data-[state=active]:shadow-[0_-1px_0_0_rgba(255,255,255,1),0_6px_18px_-14px_rgba(15,23,42,0.45)] dark:data-[state=active]:shadow-none"
                                     >
                                         <span
                                             className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-[0.16em] ${methodStyle[tab.method] ?? "bg-slate-100 text-slate-700"}`}>
                                             {tab.method || "DOC"}
                                         </span>
+                                        {tab.pinned && (
+                                            <Pin aria-label="Pinned tab" className="h-3.5 w-3.5 shrink-0 text-indigo-500"/>
+                                        )}
                                         {editingTabId === tab.id ? (
                                             <input
                                                 ref={editInputRef}
@@ -281,6 +318,74 @@ const Editor: React.FC = () => {
                     </Tabs>
                 </div>
             </div>
+
+            {contextMenu && contextTab && (
+                <div
+                    role="menu"
+                    aria-label={`Actions for ${contextTab.label}`}
+                    style={{top: contextMenu.y, left: contextMenu.x}}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    className="fixed z-50 min-w-[176px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+                >
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                            dispatch(closeAllEditorTabs())
+                            setContextMenu(null)
+                        }}
+                        className={contextMenuItemClass}
+                    >
+                        Close All
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        disabled={!allTabs.some(tab => tab.id !== contextTab.id && !tab.pinned)}
+                        onClick={() => {
+                            dispatch(closeOtherEditorTabs(contextTab.id))
+                            setContextMenu(null)
+                        }}
+                        className={contextMenuItemClass}
+                    >
+                        Close Others
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                            dispatch(removeEditorTab(contextTab.id))
+                            setContextMenu(null)
+                        }}
+                        className={contextMenuItemClass}
+                    >
+                        Close
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                            dispatch(togglePinEditorTab(contextTab.id))
+                            setContextMenu(null)
+                        }}
+                        className={contextMenuItemClass}
+                    >
+                        {contextTab.pinned ? 'Unpin' : 'Pin'}
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        disabled={contextTab.type !== 'request' && contextTab.type !== 'document'}
+                        onClick={() => {
+                            startEditing(contextTab)
+                            setContextMenu(null)
+                        }}
+                        className={contextMenuItemClass}
+                    >
+                        Rename
+                    </button>
+                </div>
+            )}
 
             <div className="mx-auto flex h-full w-full max-w-[1500px] flex-col px-4 pb-4 pt-[160px]">
                 {!activeTab ? (

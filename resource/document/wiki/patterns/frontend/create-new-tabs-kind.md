@@ -1,8 +1,8 @@
 # Create New Tabs Kind
 
-**Summary**: Checklist for adding a new editor tab kind across tab metadata, Redux state, tab identifiers, menu actions, close behavior, and rendering.
-**Sources**: `frontend/src/pages/editor/index.tsx`, `frontend/src/lib/tabUtils.ts`, `frontend/src/app/slices/collectionSlices.ts`, `frontend/src/app/slices/testScenarioSlice.ts`, `frontend/src/app/slices/automationSlice.ts`
-**Last updated**: 2026-09-07
+**Summary**: Checklist for adding a new editor tab kind and integrating shared tab actions such as closing, pinning, and renaming.
+**Sources**: `frontend/src/pages/editor/index.tsx`, `frontend/src/pages/editor/types/editor.ts`, `frontend/src/app/slices/editorTabsSlice.ts`, `frontend/src/lib/tabUtils.ts`, `frontend/testing/scenario/request_editor.spec.ts`
+**Last updated**: 2026-11-06
 
 ---
 
@@ -55,6 +55,12 @@ export default notesSlice.reducer
 ## Editor Integration
 
 For example, a `note` tab would use `note-<id>` IDs, map `activeIds` to `EditorTab` values, add `NOTE` to `methodStyle`, and render `NoteEditor` when `activeTab.type === 'note'`. The menu action should dispatch the create thunk, then dispatch `setActiveTabId({id: toNoteTabId(created.id)})` after creation succeeds.
+
+## Tab Context Menu and Pinning
+
+Each tab exposes a right-click menu with `Close All`, `Close Others`, `Close`, `Pin` or `Unpin`, and `Rename`. The menu uses the same fixed-position, viewport-clamped pattern as the sidebar context menus and closes on an outside pointer event, Escape, scrolling, or action selection.
+
+Bulk close and pin operations belong in `editorTabsSlice.ts` so active-tab selection and `activeExampleIdByTab` cleanup remain consistent. Pinned tabs are ordered before unpinned tabs and survive `Close All` and `Close Others`; an explicit `Close` still removes them. Request and document tabs reuse the editor's persisted inline rename flow.
 
 ## Related Files
 

@@ -88,4 +88,90 @@ test.describe('Request Editor', () => {
     const methodSelect = window.locator('button[role="combobox"]').nth(0);
     await expect(methodSelect).toHaveText(methodText);
   });
+
+  test('should manage tabs from the right-click context menu', async () => {
+    test.info().annotations.push(
+      { type: 'component', description: 'editor/index.tsx' },
+      { type: 'component', description: 'editorTabsSlice.ts' },
+      { type: 'component', description: 'tabs.tsx' },
+      { type: 'component', description: 'button.tsx' }
+    );
+
+    await window.getByText('Workspace', { exact: true }).waitFor();
+    await window.evaluate(async () => {
+      const [{ store }, actions] = await Promise.all([
+        import('/src/app/store/store.ts'),
+        import('/src/app/slices/editorTabsSlice.ts'),
+      ]);
+      store.dispatch(actions.resetEditorTabs());
+      store.dispatch(actions.openEditorTab({
+        id: 'context-menu-first',
+        label: 'First Request',
+        method: 'GET',
+        type: 'request',
+      }));
+      store.dispatch(actions.openEditorTab({
+        id: 'context-menu-second',
+        label: 'Second Request',
+        method: 'POST',
+        type: 'request',
+      }));
+    });
+
+    const editorTabs = window.locator('button[role="tab"].h-11');
+    await expect(editorTabs).toHaveCount(2);
+
+    let selectedTab = window.locator('button[role="tab"][data-state="active"].h-11');
+    await selectedTab.click({ button: 'right' });
+    const tabMenu = window.getByRole('menu', { name: /Actions for/ });
+    await expect(tabMenu).toBeVisible();
+    await expect(tabMenu.getByRole('menuitem')).toHaveText([
+      'Close All',
+      'Close Others',
+      'Close',
+      'Pin',
+      'Rename',
+    ]);
+
+    await tabMenu.getByRole('menuitem', { name: 'Pin' }).click();
+    selectedTab = window.locator('button[role="tab"][data-state="active"].h-11');
+    await expect(selectedTab.locator('svg.lucide-pin')).toBeVisible();
+
+    await selectedTab.click({ button: 'right' });
+    await window.getByRole('menuitem', { name: 'Close Others' }).click();
+    await expect(editorTabs).toHaveCount(1);
+
+    await selectedTab.click({ button: 'right' });
+    await window.getByRole('menuitem', { name: 'Close All' }).click();
+    await expect(editorTabs).toHaveCount(1);
+
+    await selectedTab.click({ button: 'right' });
+    await window.getByRole('menuitem', { name: 'Rename' }).click();
+    const renameInput = selectedTab.locator('input');
+    await expect(renameInput).toBeVisible();
+    await renameInput.press('Escape');
+
+    await selectedTab.click({ button: 'right' });
+    await window.getByRole('menuitem', { name: 'Unpin' }).click();
+    await selectedTab.click({ button: 'right' });
+    await window.getByRole('menuitem', { name: 'Close All' }).click();
+    await expect(editorTabs).toHaveCount(0);
+
+    await window.evaluate(async () => {
+      const [{ store }, actions] = await Promise.all([
+        import('/src/app/store/store.ts'),
+        import('/src/app/slices/editorTabsSlice.ts'),
+      ]);
+      store.dispatch(actions.openEditorTab({
+        id: 'context-menu-close',
+        label: 'Close Request',
+        method: 'GET',
+        type: 'request',
+      }));
+    });
+    selectedTab = window.locator('button[role="tab"][data-state="active"].h-11');
+    await selectedTab.click({ button: 'right' });
+    await window.getByRole('menuitem', { name: 'Close', exact: true }).click();
+    await expect(editorTabs).toHaveCount(0);
+  });
 });
