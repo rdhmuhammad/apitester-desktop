@@ -3,7 +3,7 @@
 
 #define MyAppName "Apitester"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.0"
+  #define MyAppVersion "0.2.1"
 #endif
 #define MyDefaultBackendPort "8999"
 #define MyAppPublisher "Ridho Muhammad"
