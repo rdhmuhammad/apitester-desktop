@@ -105,6 +105,7 @@ export const LivePreviewEditor = forwardRef<
     const dragStartLineRef = useRef<number | null>(null);
     const didDragSelectRef = useRef<boolean>(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const previousFileIdRef = useRef(file.id);
 
     // Reset mouse drag state on window mouseup
     useEffect(() => {
@@ -117,6 +118,9 @@ export const LivePreviewEditor = forwardRef<
 
     // When switching files, if the new file is empty, activate line 0 at col 0
     useEffect(() => {
+      if (previousFileIdRef.current === file.id) return;
+      previousFileIdRef.current = file.id;
+
       setSelectedLineRange(null);
       setSelectionAnchorLine(null);
       if (file.content.trim() === '') {

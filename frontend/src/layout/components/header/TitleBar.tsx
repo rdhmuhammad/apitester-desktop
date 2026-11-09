@@ -136,7 +136,7 @@ const TitleBar: React.FC = () => {
                         disabled={update.status === "downloading" || update.status === "installing"}
                         onClick={() => void (update.status === "available" ? window.electronAPI.startUpdate() : window.electronAPI.checkForUpdate())}
                         title={update.message}
-                        className="h-6 px-2 mx-1 rounded text-xs text-primary hover:bg-muted disabled:opacity-70"
+                        className="h-6 px-2 mx-1 rounded bg-[#00b4d8] text-xs text-white hover:bg-[#0096c7] disabled:opacity-70"
                     >
                         {update.status === "available" && `Update v${update.version}`}
                         {update.status === "downloading" && `Downloading ${update.progress ?? 0}%`}

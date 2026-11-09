@@ -44,7 +44,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 
 - [[decisions/index]] - Technical decisions recorded for the codebase.
 - [[decisions/desktop-production-build]] - Windows packaging pipeline with in-place upgrades, optional data purge, and shared runtime backend-port configuration.
-- [[decisions/github-release-updates]] - Direct GitHub release checks, verified installer download, and Windows upgrade flow.
+- [[decisions/github-release-updates]] - Direct GitHub release checks, title-bar update status, verified installer download, and Windows upgrade flow.
 - [[decisions/self-signed-windows-release-signing]] - Temporary self-signed PFX preparation, configured GitHub secrets, draft-safe release verification, and remaining owner checklist.
 - [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with serialized direct writes and no current version check.
 - [[decisions/collection-history-for-restrequest-mutations]] - `collection_history` audit records preserving old and new content hashes for successful mutations.
@@ -53,7 +53,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 - [[decisions/google-drive-service-account-sync]] - Architecture, security permissions, and step-by-step setup for syncing Playwright test reports to Google Drive.
 - [[decisions/playwright-cumulative-test-caching]] - Cumulative test scenario caching pipeline to prevent RAM exhaustion during testing and retain comprehensive reports.
 - [[decisions/project-folder-discovery-and-collection-hierarchy]] - GoLand-style project switcher, folder discovery, standalone project selection, scoped collection manager, and disk file deletion.
-- [[decisions/documentation-management-and-markdown-editor]] - Pure filesystem `.md`/`.html` documentation tree discovery, file-only drag-and-drop relocation, and live Markdown editor with 500ms debounced UTF-16 slice socket synchronization.
+- [[decisions/documentation-management-and-markdown-editor]] - Filesystem documentation discovery and a cursor-stable live Markdown editor with debounced UTF-16 socket synchronization.
 
 ## Concepts
 

@@ -2,7 +2,7 @@
 
 **Summary**: Electron checks the public GitHub latest release, shows an update badge for newer versions, verifies the downloaded Inno installer, and launches it to upgrade the UI and backend service.
 **Sources**: `frontend/electron/release.ts`, `frontend/electron/updater.ts`, `frontend/electron/main.ts`, `frontend/electron/preload.cjs`, `frontend/src/layout/components/header/TitleBar.tsx`, `deployment/desktop/setup.iss`, `.github/workflows/release.yml`
-**Last updated**: 2026-11-07
+**Last updated**: 2026-11-09
 
 ---
 
@@ -18,7 +18,7 @@ Self-signing does not make the publisher publicly trusted. Windows SmartScreen o
 
 On packaged Windows startup, Electron calls GitHub's public `/releases/latest` API. It compares the release tag with `app.getVersion()` numerically and accepts only a newer stable version with the exact installer filename, positive size, SHA-256 digest, and expected GitHub download URL. Development builds and non-Windows platforms do not check.
 
-The renderer receives update state through a narrow preload bridge and shows a button in the title bar. A click streams the installer into a temporary `.part` file. Electron checks the byte count and SHA-256 digest against GitHub metadata, renames the completed file, launches Inno Setup, and quits. Failed or incomplete downloads are never executed. The installed application's hash is not compared with the installer hash because these are different binaries.
+The renderer receives update state through a narrow preload bridge and shows a cyan (`#00b4d8`) button with white text in the title bar. A click streams the installer into a temporary `.part` file. Electron checks the byte count and SHA-256 digest against GitHub metadata, renames the completed file, launches Inno Setup, and quits. Failed or incomplete downloads are never executed. The installed application's hash is not compared with the installer hash because these are different binaries.
 
 The Inno installer keeps the same application ID, retains the existing backend port and ProgramData by default, updates application files, restarts the backend service, and offers to launch the new UI. This extends [[decisions/desktop-production-build]].
 

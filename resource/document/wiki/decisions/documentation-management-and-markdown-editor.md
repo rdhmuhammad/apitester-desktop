@@ -1,8 +1,8 @@
 # Documentation Management and Markdown Editor
 
 **Summary**: Pure filesystem-backed `.md` and `.html` documentation tree discovery, file-only drag-and-drop relocation, and live Markdown editor with 500ms debounced UTF-16 slice synchronization over Socket.IO.
-**Sources**: `resource/document/raw/tasks/Initiate Mechanism for Document Management.md`, `resource/document/raw/tasks/Initiate Page type Document.md`, `resource/document/raw/tasks/Fixing Behavior of DocumentEditor.md`, `resource/document/raw/decisions/Markdown Basic Syntax.md`, `resource/document/raw/decisions/Markdown advance syntax.md`
-**Last updated**: 2026-10-27
+**Sources**: `resource/document/raw/tasks/Initiate Mechanism for Document Management.md`, `resource/document/raw/tasks/Initiate Page type Document.md`, `resource/document/raw/tasks/Fixing Behavior of DocumentEditor.md`, `resource/document/raw/decisions/Markdown Basic Syntax.md`, `resource/document/raw/decisions/Markdown advance syntax.md`, `frontend/src/pages/editor/components/obsidian/LivePreviewEditor.tsx`
+**Last updated**: 2026-11-09
 
 ---
 
@@ -36,6 +36,7 @@ Opening a `.md` file opens a `DOC` (`type: 'document'`) tab rendered by `Documen
 - **Interactive Table Grid Picker & Hover Row/Column Controls**: Clicking the Table button in `DocumentEditorHeader.tsx` opens a Google Docs-style dynamic grid picker (starting at 11×5 and expanding up to 20×20 as the cursor hovers near the edges) to insert a table with custom `cols × rows`. In Live Mode, hovering a table cell in `DocumentEditor.tsx` renders floating row and column action pills outside the `contentEditable` DOM (`Insert 1 row below` / `Delete row` on the left of the hovered row and `Insert 1 column to the right` / `Delete column` on top of the hovered column) that mutate the table in place and sync back to Markdown.
 - **Interactive Image Placeholder, Replacement & Manual Drag Resize**: Clicking the Insert Image toolbar button (`{type: "image"}`) inserts an interactive placeholder block (`![image]()`) with **Use URL** and **Select File** buttons. Entering a valid image URL (verified via `new Image()` `onload`) or choosing a local file immediately renders the `<img>`. Hovering any rendered `<img>` in Live Mode overlays a replacement bar (**Use URL** / **Select File**) plus corner and edge resize handles that update image dimensions live and persist as `![alt|WxH](src)` in Markdown.
 - **Dedicated Raw Source Mode**: Clicking the `Source` button in `DocumentEditorHeader.tsx` serializes the live DOM into raw Markdown and displays a dedicated full-width raw document editor without redundant split-screen rendered syntax previews.
+- **Stable Same-File Selection State**: `LivePreviewEditor.tsx` clears its selected-line state and activates the first line of an empty document only when `file.id` changes. Content refreshes for the currently open file no longer trigger that file-switch initialization path.
 
 ### 5. Bold / Italic Toggling Without Re-render (`inlineFormat.ts`)
 Ctrl+B, Ctrl+I and the header Bold/Italic buttons call `toggleInlineFormat` in `frontend/src/pages/editor/utils/inlineFormat.ts` (live mode) or `toggleMarkdownFormat` (source mode). Rules:
