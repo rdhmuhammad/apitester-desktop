@@ -37,6 +37,10 @@ func NewCollectionRequestItem(name string) collectionService.CollectionItem {
 				Path:  []string{},
 				Query: []collectionService.Property{},
 			},
+			Auth: &collectionService.ReqAuth{
+				Type:       "",
+				AuthSource: "none",
+			},
 		},
 	}
 }

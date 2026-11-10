@@ -338,6 +338,9 @@ func TestGetResolvesAuthFromDocsContent(t *testing.T) {
 				Name: "Get Users",
 				Request: &collectionService.Request{
 					Method: "GET",
+					Auth: &collectionService.ReqAuth{
+						AuthSource: "inherit",
+					},
 				},
 			},
 		},
@@ -501,6 +504,9 @@ func TestGetResolvesAuthNestedRequest(t *testing.T) {
 						Name: "Nested Request",
 						Request: &collectionService.Request{
 							Method: "POST",
+							Auth: &collectionService.ReqAuth{
+								AuthSource: "inherit",
+							},
 						},
 					},
 				},
@@ -523,5 +529,128 @@ func TestGetResolvesAuthNestedRequest(t *testing.T) {
 	}
 	if len(res.Auth.Bearer) != 1 || res.Auth.Bearer[0].Value != "folder-inherited-token" {
 		t.Fatalf("Bearer = %#v, want folder-inherited-token", res.Auth.Bearer)
+	}
+}
+
+func TestGetResolvesAuthNullToNoneEvenWhenCollectionHasAuth(t *testing.T) {
+	docs := collectionService.DocsContent{
+		Auth: &collectionService.CollectionAuth{
+			Type: "bearer",
+			Bearer: []collectionService.Property{
+				{Id: "prop-1", Key: "token", Value: "collection-token", Type: "string"},
+			},
+		},
+		Item: []collectionService.CollectionItem{
+			{
+				ID:   "req-1",
+				Name: "Get Users",
+				Request: &collectionService.Request{
+					Method: "GET",
+					Auth:   nil,
+				},
+			},
+		},
+	}
+
+	usecase, collection, _ := setupTestUsecase(t, docs)
+
+	res, err := usecase.Get(context.Background(), collection.ID, "req-1")
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+
+	if res.Auth == nil {
+		t.Fatal("expected res.Auth to not be nil")
+	}
+	if res.Auth.AuthSource != "none" {
+		t.Errorf("AuthSource = %q, want %q", res.Auth.AuthSource, "none")
+	}
+	if res.Auth.Type != "" {
+		t.Errorf("Type = %q, want empty", res.Auth.Type)
+	}
+	if len(res.Auth.Bearer) != 0 {
+		t.Errorf("Bearer = %#v, want empty", res.Auth.Bearer)
+	}
+}
+
+func TestGetPreservesExplicitNoAuthWhenCollectionHasAuth(t *testing.T) {
+	docs := collectionService.DocsContent{
+		Auth: &collectionService.CollectionAuth{
+			Type: "bearer",
+			Bearer: []collectionService.Property{
+				{Id: "prop-1", Key: "token", Value: "collection-token", Type: "string"},
+			},
+		},
+		Item: []collectionService.CollectionItem{
+			{
+				ID:   "req-1",
+				Name: "Get Users",
+				Request: &collectionService.Request{
+					Method: "GET",
+					Auth: &collectionService.ReqAuth{
+						Type:       "",
+						AuthSource: "none",
+					},
+				},
+			},
+		},
+	}
+
+	usecase, collection, _ := setupTestUsecase(t, docs)
+
+	res, err := usecase.Get(context.Background(), collection.ID, "req-1")
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+
+	if res.Auth == nil {
+		t.Fatal("expected res.Auth to not be nil")
+	}
+	if res.Auth.AuthSource != "none" {
+		t.Errorf("AuthSource = %q, want %q", res.Auth.AuthSource, "none")
+	}
+	if res.Auth.Type != "" {
+		t.Errorf("Type = %q, want empty", res.Auth.Type)
+	}
+	if len(res.Auth.Bearer) != 0 {
+		t.Errorf("Bearer = %#v, want empty", res.Auth.Bearer)
+	}
+}
+
+func TestCreateRequestDefaultsToNoAuth(t *testing.T) {
+	docs := collectionService.DocsContent{
+		Auth: &collectionService.CollectionAuth{
+			Type: "bearer",
+			Bearer: []collectionService.Property{
+				{Id: "prop-1", Key: "token", Value: "collection-token", Type: "string"},
+			},
+		},
+		Item: []collectionService.CollectionItem{},
+	}
+
+	usecase, collection, _ := setupTestUsecase(t, docs)
+
+	created, err := usecase.CreateRequest(context.Background(), collection.ID, CreateRequestPayload{Name: "New Request"})
+	if err != nil {
+		t.Fatalf("CreateRequest() error = %v", err)
+	}
+
+	if created.Auth == nil {
+		t.Fatal("expected created.Auth to not be nil")
+	}
+	if created.Auth.AuthSource != "none" {
+		t.Errorf("created.Auth.AuthSource = %q, want %q", created.Auth.AuthSource, "none")
+	}
+
+	// Calling Get on the created request should preserve AuthSource = "none"
+	got, err := usecase.Get(context.Background(), collection.ID, created.ID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if got.Auth == nil {
+		t.Fatal("expected got.Auth to not be nil")
+	}
+	if got.Auth.AuthSource != "none" {
+		t.Errorf("got.Auth.AuthSource = %q, want %q", got.Auth.AuthSource, "none")
 	}
 }

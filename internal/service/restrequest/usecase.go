@@ -671,21 +671,26 @@ func resolveAuth(request *collectionService.Request, collectionAuth *collectionS
 		return
 	}
 
-	// 1. Get value from DocsContent.Auth if not null then set value to request.Auth, also set request.Auth.AuthSource = inheret
-	if collectionAuth != nil {
-		var bearer []collectionService.Property
-		if collectionAuth.Bearer != nil {
-			bearer = make([]collectionService.Property, len(collectionAuth.Bearer))
-			copy(bearer, collectionAuth.Bearer)
+	// 1. Inherit from collectionAuth ONLY when explicitly set to "inherit"
+	if request.Auth != nil && strings.EqualFold(strings.TrimSpace(request.Auth.AuthSource), "inherit") {
+		if collectionAuth != nil {
+			var bearer []collectionService.Property
+			if collectionAuth.Bearer != nil {
+				bearer = make([]collectionService.Property, len(collectionAuth.Bearer))
+				copy(bearer, collectionAuth.Bearer)
+			}
+			request.Auth.Type = collectionAuth.Type
+			request.Auth.Bearer = bearer
+			request.Auth.AuthSource = "inherit"
+		} else {
+			request.Auth.Type = ""
+			request.Auth.Bearer = nil
+			request.Auth.AuthSource = "inherit"
 		}
-		request.Auth = &collectionService.ReqAuth{
-			Type:       collectionAuth.Type,
-			Bearer:     bearer,
-			AuthSource: "inherit",
-		}
+		return
 	}
 
-	// 2. Find at header if any header authorization, if exist then set value to request.Auth also set authSource = onrequest
+	// 2. Check for active Authorization header
 	var authHeader *collectionService.Header
 	for i := range request.Header {
 		if strings.EqualFold(strings.TrimSpace(request.Header[i].Key), "Authorization") &&
@@ -696,8 +701,7 @@ func resolveAuth(request *collectionService.Request, collectionAuth *collectionS
 		}
 	}
 
-	switch {
-	case authHeader != nil:
+	if authHeader != nil {
 		token := strings.TrimSpace(authHeader.Value)
 		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
 			token = strings.TrimSpace(token[7:])
@@ -718,19 +722,19 @@ func resolveAuth(request *collectionService.Request, collectionAuth *collectionS
 			},
 			AuthSource: "onrequest",
 		}
-	case request.Auth != nil && request.Auth.AuthSource == "onrequest" && len(request.Auth.Bearer) > 0:
-		// Preserve explicit onrequest auth if already configured
-	case request.Auth != nil && request.Auth.AuthSource == "none" && authHeader == nil:
-		// Preserve explicit none auth if already configured
+		return
 	}
 
-	// 3. If none of them above satisfied set authSource to none
-	if request.Auth == nil || request.Auth.AuthSource == "" {
-		request.Auth = &collectionService.ReqAuth{
-			Type:       "",
-			Bearer:     nil,
-			AuthSource: "none",
-		}
+	// 3. Preserve explicit onrequest auth if already configured
+	if request.Auth != nil && strings.EqualFold(strings.TrimSpace(request.Auth.AuthSource), "onrequest") && len(request.Auth.Bearer) > 0 {
+		return
+	}
+
+	// 4. Default all other cases (Auth == nil, AuthSource == "none", unconfigured) to "none"
+	request.Auth = &collectionService.ReqAuth{
+		Type:       "",
+		Bearer:     nil,
+		AuthSource: "none",
 	}
 }
 
