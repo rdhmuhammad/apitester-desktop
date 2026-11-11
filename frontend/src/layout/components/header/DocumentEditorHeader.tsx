@@ -150,7 +150,7 @@ const DocumentEditorHeader: React.FC = () => {
             type="button"
             onMouseDown={preventBlur}
             onClick={() => handleFormatAction('bold')}
-            title="Bold (**text**)"
+            title="Bold (Ctrl+B / **text**)"
             className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <Bold className="h-3.5 w-3.5" />
@@ -159,7 +159,7 @@ const DocumentEditorHeader: React.FC = () => {
             type="button"
             onMouseDown={preventBlur}
             onClick={() => handleFormatAction('italic')}
-            title="Italic (*text*)"
+            title="Italic (Ctrl+I / *text*)"
             className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <Italic className="h-3.5 w-3.5" />
@@ -168,7 +168,7 @@ const DocumentEditorHeader: React.FC = () => {
             type="button"
             onMouseDown={preventBlur}
             onClick={() => handleFormatAction('strike')}
-            title="Strikethrough (~~text~~)"
+            title="Strikethrough (Ctrl+T / ~~text~~)"
             className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <Strikethrough className="h-3.5 w-3.5" />

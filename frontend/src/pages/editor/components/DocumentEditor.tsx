@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import type { FileItem } from './obsidian/types.ts';
-import { extractTags } from './obsidian/markdownUtils.ts';
+import { extractTags, getFormatHotkey, toggleInlineFormat } from './obsidian/markdownUtils.ts';
 import {
   LivePreviewEditor,
   type LivePreviewEditorHandle,
@@ -195,11 +195,22 @@ const DocumentEditor: React.FC = () => {
         }, 0);
       };
 
-      if (action === 'bold') wrapWith('**', '**', 'bold text');
-      else if (action === 'italic') wrapWith('*', '*', 'italic text');
-      else if (action === 'strike') wrapWith('~~', '~~', 'strikethrough');
-      else if (action === 'code') wrapWith('`', '`', 'code');
-      else if (action === 'link') wrapWith('[[', ']]', 'Document');
+      if (
+        action === 'bold' ||
+        action === 'italic' ||
+        action === 'strike' ||
+        action === 'code'
+      ) {
+        const res = toggleInlineFormat(markdown, start, end, action);
+        pushHistoryAndSync(res.text);
+        setTimeout(() => {
+          ta.focus();
+          ta.setSelectionRange(res.selStart, res.selEnd);
+        }, 0);
+        return;
+      }
+
+      if (action === 'link') wrapWith('[[', ']]', 'Document');
       else if (action === 'h1') wrapWith('# ', '', 'Heading 1');
       else if (action === 'h2') wrapWith('## ', '', 'Heading 2');
       else if (action === 'h3') wrapWith('### ', '', 'Heading 3');
@@ -447,6 +458,14 @@ const DocumentEditor: React.FC = () => {
             value={markdown}
             onChange={(e) => pushHistoryAndSync(e.target.value)}
             onKeyDown={(e) => {
+              // Hotkeys for inline formatting: Ctrl+B (bold), Ctrl+I (italic), Ctrl+T (strikethrough)
+              const hotkeyAction = getFormatHotkey(e);
+              if (hotkeyAction) {
+                e.preventDefault();
+                handleSourceModeFormat(hotkeyAction);
+                return;
+              }
+
               // Bracket auto-pairing on selection
               if (BRACKET_PAIRS[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 const ta = e.currentTarget;

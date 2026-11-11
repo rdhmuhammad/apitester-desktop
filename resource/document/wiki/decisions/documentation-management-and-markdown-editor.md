@@ -2,7 +2,7 @@
 
 **Summary**: Pure filesystem-backed `.md` and `.html` documentation tree discovery, file-only drag-and-drop relocation, and live Markdown editor with 500ms debounced UTF-16 slice synchronization over Socket.IO.
 **Sources**: `resource/document/raw/tasks/Initiate Mechanism for Document Management.md`, `resource/document/raw/tasks/Initiate Page type Document.md`, `resource/document/raw/tasks/Fixing Behavior of DocumentEditor.md`, `resource/document/raw/decisions/Markdown Basic Syntax.md`, `resource/document/raw/decisions/Markdown advance syntax.md`, `frontend/src/pages/editor/components/obsidian/LivePreviewEditor.tsx`
-**Last updated**: 2026-11-09
+**Last updated**: 2026-11-12
 
 ---
 
@@ -59,6 +59,12 @@ To allow users to reference any workspace file while writing documentation (simi
 - **Sidebar Filtering & Delete File-Count Warning**: `DocumentationSidebar.tsx` renders only nodes where `node.show === true`. However, because `node.item` retains all non-ignored files (`Category: "FILE", Show: false`) inside each folder, deleting a folder recursively counts all contained files and subfolders (`countAllFolderFiles`) and warns the user in the confirmation dialog if `N > 0` items will be permanently deleted from disk.
 - **Right-Click & Double-Click Context Menu with Inline Creation/Rename**: Right-clicking (`onContextMenu`) or double-clicking (`onDoubleClick`) any item in `DocumentationSidebar.tsx` opens a floating context menu (`New folder` and `New file` when the target is a `FOLD` node, plus `Copy absolute path`, `Show in file system` via Electron `shell.showItemInFolder`, and `Rename` for both folders and files). Folder/file creation and renaming use inline `<input>` rows directly inside the sidebar tree.
 - **File Tagging Dropdown**: In `DocumentEditor.tsx`, typing `@` at a word boundary (in either Live Mode or Source Mode) triggers `FileTagDropdown.tsx` positioned near the caret. Filtering matches both file name and relative workspace path. Selecting a file (via Enter, Tab, or click) inserts a clean Markdown link `[filename.ext](relative/path/to/filename.ext)`.
+
+### 8. Obsidian Live Preview Editor Fixes (Autocomplete, Hotkeys, Frontmatter, Code Indentation)
+- **Autocomplete Enter/Tab Selection**: `LivePreviewEditor` binds Enter and Tab when `autocomplete.isOpen` to commit the selected `AutocompleteOption` into the active line input, preserving any prefix and suffix text around the cursor. Unmatched queries close the popover and fall through to standard Enter continuation and Tab indentation.
+- **Toggle Hotkeys (Ctrl+B, Ctrl+I, Ctrl+T)**: Handled across single-line editing, multi-line selection ranges, and raw Source mode. `toggleInlineFormat` checks whether formatting delimiters (`**`, `*`, `~~`, `` ` ``) are already present inside or outside the selection (accounting for odd `*` counts for italic vs bold) and unwraps them; unformatted text is wrapped with leading/trailing whitespace kept outside delimiters.
+- **Frontmatter Value Whitespace Quoting**: `updateFrontmatter` detects string values with edge whitespace (`v !== v.trim()`) and surrounds them in double quotes (`" "`, `"hello "`), preventing the YAML parser from stripping leading/trailing whitespace on every keystroke in `FrontmatterWidget`.
+- **Code Block Indentation Rendering**: `CodeBlockWidget` adds `whitespace-pre` and `[tab-size:2]` styling to code row table cells, preventing the browser from collapsing leading whitespace and tab indentation in rendered fenced code blocks.
 
 ## Related pages
 

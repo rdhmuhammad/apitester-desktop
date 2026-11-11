@@ -24,44 +24,17 @@ export interface AutocompleteOption {
   isCreateNew?: boolean;
 }
 
-interface AutocompletePopoverProps {
-  isOpen: boolean;
-  trigger: '[[' | '/' | '{{' | '#' | null;
-  query: string;
-  files: FileItem[];
-  allTags: string[];
-  currentFile: FileItem;
-  position: { top: number; left: number };
-  selectedIndex: number;
-  onSelect: (option: AutocompleteOption) => void;
-  onClose: () => void;
-}
+export type AutocompleteTrigger = '[[' | '/' | '{{' | '#' | null;
 
-export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
-  isOpen,
-  trigger,
-  query,
-  files,
-  allTags,
-  currentFile,
-  position,
-  selectedIndex,
-  onSelect,
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      const activeEl = containerRef.current.querySelector('[data-selected="true"]');
-      if (activeEl) {
-        activeEl.scrollIntoView({ block: 'nearest' });
-      }
-    }
-  }, [selectedIndex]);
-
-  if (!isOpen || !trigger) return null;
-
-  let options: AutocompleteOption[] = [];
+// eslint-disable-next-line react-refresh/only-export-components
+export function getAutocompleteOptions(
+  trigger: AutocompleteTrigger,
+  query: string,
+  files: FileItem[],
+  allTags: string[],
+  currentFile: FileItem
+): AutocompleteOption[] {
+  if (!trigger) return [];
 
   // 1. Wiki-link Trigger `[[`
   if (trigger === '[[') {
@@ -81,7 +54,7 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
           h.text.toLowerCase().includes((headingQuery || '').toLowerCase())
         );
 
-        options = filtered.map((h) => ({
+        return filtered.map((h) => ({
           id: `heading-${h.id}`,
           label: `${'#'.repeat(h.level)} ${h.text}`,
           detail: `Heading in ${matchedFile.title}`,
@@ -89,13 +62,14 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
           insertText: `${matchedFile.title}#${h.text}]]`,
         }));
       }
+      return [];
     } else {
       // Document fuzzy match
       const filtered = files.filter((f) =>
         f.title.toLowerCase().includes(query.toLowerCase())
       );
 
-      options = filtered.map((f) => ({
+      const options: AutocompleteOption[] = filtered.map((f) => ({
         id: f.id,
         label: f.title,
         detail: f.folder ? `${f.folder}/` : 'Root',
@@ -114,11 +88,12 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
           isCreateNew: true,
         });
       }
+      return options;
     }
   }
 
   // 2. Slash Commands Trigger `/`
-  else if (trigger === '/') {
+  if (trigger === '/') {
     const slashCommands: AutocompleteOption[] = [
       {
         id: 'h1',
@@ -206,7 +181,7 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
       },
     ];
 
-    options = slashCommands.filter(
+    return slashCommands.filter(
       (c) =>
         c.label.toLowerCase().includes(query.toLowerCase()) ||
         (c.detail && c.detail.toLowerCase().includes(query.toLowerCase()))
@@ -214,7 +189,7 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
   }
 
   // 3. Dynamic Variables `{{`
-  else if (trigger === '{{') {
+  if (trigger === '{{') {
     const vars: AutocompleteOption[] = [
       {
         id: 'title',
@@ -253,12 +228,12 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
       },
     ];
 
-    options = vars.filter((v) => v.label.toLowerCase().includes(query.toLowerCase()));
+    return vars.filter((v) => v.label.toLowerCase().includes(query.toLowerCase()));
   }
 
   // 4. Tags Trigger `#`
-  else if (trigger === '#') {
-    options = allTags
+  if (trigger === '#') {
+    return allTags
       .filter((t) => t.toLowerCase().includes(query.toLowerCase()))
       .map((t) => ({
         id: `tag-${t}`,
@@ -268,6 +243,54 @@ export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
         insertText: `${t} `,
       }));
   }
+
+  return [];
+}
+
+interface AutocompletePopoverProps {
+  isOpen: boolean;
+  trigger: AutocompleteTrigger;
+  query?: string;
+  files?: FileItem[];
+  allTags?: string[];
+  currentFile?: FileItem;
+  options?: AutocompleteOption[];
+  position: { top: number; left: number };
+  selectedIndex: number;
+  onSelect: (option: AutocompleteOption) => void;
+  onClose: () => void;
+}
+
+export const AutocompletePopover: React.FC<AutocompletePopoverProps> = ({
+  isOpen,
+  trigger,
+  query = '',
+  files = [],
+  allTags = [],
+  currentFile,
+  options: providedOptions,
+  position,
+  selectedIndex,
+  onSelect,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const activeEl = containerRef.current.querySelector('[data-selected="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIndex]);
+
+  if (!isOpen || !trigger) return null;
+
+  const options =
+    providedOptions ??
+    (currentFile
+      ? getAutocompleteOptions(trigger, query, files, allTags, currentFile)
+      : []);
 
   if (options.length === 0) {
     return null;

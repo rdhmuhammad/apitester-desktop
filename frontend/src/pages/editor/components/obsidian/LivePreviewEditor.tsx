@@ -2,6 +2,8 @@ import React, {
   useState,
   useRef,
   useEffect,
+  useCallback,
+  useMemo,
   useImperativeHandle,
   forwardRef,
 } from 'react';
@@ -20,6 +22,7 @@ import {
   applyToolbarFormatToLineRange,
   parseHtmlImageTag,
   formatHtmlImageTag,
+  getFormatHotkey,
   type CursorPosition,
 } from './markdownUtils.ts';
 import { FrontmatterWidget } from './FrontmatterWidget.tsx';
@@ -29,7 +32,11 @@ import { CodeBlockWidget } from './CodeBlockWidget.tsx';
 import { TransclusionEmbed } from './TransclusionEmbed.tsx';
 import { ImageWidget } from './ImageWidget.tsx';
 import { FormattedInlineText } from './FormattedInlineText.tsx';
-import { AutocompletePopover, type AutocompleteOption } from './AutocompletePopover.tsx';
+import {
+  AutocompletePopover,
+  getAutocompleteOptions,
+  type AutocompleteOption,
+} from './AutocompletePopover.tsx';
 import {
   ChevronDown,
   ChevronRight,
@@ -133,69 +140,75 @@ export const LivePreviewEditor = forwardRef<
       }
     }, [file.id, file.content]);
 
+    // Format action implementation for cursor, line input, or multi-line selection
+    const handleFormatAction = useCallback(
+      (actionType: string) => {
+        // If multiple lines are selected, apply formatting across the selected range
+        if (selectedLineRange !== null) {
+          const res = applyToolbarFormatToLineRange(
+            file.content,
+            actionType,
+            selectedLineRange.startLine,
+            selectedLineRange.endLine
+          );
+          onChange(res.content);
+          setSelectedLineRange({
+            startLine: res.newStartLine,
+            endLine: res.newEndLine,
+          });
+          containerRef.current?.focus();
+          return;
+        }
+
+        let cursor: CursorPosition;
+        if (activeLineIndex !== null) {
+          const lineLen = (lines[activeLineIndex] || '').length;
+          const start =
+            activeInputRef.current?.selectionStart ??
+            lastCursorPos.current?.start ??
+            lineLen;
+          const end =
+            activeInputRef.current?.selectionEnd ??
+            lastCursorPos.current?.end ??
+            start;
+          cursor = { lineIndex: activeLineIndex, start, end };
+        } else if (lastCursorPos.current !== null) {
+          cursor = lastCursorPos.current;
+        } else {
+          const { frontmatterLineCount } = parseFrontmatter(file.content);
+          const defaultLine = Math.min(
+            Math.max(0, lines.length - 1),
+            frontmatterLineCount
+          );
+          cursor = { lineIndex: defaultLine, start: 0, end: 0 };
+        }
+
+        const result = applyToolbarFormatAtCursor(
+          file.content,
+          actionType,
+          cursor
+        );
+        pendingCursorRange.current = result.nextSelection;
+        if (result.nextActiveLineIndex !== null && result.nextSelection) {
+          lastCursorPos.current = {
+            lineIndex: result.nextActiveLineIndex,
+            start: result.nextSelection.start,
+            end: result.nextSelection.end,
+          };
+        }
+        onChange(result.content);
+        setActiveLineIndex(result.nextActiveLineIndex);
+      },
+      [activeLineIndex, selectedLineRange, file.content, lines, onChange]
+    );
+
     // Expose toolbar formatting at the current cursor position or multi-line selection
     useImperativeHandle(
       ref,
       () => ({
-        applyFormatAction: (actionType: string) => {
-          // If multiple lines are selected, apply formatting across the selected range
-          if (selectedLineRange !== null) {
-            const res = applyToolbarFormatToLineRange(
-              file.content,
-              actionType,
-              selectedLineRange.startLine,
-              selectedLineRange.endLine
-            );
-            onChange(res.content);
-            setSelectedLineRange({
-              startLine: res.newStartLine,
-              endLine: res.newEndLine,
-            });
-            containerRef.current?.focus();
-            return;
-          }
-
-          let cursor: CursorPosition;
-          if (activeLineIndex !== null) {
-            const lineLen = (lines[activeLineIndex] || '').length;
-            const start =
-              activeInputRef.current?.selectionStart ??
-              lastCursorPos.current?.start ??
-              lineLen;
-            const end =
-              activeInputRef.current?.selectionEnd ??
-              lastCursorPos.current?.end ??
-              start;
-            cursor = { lineIndex: activeLineIndex, start, end };
-          } else if (lastCursorPos.current !== null) {
-            cursor = lastCursorPos.current;
-          } else {
-            const { frontmatterLineCount } = parseFrontmatter(file.content);
-            const defaultLine = Math.min(
-              Math.max(0, lines.length - 1),
-              frontmatterLineCount
-            );
-            cursor = { lineIndex: defaultLine, start: 0, end: 0 };
-          }
-
-          const result = applyToolbarFormatAtCursor(
-            file.content,
-            actionType,
-            cursor
-          );
-          pendingCursorRange.current = result.nextSelection;
-          if (result.nextActiveLineIndex !== null && result.nextSelection) {
-            lastCursorPos.current = {
-              lineIndex: result.nextActiveLineIndex,
-              start: result.nextSelection.start,
-              end: result.nextSelection.end,
-            };
-          }
-          onChange(result.content);
-          setActiveLineIndex(result.nextActiveLineIndex);
-        },
+        applyFormatAction: handleFormatAction,
       }),
-      [activeLineIndex, selectedLineRange, file.content, lines, onChange]
+      [handleFormatAction]
     );
 
     // Apply focus and cursor position whenever activeLineIndex or lines change
@@ -244,6 +257,17 @@ export const LivePreviewEditor = forwardRef<
       selectedIndex: 0,
       triggerLineIndex: -1,
     });
+
+    const autocompleteOptions = useMemo(() => {
+      if (!autocomplete.isOpen || !autocomplete.trigger) return [];
+      return getAutocompleteOptions(
+        autocomplete.trigger,
+        autocomplete.query,
+        files,
+        allTags,
+        file
+      );
+    }, [autocomplete.isOpen, autocomplete.trigger, autocomplete.query, files, allTags, file]);
 
     // Mouse down on a line: start potential drag selection or Shift+Click range selection
     const handleLineMouseDown = (lineIdx: number, e: React.MouseEvent) => {
@@ -432,6 +456,15 @@ export const LivePreviewEditor = forwardRef<
     // Keyboard handler when multiple lines are selected
     const handleContainerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (!selectedLineRange) return;
+
+      // Hotkeys for inline formatting across selected lines: Ctrl+B (bold), Ctrl+I (italic), Ctrl+T (strikethrough)
+      const hotkeyAction = getFormatHotkey(e);
+      if (hotkeyAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleFormatAction(hotkeyAction);
+        return;
+      }
 
       const { frontmatterLineCount } = parseFrontmatter(file.content);
       const minLine = frontmatterLineCount;
@@ -726,13 +759,25 @@ export const LivePreviewEditor = forwardRef<
         return;
       }
 
+      // Hotkeys for inline formatting: Ctrl+B (bold), Ctrl+I (italic), Ctrl+T (strikethrough)
+      const hotkeyAction = getFormatHotkey(e);
+      if (hotkeyAction && !autocomplete.isOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleFormatAction(hotkeyAction);
+        return;
+      }
+
       // 1. Autocomplete navigation
       if (autocomplete.isOpen) {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
           setAutocomplete((prev) => ({
             ...prev,
-            selectedIndex: prev.selectedIndex + 1,
+            selectedIndex: Math.min(
+              Math.max(0, autocompleteOptions.length - 1),
+              prev.selectedIndex + 1
+            ),
           }));
           return;
         }
@@ -748,6 +793,20 @@ export const LivePreviewEditor = forwardRef<
           e.preventDefault();
           setAutocomplete((prev) => ({ ...prev, isOpen: false }));
           return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          if (autocompleteOptions.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            const boundedIndex = Math.max(
+              0,
+              Math.min(autocomplete.selectedIndex, autocompleteOptions.length - 1)
+            );
+            handleAutocompleteSelect(autocompleteOptions[boundedIndex]);
+            return;
+          } else {
+            setAutocomplete((prev) => ({ ...prev, isOpen: false }));
+          }
         }
       }
 
@@ -820,7 +879,7 @@ export const LivePreviewEditor = forwardRef<
       }
 
       // 4. Smart Enter continuation & line splitting
-      if (e.key === 'Enter' && !autocomplete.isOpen) {
+      if (e.key === 'Enter') {
         e.preventDefault();
         const continuation = getSmartEnterContinuation(
           currentLineText,
@@ -939,44 +998,48 @@ export const LivePreviewEditor = forwardRef<
           : activeLineIndex ?? 0;
       const currentLine = lines[currentLineIdx] || '';
 
-      let newLine = currentLine;
+      const cursorCol =
+        activeInputRef.current && currentLineIdx === activeLineIndex
+          ? (activeInputRef.current.selectionStart ?? currentLine.length)
+          : currentLine.length;
+      const textBefore = currentLine.slice(0, cursorCol);
+      const textAfter = currentLine.slice(cursorCol);
 
+      let linePrefix = textBefore;
       if (autocomplete.trigger === '[[') {
-        const idx = currentLine.lastIndexOf('[[');
-        if (idx !== -1) {
-          newLine = currentLine.slice(0, idx + 2) + option.insertText;
-        }
+        const idx = textBefore.lastIndexOf('[[');
+        if (idx !== -1) linePrefix = textBefore.slice(0, idx + 2);
       } else if (autocomplete.trigger === '/') {
-        const idx = currentLine.lastIndexOf('/');
-        if (idx !== -1) {
-          newLine = currentLine.slice(0, idx) + option.insertText;
-        }
+        const idx = textBefore.lastIndexOf('/');
+        if (idx !== -1) linePrefix = textBefore.slice(0, idx);
       } else if (autocomplete.trigger === '{{') {
-        const idx = currentLine.lastIndexOf('{{');
-        if (idx !== -1) {
-          newLine = currentLine.slice(0, idx + 2) + option.insertText;
-        }
+        const idx = textBefore.lastIndexOf('{{');
+        if (idx !== -1) linePrefix = textBefore.slice(0, idx + 2);
       } else if (autocomplete.trigger === '#') {
-        const idx = currentLine.lastIndexOf('#');
-        if (idx !== -1) {
-          newLine = currentLine.slice(0, idx + 1) + option.insertText;
-        }
+        const idx = textBefore.lastIndexOf('#');
+        if (idx !== -1) linePrefix = textBefore.slice(0, idx + 1);
       }
 
+      const fullInserted = linePrefix + option.insertText;
       const nextLines = [...lines];
-      if (newLine.includes('\n')) {
-        const splitInserted = newLine.split('\n');
+
+      if (fullInserted.includes('\n')) {
+        const splitInserted = fullInserted.split('\n');
+        const lastIdx = splitInserted.length - 1;
+        splitInserted[lastIdx] = splitInserted[lastIdx] + textAfter;
         nextLines.splice(currentLineIdx, 1, ...splitInserted);
-        const targetIdx = currentLineIdx + splitInserted.length - 1;
-        const lastLen = splitInserted[splitInserted.length - 1].length;
+        const targetIdx = currentLineIdx + lastIdx;
+        const lastLen = splitInserted[lastIdx].length - textAfter.length;
         pendingCursorRange.current = { start: lastLen, end: lastLen };
         onChange(nextLines.join('\n'));
         setActiveLineIndex(targetIdx);
       } else {
-        nextLines[currentLineIdx] = newLine;
+        const combined = fullInserted + textAfter;
+        nextLines[currentLineIdx] = combined;
+        const cursorTarget = fullInserted.length;
         pendingCursorRange.current = {
-          start: newLine.length,
-          end: newLine.length,
+          start: cursorTarget,
+          end: cursorTarget,
         };
         onChange(nextLines.join('\n'));
         setActiveLineIndex(currentLineIdx);
@@ -1727,6 +1790,7 @@ export const LivePreviewEditor = forwardRef<
           isOpen={autocomplete.isOpen}
           trigger={autocomplete.trigger}
           query={autocomplete.query}
+          options={autocompleteOptions}
           files={files}
           allTags={allTags}
           currentFile={file}

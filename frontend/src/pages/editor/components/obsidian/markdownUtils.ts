@@ -83,7 +83,7 @@ export function parseFrontmatter(markdown: string): {
       } else if (!isNaN(Number(rawVal)) && rawVal !== '' && !/^['"].*['"]$/.test(rawVal)) {
         frontmatter[key] = Number(rawVal);
       } else {
-        frontmatter[key] = rawVal.replace(/^['"](.*)['"]$/, '$1');
+        frontmatter[key] = rawVal.replace(/^['"](.*)['"]$/, '$1').replace(/\\"/g, '"');
       }
     }
   }
@@ -124,6 +124,8 @@ export function updateFrontmatter(markdown: string, key: string, value: unknown)
       }
     } else if (typeof v === 'boolean' || typeof v === 'number') {
       lines.push(`${k}: ${v}`);
+    } else if (typeof v === 'string' && v !== v.trim()) {
+      lines.push(`${k}: "${v.replace(/"/g, '\\"')}"`);
     } else if (v === '') {
       lines.push(`${k}: ""`);
     } else {
@@ -617,6 +619,229 @@ export interface ToolbarFormatResult {
   nextSelection: { start: number; end: number } | null;
 }
 
+export type InlineFormatAction = 'bold' | 'italic' | 'strike' | 'code';
+
+export interface ToggleInlineFormatResult {
+  text: string;
+  selStart: number;
+  selEnd: number;
+}
+
+/**
+ * Detects whether a keyboard event corresponds to a markdown format hotkey:
+ * - Ctrl/Cmd + B -> bold
+ * - Ctrl/Cmd + I -> italic
+ * - Ctrl/Cmd + T -> strike (strikethrough)
+ */
+export function getFormatHotkey(e: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+}): 'bold' | 'italic' | 'strike' | null {
+  if ((!e.ctrlKey && !e.metaKey) || e.altKey || e.shiftKey) {
+    return null;
+  }
+  const k = e.key.toLowerCase();
+  if (k === 'b') return 'bold';
+  if (k === 'i') return 'italic';
+  if (k === 't') return 'strike';
+  return null;
+}
+
+/**
+ * Toggles inline markdown formatting (bold, italic, strikethrough, inline code) on a string
+ * across [start, end]. Wraps with markers if unformatted, or unwraps if already formatted.
+ */
+export function toggleInlineFormat(
+  text: string,
+  start: number,
+  end: number,
+  action: InlineFormatAction
+): ToggleInlineFormatResult {
+  const selStart = Math.max(0, Math.min(text.length, start));
+  const selEnd = Math.max(selStart, Math.min(text.length, end));
+  const selectedText = text.slice(selStart, selEnd);
+
+  const config: Record<
+    InlineFormatAction,
+    { prefix: string; suffix: string; placeholder: string }
+  > = {
+    bold: { prefix: '**', suffix: '**', placeholder: 'bold text' },
+    italic: { prefix: '*', suffix: '*', placeholder: 'italic text' },
+    strike: { prefix: '~~', suffix: '~~', placeholder: 'strikethrough' },
+    code: { prefix: '`', suffix: '`', placeholder: 'code' },
+  };
+
+  const { prefix, suffix, placeholder } = config[action];
+
+  // Case 1: Empty selection (start === end)
+  if (selStart === selEnd) {
+    const inserted = `${prefix}${placeholder}${suffix}`;
+    const newText = text.slice(0, selStart) + inserted + text.slice(selEnd);
+    const newStart = selStart + prefix.length;
+    const newEnd = newStart + placeholder.length;
+    return {
+      text: newText,
+      selStart: newStart,
+      selEnd: newEnd,
+    };
+  }
+
+  // Case 2: Selected text is non-empty. Check if it's already wrapped (outside or inside).
+  if (action === 'bold') {
+    // Delimiters outside selection
+    if (
+      selStart >= 2 &&
+      text.slice(selStart - 2, selStart) === '**' &&
+      text.slice(selEnd, selEnd + 2) === '**'
+    ) {
+      const newText = text.slice(0, selStart - 2) + selectedText + text.slice(selEnd + 2);
+      return {
+        text: newText,
+        selStart: selStart - 2,
+        selEnd: selEnd - 2,
+      };
+    }
+    // Delimiters inside selection
+    if (
+      selectedText.startsWith('**') &&
+      selectedText.endsWith('**') &&
+      selectedText.length >= 4
+    ) {
+      const inner = selectedText.slice(2, -2);
+      const newText = text.slice(0, selStart) + inner + text.slice(selEnd);
+      return {
+        text: newText,
+        selStart,
+        selEnd: selStart + inner.length,
+      };
+    }
+  } else if (action === 'italic') {
+    let starsBefore = 0;
+    while (selStart - 1 - starsBefore >= 0 && text[selStart - 1 - starsBefore] === '*') {
+      starsBefore++;
+    }
+    let starsAfter = 0;
+    while (selEnd + starsAfter < text.length && text[selEnd + starsAfter] === '*') {
+      starsAfter++;
+    }
+
+    if (starsBefore % 2 === 1 && starsAfter % 2 === 1) {
+      const newText = text.slice(0, selStart - 1) + selectedText + text.slice(selEnd + 1);
+      return {
+        text: newText,
+        selStart: selStart - 1,
+        selEnd: selEnd - 1,
+      };
+    }
+
+    if (selectedText.startsWith('*') && selectedText.endsWith('*') && selectedText.length >= 2) {
+      let innerStarsStart = 0;
+      while (innerStarsStart < selectedText.length && selectedText[innerStarsStart] === '*') {
+        innerStarsStart++;
+      }
+      let innerStarsEnd = 0;
+      while (
+        innerStarsEnd < selectedText.length &&
+        selectedText[selectedText.length - 1 - innerStarsEnd] === '*'
+      ) {
+        innerStarsEnd++;
+      }
+
+      if (innerStarsStart % 2 === 1 && innerStarsEnd % 2 === 1) {
+        const inner = selectedText.slice(1, -1);
+        const newText = text.slice(0, selStart) + inner + text.slice(selEnd);
+        return {
+          text: newText,
+          selStart,
+          selEnd: selStart + inner.length,
+        };
+      }
+    }
+  } else if (action === 'strike') {
+    if (
+      selStart >= 2 &&
+      text.slice(selStart - 2, selStart) === '~~' &&
+      text.slice(selEnd, selEnd + 2) === '~~'
+    ) {
+      const newText = text.slice(0, selStart - 2) + selectedText + text.slice(selEnd + 2);
+      return {
+        text: newText,
+        selStart: selStart - 2,
+        selEnd: selEnd - 2,
+      };
+    }
+    if (
+      selectedText.startsWith('~~') &&
+      selectedText.endsWith('~~') &&
+      selectedText.length >= 4
+    ) {
+      const inner = selectedText.slice(2, -2);
+      const newText = text.slice(0, selStart) + inner + text.slice(selEnd);
+      return {
+        text: newText,
+        selStart,
+        selEnd: selStart + inner.length,
+      };
+    }
+  } else if (action === 'code') {
+    if (
+      selStart >= 1 &&
+      text.slice(selStart - 1, selStart) === '`' &&
+      text.slice(selEnd, selEnd + 1) === '`'
+    ) {
+      const newText = text.slice(0, selStart - 1) + selectedText + text.slice(selEnd + 1);
+      return {
+        text: newText,
+        selStart: selStart - 1,
+        selEnd: selEnd - 1,
+      };
+    }
+    if (
+      selectedText.startsWith('`') &&
+      selectedText.endsWith('`') &&
+      selectedText.length >= 2
+    ) {
+      const inner = selectedText.slice(1, -1);
+      const newText = text.slice(0, selStart) + inner + text.slice(selEnd);
+      return {
+        text: newText,
+        selStart,
+        selEnd: selStart + inner.length,
+      };
+    }
+  }
+
+  // Not unwrapped -> Wrap selection!
+  // Keep leading/trailing whitespace outside delimiters
+  const match = selectedText.match(/^(\s*)(.*?)(\s*)$/);
+  if (match && match[2].length > 0) {
+    const leading = match[1];
+    const core = match[2];
+    const trailing = match[3];
+    const wrapped = `${leading}${prefix}${core}${suffix}${trailing}`;
+    const newText = text.slice(0, selStart) + wrapped + text.slice(selEnd);
+    const newStart = selStart + leading.length + prefix.length;
+    const newEnd = newStart + core.length;
+    return {
+      text: newText,
+      selStart: newStart,
+      selEnd: newEnd,
+    };
+  }
+
+  // If whitespace only or special:
+  const inserted = `${prefix}${selectedText || placeholder}${suffix}`;
+  const newText = text.slice(0, selStart) + inserted + text.slice(selEnd);
+  return {
+    text: newText,
+    selStart: selStart + prefix.length,
+    selEnd: selStart + prefix.length + (selectedText || placeholder).length,
+  };
+}
+
 /**
  * Inserts or wraps markdown syntax at the current cursor line and column.
  */
@@ -633,19 +858,21 @@ export function applyToolbarFormatAtCursor(
   const selectedText = currentLine.slice(selStart, selEnd);
 
   // 1. Inline formatting actions
-  const inlineMap: Record<
-    string,
-    { prefix: string; suffix: string; placeholder: string }
-  > = {
-    bold: { prefix: '**', suffix: '**', placeholder: 'bold text' },
-    italic: { prefix: '*', suffix: '*', placeholder: 'italic text' },
-    strike: { prefix: '~~', suffix: '~~', placeholder: 'strikethrough' },
-    code: { prefix: '`', suffix: '`', placeholder: 'code' },
-    link: { prefix: '[[', suffix: ']]', placeholder: 'Getting Started' },
-  };
+  if (['bold', 'italic', 'strike', 'code'].includes(actionType)) {
+    const act = actionType as InlineFormatAction;
+    const res = toggleInlineFormat(currentLine, selStart, selEnd, act);
+    lines[lineIdx] = res.text;
+    return {
+      content: lines.join('\n'),
+      nextActiveLineIndex: lineIdx,
+      nextSelection: { start: res.selStart, end: res.selEnd },
+    };
+  }
 
-  if (inlineMap[actionType]) {
-    const { prefix, suffix, placeholder } = inlineMap[actionType];
+  if (actionType === 'link') {
+    const prefix = '[[';
+    const suffix = ']]';
+    const placeholder = 'Getting Started';
     const innerText = selectedText || placeholder;
     const inserted = `${prefix}${innerText}${suffix}`;
     lines[lineIdx] =
@@ -1054,9 +1281,39 @@ export function applyToolbarFormatToLineRange(
 
   if (inlineMap[actionType]) {
     const { prefix, suffix } = inlineMap[actionType];
+    const nonEmptyLines: string[] = [];
     for (let i = s; i <= e; i++) {
-      if (lines[i].trim() !== '') {
-        lines[i] = `${prefix}${lines[i]}${suffix}`;
+      if (lines[i].trim() !== '') nonEmptyLines.push(lines[i]);
+    }
+    const allWrapped =
+      nonEmptyLines.length > 0 &&
+      nonEmptyLines.every((l) => {
+        const trimmed = l.trim();
+        return (
+          trimmed.startsWith(prefix) &&
+          trimmed.endsWith(suffix) &&
+          trimmed.length >= prefix.length + suffix.length
+        );
+      });
+
+    for (let i = s; i <= e; i++) {
+      if (lines[i].trim() === '') continue;
+      const leadingSpace = lines[i].match(/^\s*/)?.[0] || '';
+      const trailingSpace = lines[i].match(/\s*$/)?.[0] || '';
+      const core = lines[i].slice(
+        leadingSpace.length,
+        lines[i].length - trailingSpace.length
+      );
+      if (allWrapped) {
+        if (core.startsWith(prefix) && core.endsWith(suffix)) {
+          const unwrappedCore = core.slice(
+            prefix.length,
+            core.length - suffix.length
+          );
+          lines[i] = leadingSpace + unwrappedCore + trailingSpace;
+        }
+      } else {
+        lines[i] = leadingSpace + prefix + core + suffix + trailingSpace;
       }
     }
     return { content: lines.join('\n'), newStartLine: s, newEndLine: e };

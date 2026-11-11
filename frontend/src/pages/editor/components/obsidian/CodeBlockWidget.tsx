@@ -25,8 +25,8 @@ export const CodeBlockWidget: React.FC<CodeBlockWidgetProps> = ({ language, code
             <span className="table-cell pr-4 select-none text-muted-foreground/60 text-right font-mono text-[11px] w-8">
               {idx + 1}
             </span>
-            <span className="table-cell text-muted-foreground dark:text-[#6a9955] italic">
-              {line}
+            <span className="table-cell text-muted-foreground dark:text-[#6a9955] italic whitespace-pre [tab-size:2]">
+              {line || '\u00A0'}
             </span>
           </div>
         );
@@ -42,8 +42,8 @@ export const CodeBlockWidget: React.FC<CodeBlockWidgetProps> = ({ language, code
           <span className="table-cell pr-4 select-none text-muted-foreground/60 text-right font-mono text-[11px] w-8">
             {idx + 1}
           </span>
-          <span className="table-cell">
-            {parts.map((part, pIdx) => {
+          <span className="table-cell whitespace-pre [tab-size:2]">
+            {parts.length === 1 && parts[0] === '' ? '\u00A0' : parts.map((part, pIdx) => {
               if (
                 /^(const|let|var|function|return|import|export|from|type|interface|class|if|else|for|while|async|await|package|func|def)$/.test(
                   part
