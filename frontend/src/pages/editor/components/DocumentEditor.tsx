@@ -404,6 +404,32 @@ const DocumentEditor: React.FC = () => {
     setHoverPreview(null);
   }, []);
 
+  // Pre-load content for transclusion embeds ![[...]]
+  useEffect(() => {
+    const embedRegex = /!\[\[(.*?)\]\]/g;
+    let match;
+    while ((match = embedRegex.exec(markdown)) !== null) {
+      let target = match[1];
+      if (target.includes('#')) {
+        target = target.split('#')[0].trim();
+      }
+      const cleanTarget = target.trim();
+      const matched = files.find(
+        (f) =>
+          f.title.toLowerCase() === cleanTarget.toLowerCase() ||
+          f.id === cleanTarget ||
+          f.path.toLowerCase() === cleanTarget.toLowerCase()
+      );
+      if (matched && !fileContentsCache[matched.id]) {
+        void DocumentationServices.getContent(matched.id).then((doc) => {
+          if (doc?.content) {
+            setFileContentsCache((prev) => ({ ...prev, [matched.id]: doc.content }));
+          }
+        });
+      }
+    }
+  }, [markdown, files, fileContentsCache]);
+
   if (documentQuery.isLoading) {
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center gap-2 p-8 text-muted-foreground">

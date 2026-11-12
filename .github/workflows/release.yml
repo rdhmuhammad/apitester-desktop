@@ -157,9 +157,12 @@ jobs:
 
           $release = Find-Release
           if (-not $release) {
-            $emptyNotes = Join-Path $env:RUNNER_TEMP 'empty-release-notes.txt'
-            [IO.File]::WriteAllText($emptyNotes, '')
-            gh release create $env:RELEASE_TAG $installer --title $env:RELEASE_TAG --notes-file $emptyNotes --verify-tag --draft
+            $notesFile = 'RELEASE_NOTES.md'
+            if (-not (Test-Path $notesFile)) {
+              $notesFile = Join-Path $env:RUNNER_TEMP 'empty-release-notes.txt'
+              [IO.File]::WriteAllText($notesFile, '')
+            }
+            gh release create $env:RELEASE_TAG $installer --title $env:RELEASE_TAG --notes-file $notesFile --verify-tag --draft
             if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
           }
 
@@ -178,5 +181,10 @@ jobs:
           if (-not $release -or -not $asset -or $asset.digest -CNE "sha256:$expectedDigest") {
             throw 'Draft release SHA-256 digest does not match the built installer'
           }
-          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false
+          $bodyArgs = @()
+          if (Test-Path 'RELEASE_NOTES.md') {
+            $body = Get-Content -Raw 'RELEASE_NOTES.md'
+            $bodyArgs = @('-f', "body=$body")
+          }
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false @bodyArgs
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

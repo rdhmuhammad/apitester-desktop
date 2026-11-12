@@ -20,7 +20,7 @@ Self-signing does not make the publisher publicly trusted. Windows SmartScreen o
 
 On packaged Windows startup, Electron calls GitHub's public `/releases/latest` API. It compares the release tag with `app.getVersion()` numerically and accepts only a newer stable version with the exact installer filename, positive size, SHA-256 digest, and expected GitHub download URL. Development builds and non-Windows platforms do not check.
 
-The renderer receives update state through a narrow preload bridge and shows a cyan (`#00b4d8`) button with white text in the title bar. A click streams the installer into a temporary `.part` file. Electron checks the byte count and SHA-256 digest against GitHub metadata, renames the completed file, launches Inno Setup, and quits. Failed or incomplete downloads are never executed. The installed application's hash is not compared with the installer hash because these are different binaries.
+The renderer receives update state through a narrow preload bridge and shows a royal blue (`#2563eb`) pill button (`rounded-full`) with white text, font preserved from Apitester, and an arrow icon in the title bar. A click streams the installer into a temporary `.part` file. Electron checks the byte count and SHA-256 digest against GitHub metadata, renames the completed file, launches Inno Setup, and quits. Failed or incomplete downloads are never executed. The installed application's hash is not compared with the installer hash because these are different binaries.
 
 The Inno installer keeps the same application ID, retains the existing backend port and ProgramData by default, updates application files, restarts the backend service, and offers to launch the new UI. This extends [[decisions/desktop-production-build]].
 

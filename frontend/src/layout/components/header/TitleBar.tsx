@@ -1,11 +1,12 @@
 import {useEffect, useState} from "react"
 import AppLogo from '@/assets/images/AppLogo.svg'
 import {Button} from "@/components/ui/button.tsx"
-import {LoaderCircle, Maximize2, Minimize2, Minus, Moon, Settings, Sun, TriangleAlert, Wifi, WifiOff, X} from "lucide-react"
+import {ArrowRight, LoaderCircle, Maximize2, Minimize2, Minus, Moon, RotateCw, Settings, Sun, TriangleAlert, Wifi, WifiOff, X} from "lucide-react"
 import CollectionManager from "@/layout/components/collectionManager"
 import ProjectSwitcher from "@/layout/components/header/ProjectSwitcher.tsx"
 import {socketCollection} from "@/pages/editor/services/mainSocket.ts"
 import {useTheme} from "next-themes"
+import {cn} from "@/lib/utils"
 
 const TitleBar: React.FC = () => {
     const [managerOpen, setManagerOpen] = useState(false)
@@ -135,13 +136,42 @@ const TitleBar: React.FC = () => {
                         type="button"
                         disabled={update.status === "downloading" || update.status === "installing"}
                         onClick={() => void (update.status === "available" ? window.electronAPI.startUpdate() : window.electronAPI.checkForUpdate())}
-                        title={update.message}
-                        className="h-6 px-2 mx-1 rounded bg-[#00b4d8] text-xs text-white hover:bg-[#0096c7] disabled:opacity-70"
+                        title={update.message ?? (update.version ? `Update to v${update.version}` : undefined)}
+                        className={cn(
+                            "h-6 px-3 mx-1 rounded-full text-xs font-medium text-white inline-flex items-center gap-1.5 shadow-sm transition-all duration-150 select-none",
+                            update.status === "error"
+                                ? "bg-rose-600 hover:bg-rose-700 active:scale-[0.98]"
+                                : "bg-[#2563eb] hover:bg-[#1d4ed8] active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed"
+                        )}
                     >
-                        {update.status === "available" && `Update v${update.version}`}
-                        {update.status === "downloading" && `Downloading ${update.progress ?? 0}%`}
-                        {update.status === "installing" && "Installing…"}
-                        {update.status === "error" && (/verification|mismatch|metadata/i.test(update.message ?? "") ? "Update verification failed" : "Update failed — Retry")}
+                        {update.status === "available" && (
+                            <>
+                                <span>Update v{update.version}</span>
+                                <ArrowRight className="h-3 w-3 shrink-0 stroke-[2.5]" />
+                            </>
+                        )}
+                        {update.status === "downloading" && (
+                            <>
+                                <LoaderCircle className="h-3 w-3 shrink-0 animate-spin" />
+                                <span>Downloading {update.progress ?? 0}%</span>
+                            </>
+                        )}
+                        {update.status === "installing" && (
+                            <>
+                                <LoaderCircle className="h-3 w-3 shrink-0 animate-spin" />
+                                <span>Installing…</span>
+                            </>
+                        )}
+                        {update.status === "error" && (
+                            <>
+                                <RotateCw className="h-3 w-3 shrink-0" />
+                                <span>
+                                    {/verification|mismatch|metadata/i.test(update.message ?? "")
+                                        ? "Verification failed"
+                                        : "Update failed — Retry"}
+                                </span>
+                            </>
+                        )}
                     </button>
                 )}
                 <button

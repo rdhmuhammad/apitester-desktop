@@ -67,7 +67,7 @@ export function parseFrontmatter(markdown: string): {
       currentKey = key;
 
       if (rawVal === '' || rawVal === '""' || rawVal === "''") {
-        frontmatter[key] = '';
+        frontmatter[key] = key === 'tags' || key === 'aliases' ? [] : '';
       } else if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
         // inline array: [tag1, tag2]
         const items = rawVal
@@ -82,6 +82,12 @@ export function parseFrontmatter(markdown: string): {
         frontmatter[key] = false;
       } else if (!isNaN(Number(rawVal)) && rawVal !== '' && !/^['"].*['"]$/.test(rawVal)) {
         frontmatter[key] = Number(rawVal);
+      } else if (key === 'tags' || key === 'aliases') {
+        const items = rawVal
+          .split(',')
+          .map((s) => s.trim().replace(/^['"](.*)['"]$/, '$1'))
+          .filter(Boolean);
+        frontmatter[key] = items;
       } else {
         frontmatter[key] = rawVal.replace(/^['"](.*)['"]$/, '$1').replace(/\\"/g, '"');
       }
@@ -355,11 +361,15 @@ export function extractTags(markdown: string): string[] {
 
   // Also add frontmatter tags
   const fm = parseFrontmatter(markdown);
-  if (Array.isArray(fm.frontmatter.tags)) {
-    for (const t of fm.frontmatter.tags) {
-      const clean = String(t).replace(/^#/, '');
-      if (clean) tagsSet.add(clean);
-    }
+  const rawFmTags = fm.frontmatter.tags as unknown;
+  const fmTags = Array.isArray(rawFmTags)
+    ? rawFmTags
+    : typeof rawFmTags === 'string'
+    ? rawFmTags.split(',')
+    : [];
+  for (const t of fmTags) {
+    const clean = String(t).replace(/^#/, '').trim();
+    if (clean) tagsSet.add(clean);
   }
 
   return Array.from(tagsSet);

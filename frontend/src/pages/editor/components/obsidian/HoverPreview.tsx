@@ -47,9 +47,17 @@ export const HoverPreview: React.FC<HoverPreviewProps> = ({
     );
   }
 
-  const { frontmatter, body } = parseFrontmatter(file.content);
+  const { frontmatter, body } = parseFrontmatter(file.content || '');
   // Grab clean first 240 chars of body
   const previewText = body.replace(/^[#>\-*\s]+/gm, '').trim().slice(0, 240);
+
+  // Normalize tags: frontmatter.tags can be string[], string, or non-array at runtime
+  const rawTags = frontmatter.tags as unknown;
+  const tags: string[] = Array.isArray(rawTags)
+    ? rawTags.map(String).filter(Boolean)
+    : typeof rawTags === 'string'
+    ? rawTags.split(',').map((t: string) => t.trim()).filter(Boolean)
+    : [];
 
   return (
     <div
@@ -81,11 +89,11 @@ export const HoverPreview: React.FC<HoverPreviewProps> = ({
 
       {/* Body preview */}
       <div className="p-3 overflow-y-auto space-y-2 text-[12px] leading-relaxed text-muted-foreground">
-        {frontmatter.tags && (
+        {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-1">
-            {frontmatter.tags.map((t: string) => (
+            {tags.map((t) => (
               <span key={t} className="text-[10px] text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/40 px-1 py-0.5 rounded">
-                #{t}
+                #{t.replace(/^#/, '')}
               </span>
             ))}
           </div>

@@ -41,7 +41,7 @@ export const TransclusionEmbed: React.FC<TransclusionEmbedProps> = ({
     );
   }
 
-  const { body } = parseFrontmatter(matchedFile.content);
+  const { body } = parseFrontmatter(matchedFile.content || '');
   let renderedSnippet = body;
 
   // If subpath is specified, extract lines starting from that heading up to next heading
