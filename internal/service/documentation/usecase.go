@@ -385,6 +385,10 @@ func (u *Usecase) writeNewDocumentFile(rootPath, targetDir, requestedName string
 	}
 
 	absPath := filepath.Join(targetDir, filename)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
+		return "", "", "", u.ErrHandler.ErrorReturn(err)
+	}
+
 	relID, err := filepath.Rel(rootPath, absPath)
 	if err != nil {
 		return "", "", "", u.ErrHandler.ErrorReturn(err)
@@ -400,15 +404,44 @@ func (u *Usecase) writeNewDocumentFile(rootPath, targetDir, requestedName string
 func resolveNewMarkdownFilename(targetDir, requestedName string) (string, string, error) {
 	trimmed := strings.TrimSpace(requestedName)
 	if trimmed != "" {
-		base := strings.TrimSuffix(trimmed, filepath.Ext(trimmed))
+		slashed := strings.ReplaceAll(trimmed, "\\", "/")
+		slashed = strings.TrimPrefix(slashed, "./")
+		slashed = strings.TrimPrefix(slashed, "/")
+		if slashed == "" {
+			return "", "", localerror.InvalidData("Invalid document name")
+		}
+
+		segments := strings.Split(slashed, "/")
+		cleanDirSegments := make([]string, 0, len(segments)-1)
+		for _, seg := range segments[:len(segments)-1] {
+			cleanSeg := strings.TrimSpace(seg)
+			if err := validateBaseName(cleanSeg, "Invalid folder name"); err != nil {
+				return "", "", err
+			}
+			cleanDirSegments = append(cleanDirSegments, cleanSeg)
+		}
+
+		fileSeg := strings.TrimSpace(segments[len(segments)-1])
+		base := fileSeg
+		if ext := filepath.Ext(fileSeg); strings.EqualFold(ext, ".md") {
+			base = fileSeg[:len(fileSeg)-len(ext)]
+		}
 		if err := validateBaseName(base, "Invalid document name"); err != nil {
 			return "", "", err
 		}
-		filename := base + ".md"
-		if _, err := os.Stat(filepath.Join(targetDir, filename)); err == nil {
+
+		parts := append(cleanDirSegments, base+".md")
+		relFilename := filepath.Join(parts...)
+		absPath := filepath.Clean(filepath.Join(targetDir, relFilename))
+		relCheck, err := filepath.Rel(targetDir, absPath)
+		if err != nil || relCheck == ".." || strings.HasPrefix(relCheck, ".."+string(filepath.Separator)) {
+			return "", "", localerror.InvalidData("Invalid document path")
+		}
+
+		if _, err := os.Stat(absPath); err == nil {
 			return "", "", localerror.InvalidData("Document already exists")
 		}
-		return filename, base, nil
+		return relFilename, base, nil
 	}
 
 	for index := 0; ; index++ {

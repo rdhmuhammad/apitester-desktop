@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { FileItem } from './types.ts';
 import { extractHeadings } from './markdownUtils.ts';
+import { normalizeLinkPath, resolveLinkTarget } from './linkResolver.ts';
 
 export interface AutocompleteOption {
   id: string;
@@ -41,44 +42,53 @@ export function getAutocompleteOptions(
     const isHeadingSearch = query.includes('#');
 
     if (isHeadingSearch) {
-      const [targetDoc, headingQuery] = query.split('#');
-      const matchedFile = files.find(
-        (f) =>
-          f.title.toLowerCase() === targetDoc.trim().toLowerCase() ||
-          f.id === targetDoc.trim()
-      );
+      const hashIdx = query.indexOf('#');
+      const targetDoc = query.slice(0, hashIdx);
+      const headingQuery = query.slice(hashIdx + 1);
+      const matchedFile = resolveLinkTarget(files, targetDoc);
 
       if (matchedFile) {
         const headings = extractHeadings(matchedFile.content);
         const filtered = headings.filter((h) =>
-          h.text.toLowerCase().includes((headingQuery || '').toLowerCase())
+          h.text.toLowerCase().includes(headingQuery.toLowerCase())
         );
+        const relTarget = matchedFile.folder
+          ? `${matchedFile.folder}/${matchedFile.title}`
+          : matchedFile.title;
+        const linkBase = targetDoc.includes('/') ? relTarget : matchedFile.title;
 
         return filtered.map((h) => ({
           id: `heading-${h.id}`,
           label: `${'#'.repeat(h.level)} ${h.text}`,
           detail: `Heading in ${matchedFile.title}`,
           icon: <Heading size={14} className="text-purple-600 dark:text-purple-400" />,
-          insertText: `${matchedFile.title}#${h.text}]]`,
+          insertText: `${linkBase}#${h.text}]]`,
         }));
       }
       return [];
     } else {
-      // Document fuzzy match
-      const filtered = files.filter((f) =>
-        f.title.toLowerCase().includes(query.toLowerCase())
+      // Document fuzzy match across both title and vault-relative path
+      const qLower = normalizeLinkPath(query);
+      const usePathInsert = query.includes('/');
+      const filtered = files.filter(
+        (f) =>
+          f.title.toLowerCase().includes(qLower) ||
+          normalizeLinkPath(f.id).includes(qLower)
       );
 
-      const options: AutocompleteOption[] = filtered.map((f) => ({
-        id: f.id,
-        label: f.title,
-        detail: f.folder ? `${f.folder}/` : 'Root',
-        icon: <FileText size={14} className="text-purple-600 dark:text-purple-400" />,
-        insertText: `${f.title}]]`,
-      }));
+      const options: AutocompleteOption[] = filtered.map((f) => {
+        const relTarget = f.folder ? `${f.folder}/${f.title}` : f.title;
+        return {
+          id: f.id,
+          label: f.title,
+          detail: f.folder ? `${f.folder}/` : 'Root',
+          icon: <FileText size={14} className="text-purple-600 dark:text-purple-400" />,
+          insertText: `${usePathInsert ? relTarget : f.title}]]`,
+        };
+      });
 
       // If no exact match, allow lazy creation!
-      if (query.trim() && !files.some((f) => f.title.toLowerCase() === query.trim().toLowerCase())) {
+      if (query.trim() && !resolveLinkTarget(files, query)) {
         options.push({
           id: 'create-new',
           label: `Create note: "${query.trim()}"`,

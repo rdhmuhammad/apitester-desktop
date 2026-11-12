@@ -20,7 +20,10 @@ import {
   LivePreviewEditor,
   type LivePreviewEditorHandle,
 } from './obsidian/LivePreviewEditor.tsx';
-import { HoverPreview } from './obsidian/HoverPreview.tsx';
+import { HoverPreview, type HoverAnchorRect } from './obsidian/HoverPreview.tsx';
+import { parseWikiLinkInner, resolveLinkTarget } from './obsidian/linkResolver.ts';
+import type { AxiosError } from 'axios';
+import type { Response as ApiResponse } from '@/types/response.ts';
 
 const BRACKET_PAIRS: Record<string, string> = {
   '`': '`',
@@ -53,7 +56,10 @@ const DocumentEditor: React.FC = () => {
   const [hoverPreview, setHoverPreview] = useState<{
     targetTitle: string;
     position: { x: number; y: number };
+    anchorRect: HoverAnchorRect;
   } | null>(null);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightContentRef = useRef<Set<string>>(new Set());
 
   const editorRef = useRef<LivePreviewEditorHandle | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -167,11 +173,18 @@ const DocumentEditor: React.FC = () => {
     });
   }, [documentId, documentQuery]);
 
-  // Clean up debounce timer on unmount
+  // Clean up timers on unmount and clear hover preview when switching documents
+  useEffect(() => {
+    setHoverPreview(null);
+  }, [documentId]);
+
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+      if (hoverCloseTimerRef.current) {
+        clearTimeout(hoverCloseTimerRef.current);
       }
     };
   }, []);
@@ -295,9 +308,11 @@ const DocumentEditor: React.FC = () => {
   const files: FileItem[] = useMemo(() => {
     return projectFiles.map((file) => {
       const title = file.name.replace(/\.md$/i, '');
-      const cachedContent = fileContentsCache[file.id] || (file.id === documentId ? markdown : '');
-      const folder = file.path.includes('/')
-        ? file.path.substring(0, file.path.lastIndexOf('/'))
+      const cachedContent =
+        fileContentsCache[file.id] ?? (file.id === documentId ? markdown : '');
+      const normalizedId = file.id.replace(/\\/g, '/');
+      const folder = normalizedId.includes('/')
+        ? normalizedId.substring(0, normalizedId.lastIndexOf('/'))
         : '';
       return {
         id: file.id,
@@ -312,11 +327,15 @@ const DocumentEditor: React.FC = () => {
 
   // Active file item
   const currentActiveFile: FileItem = useMemo(() => {
+    const normalizedId = documentId.replace(/\\/g, '/');
+    const folder = normalizedId.includes('/')
+      ? normalizedId.substring(0, normalizedId.lastIndexOf('/'))
+      : '';
     return {
       id: documentId,
       path: documentQuery.data?.path || `${documentQuery.data?.name || 'document'}.md`,
       title: (documentQuery.data?.name || activeTab?.label || 'Document').replace(/\.md$/i, ''),
-      folder: '',
+      folder,
       content: markdown,
       updatedAt: Date.now(),
     };
@@ -327,16 +346,48 @@ const DocumentEditor: React.FC = () => {
     return Array.from(new Set(files.flatMap((f) => extractTags(f.content))));
   }, [files]);
 
+  const clearHoverCloseTimer = useCallback(() => {
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const handleCloseHoverPreview = useCallback(() => {
+    clearHoverCloseTimer();
+    setHoverPreview(null);
+  }, [clearHoverCloseTimer]);
+
+  const preloadFileContent = useCallback(
+    (fileId: string) => {
+      if (fileContentsCache[fileId] !== undefined || inFlightContentRef.current.has(fileId)) {
+        return;
+      }
+      inFlightContentRef.current.add(fileId);
+      void DocumentationServices.getContent(fileId)
+        .then((doc) => {
+          if (doc && typeof doc.content === 'string') {
+            setFileContentsCache((prev) => ({ ...prev, [fileId]: doc.content }));
+          }
+        })
+        .catch(() => {
+          // Ignore preload failure; explicit open handles errors
+        })
+        .finally(() => {
+          inFlightContentRef.current.delete(fileId);
+        });
+    },
+    [fileContentsCache]
+  );
+
   // Wiki-link navigation & lazy file creation
   const handleNavigateFile = useCallback(
     async (target: string) => {
+      handleCloseHoverPreview();
       const cleanTarget = target.trim();
-      const existing = files.find(
-        (f) =>
-          f.title.toLowerCase() === cleanTarget.toLowerCase() ||
-          f.id === cleanTarget ||
-          f.path.toLowerCase() === cleanTarget.toLowerCase()
-      );
+      if (!cleanTarget) return;
+
+      const existing = resolveLinkTarget(files, cleanTarget);
 
       if (existing) {
         dispatch(
@@ -348,11 +399,16 @@ const DocumentEditor: React.FC = () => {
           })
         );
       } else {
-        // Create document on demand in the project workspace
+        // Create document on demand in the project workspace (backend supports folder paths)
         try {
           toast.loading(`Creating note "${cleanTarget}"...`, { id: 'create-note' });
-          const docName = cleanTarget.endsWith('.md') ? cleanTarget : `${cleanTarget}.md`;
+          const docName = cleanTarget.toLowerCase().endsWith('.md')
+            ? cleanTarget
+            : `${cleanTarget}.md`;
           const created = await DocumentationServices.createDocument(docName);
+          if (created && typeof created.content === 'string') {
+            setFileContentsCache((prev) => ({ ...prev, [created.id]: created.content }));
+          }
           await queryClient.invalidateQueries({ queryKey: documentTreeQueryKey });
           toast.success(`Note "${cleanTarget}" created`, { id: 'create-note' });
           dispatch(
@@ -364,71 +420,76 @@ const DocumentEditor: React.FC = () => {
             })
           );
         } catch (err) {
-          toast.error(
-            err instanceof Error ? err.message : `Failed to create note "${cleanTarget}"`,
-            { id: 'create-note' }
-          );
+          const axiosErr = err as AxiosError<ApiResponse<unknown>>;
+          const message =
+            axiosErr?.response?.data?.message ||
+            (err instanceof Error ? err.message : `Failed to create note "${cleanTarget}"`);
+          toast.error(message, { id: 'create-note' });
         }
       }
     },
-    [dispatch, files, queryClient]
+    [dispatch, files, handleCloseHoverPreview, queryClient]
   );
 
   // Wiki-link hover: ensure target content is loaded in cache for preview
   const handleHoverWikiLink = useCallback(
     (targetTitle: string, e: React.MouseEvent) => {
+      clearHoverCloseTimer();
       const cleanTarget = targetTitle.trim();
-      setHoverPreview({
-        targetTitle: cleanTarget,
-        position: { x: e.clientX, y: e.clientY },
+      const rect = e.currentTarget.getBoundingClientRect();
+      const anchorRect: HoverAnchorRect = {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+      };
+      const position = { x: e.clientX, y: e.clientY };
+
+      setHoverPreview((prev) => {
+        if (
+          prev &&
+          prev.targetTitle === cleanTarget &&
+          Math.abs(prev.anchorRect.top - anchorRect.top) < 2 &&
+          Math.abs(prev.anchorRect.left - anchorRect.left) < 2
+        ) {
+          return prev;
+        }
+        return {
+          targetTitle: cleanTarget,
+          position,
+          anchorRect,
+        };
       });
 
-      const matched = files.find(
-        (f) =>
-          f.title.toLowerCase() === cleanTarget.toLowerCase() ||
-          f.id === cleanTarget ||
-          f.path.toLowerCase() === cleanTarget.toLowerCase()
-      );
-      if (matched && !fileContentsCache[matched.id]) {
-        void DocumentationServices.getContent(matched.id).then((doc) => {
-          if (doc?.content) {
-            setFileContentsCache((prev) => ({ ...prev, [matched.id]: doc.content }));
-          }
-        });
+      const matched = resolveLinkTarget(files, cleanTarget);
+      if (matched) {
+        preloadFileContent(matched.id);
       }
     },
-    [fileContentsCache, files]
+    [clearHoverCloseTimer, files, preloadFileContent]
   );
 
   const handleLeaveWikiLink = useCallback(() => {
-    setHoverPreview(null);
-  }, []);
+    clearHoverCloseTimer();
+    hoverCloseTimerRef.current = setTimeout(() => {
+      setHoverPreview(null);
+      hoverCloseTimerRef.current = null;
+    }, 150);
+  }, [clearHoverCloseTimer]);
 
   // Pre-load content for transclusion embeds ![[...]]
   useEffect(() => {
     const embedRegex = /!\[\[(.*?)\]\]/g;
     let match;
     while ((match = embedRegex.exec(markdown)) !== null) {
-      let target = match[1];
-      if (target.includes('#')) {
-        target = target.split('#')[0].trim();
-      }
-      const cleanTarget = target.trim();
-      const matched = files.find(
-        (f) =>
-          f.title.toLowerCase() === cleanTarget.toLowerCase() ||
-          f.id === cleanTarget ||
-          f.path.toLowerCase() === cleanTarget.toLowerCase()
-      );
-      if (matched && !fileContentsCache[matched.id]) {
-        void DocumentationServices.getContent(matched.id).then((doc) => {
-          if (doc?.content) {
-            setFileContentsCache((prev) => ({ ...prev, [matched.id]: doc.content }));
-          }
-        });
+      const { target } = parseWikiLinkInner(match[1]);
+      if (!target) continue;
+      const matched = resolveLinkTarget(files, target);
+      if (matched) {
+        preloadFileContent(matched.id);
       }
     }
-  }, [markdown, files, fileContentsCache]);
+  }, [markdown, files, preloadFileContent]);
 
   if (documentQuery.isLoading) {
     return (
@@ -567,18 +628,14 @@ const DocumentEditor: React.FC = () => {
       {/* Floating Hover Preview Card */}
       {hoverPreview && (
         <HoverPreview
-          file={
-            files.find(
-              (f) =>
-                f.title.toLowerCase() === hoverPreview.targetTitle.toLowerCase() ||
-                f.id === hoverPreview.targetTitle ||
-                f.path.toLowerCase() === hoverPreview.targetTitle.toLowerCase()
-            ) || null
-          }
+          file={resolveLinkTarget(files, hoverPreview.targetTitle) || null}
           targetTitle={hoverPreview.targetTitle}
           position={hoverPreview.position}
+          anchorRect={hoverPreview.anchorRect}
           onNavigate={handleNavigateFile}
-          onClose={() => setHoverPreview(null)}
+          onClose={handleCloseHoverPreview}
+          onMouseEnter={clearHoverCloseTimer}
+          onMouseLeave={handleLeaveWikiLink}
         />
       )}
     </div>

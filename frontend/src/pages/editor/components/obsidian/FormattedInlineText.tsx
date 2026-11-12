@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FileItem } from './types.ts';
 import { parseFrontmatter } from './markdownUtils.ts';
+import { parseWikiLinkInner, resolveLinkTarget } from './linkResolver.ts';
 
 const CODE_STYLE_PROPERTIES = {
   'background-color': 'backgroundColor',
@@ -96,25 +97,10 @@ export const FormattedInlineText: React.FC<FormattedInlineTextProps> = ({
         // 1. Wiki-link [[...]]
         if (part.startsWith('[[') && part.endsWith(']]')) {
           const inner = part.slice(2, -2);
-          let target = inner;
-          let label = inner;
-          if (inner.includes('|')) {
-            const split = inner.split('|');
-            target = split[0].trim();
-            label = split[1].trim();
-          } else if (inner.includes('#')) {
-            const split = inner.split('#');
-            target = split[0].trim();
-            label = `${split[0].trim()} > ${split[1].trim()}`;
-          }
+          const { target, label } = parseWikiLinkInner(inner);
 
           // Check if file exists in workspace
-          const exists = files.some(
-            (f) =>
-              f.title.toLowerCase() === target.toLowerCase() ||
-              f.path.toLowerCase() === target.toLowerCase() ||
-              f.id === target
-          );
+          const exists = Boolean(resolveLinkTarget(files, target));
 
           return (
             <span

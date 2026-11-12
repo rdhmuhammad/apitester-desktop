@@ -23,6 +23,7 @@ interface IBodyEditor {
     body?: RequestBody
     onJsonChange: (value: string) => void
     onFormDataChange: (value: ItemUrl[]) => void
+    onContentTypeChange?: (contentType: ContentType) => void
 }
 
 export const BodyEditor: React.FC<IBodyEditor> = (
@@ -31,6 +32,7 @@ export const BodyEditor: React.FC<IBodyEditor> = (
         body,
         onJsonChange,
         onFormDataChange,
+        onContentTypeChange: _onContentTypeChange,
     }) => {
 
     const selectBody = body

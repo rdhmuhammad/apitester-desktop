@@ -300,7 +300,15 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         [collectionId, requestId, update]
     )
 
-    const addExampleResponse = useCallback(async (name?: string) => {
+    const addExampleResponse = useCallback(async (
+        name?: string,
+        initial?: {
+            status?: string
+            code?: number
+            body?: string
+            header?: ItemUrl[] | Array<{key: string; value: string}>
+        }
+    ) => {
         const current = queryClient.getQueryData<RestRequestResponse>(queryKey) ?? rawRequest
         const newId = crypto.randomUUID()
         const origRequest: Request | undefined = current ? {
@@ -315,10 +323,12 @@ export const useRequestConfig = (collectionId: string, requestId: string) => {
         const result = await saveResponse({
             id: newId,
             name: name || "New Example",
-            status: "OK",
-            code: 200,
-            body: "{\n  \"message\": \"success\"\n}",
-            header: [{id: crypto.randomUUID(), key: "Content-Type", value: "application/json", disabled: false}],
+            status: initial?.status ?? "OK",
+            code: initial?.code ?? 200,
+            body: initial?.body ?? "{\n  \"message\": \"success\"\n}",
+            header: (initial?.header && initial.header.length > 0)
+                ? initial.header
+                : [{id: crypto.randomUUID(), key: "Content-Type", value: "application/json", disabled: false}],
             originalRequest: origRequest,
         })
         return {id: newId, result}

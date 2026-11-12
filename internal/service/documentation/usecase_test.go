@@ -239,3 +239,62 @@ secret.env
 		t.Errorf("cmd/api/main.go should have Show == false and Category == FILE, got %+v", mainNode)
 	}
 }
+
+func TestCreateDocumentWithSubfolders(t *testing.T) {
+	uc, projRoot := setupTestDocUsecase(t)
+	ctx := context.Background()
+
+	// 1. Create document with single missing folder segment
+	doc1, err := uc.CreateDocument(ctx, CreateDocumentRequest{Name: "concept/test"})
+	if err != nil {
+		t.Fatalf("CreateDocument(concept/test) failed: %v", err)
+	}
+	if doc1.ID != "concept/test.md" || doc1.Name != "test" {
+		t.Fatalf("unexpected doc1: %+v", doc1)
+	}
+	if _, err := os.Stat(filepath.Join(projRoot, "concept", "test.md")); err != nil {
+		t.Fatalf("expected concept/test.md on disk: %v", err)
+	}
+
+	// 2. Create document in existing folder & nested missing folders with .md extension
+	doc2, err := uc.CreateDocument(ctx, CreateDocumentRequest{Name: "deep/nested/sub/note.md"})
+	if err != nil {
+		t.Fatalf("CreateDocument(deep/nested/sub/note.md) failed: %v", err)
+	}
+	if doc2.ID != "deep/nested/sub/note.md" || doc2.Name != "note" {
+		t.Fatalf("unexpected doc2: %+v", doc2)
+	}
+	if doc2.Content != "# note\n" {
+		t.Fatalf("expected '# note\\n', got %q", doc2.Content)
+	}
+
+	// 3. Preserve non-.md dots in filename (e.g. api.v1 -> api.v1.md)
+	doc3, err := uc.CreateDocument(ctx, CreateDocumentRequest{Name: "concept/api.v1"})
+	if err != nil {
+		t.Fatalf("CreateDocument(concept/api.v1) failed: %v", err)
+	}
+	if doc3.ID != "concept/api.v1.md" || doc3.Name != "api.v1" {
+		t.Fatalf("unexpected doc3: %+v", doc3)
+	}
+
+	// 4. Reject duplicate
+	if _, err := uc.CreateDocument(ctx, CreateDocumentRequest{Name: "concept/test.md"}); err == nil {
+		t.Fatalf("expected duplicate document creation to fail")
+	}
+
+	// 5. Reject path traversal and invalid segments
+	invalidNames := []string{
+		"../outside",
+		"concept/../../outside",
+		"concept/",
+		"concept//test",
+		"/",
+		"concept/.",
+		"./",
+	}
+	for _, invalid := range invalidNames {
+		if _, err := uc.CreateDocument(ctx, CreateDocumentRequest{Name: invalid}); err == nil {
+			t.Errorf("expected invalid name %q to be rejected", invalid)
+		}
+	}
+}

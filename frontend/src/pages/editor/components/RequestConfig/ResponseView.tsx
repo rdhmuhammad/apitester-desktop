@@ -140,6 +140,61 @@ const STATUS_GROUPS = [
     },
 ]
 
+const isBinaryContentType = (
+    contentType?: string,
+    data?: unknown,
+    isBinaryFlag?: boolean
+): boolean => {
+    if (isBinaryFlag) return true
+    if (typeof data === "string" && data.startsWith("data:")) return true
+    if (typeof ArrayBuffer !== "undefined" && (data instanceof ArrayBuffer || ArrayBuffer.isView(data))) return true
+    if (typeof Blob !== "undefined" && data instanceof Blob) return true
+
+    const ct = (contentType ?? "").toLowerCase().trim()
+    if (!ct) return false
+
+    if (
+        ct.includes("application/json") ||
+        ct.includes("text/") ||
+        ct.includes("application/xml") ||
+        ct.includes("application/javascript") ||
+        ct.includes("application/x-www-form-urlencoded") ||
+        ct.includes("application/graphql")
+    ) {
+        return false
+    }
+
+    if (
+        ct.startsWith("image/") ||
+        ct.startsWith("audio/") ||
+        ct.startsWith("video/") ||
+        ct.includes("pdf") ||
+        ct.includes("octet-stream") ||
+        ct.includes("zip") ||
+        ct.includes("tar") ||
+        ct.includes("gzip") ||
+        ct.includes("excel") ||
+        ct.includes("spreadsheet") ||
+        ct.includes("officedocument") ||
+        ct.includes("word") ||
+        ct.includes("presentation") ||
+        ct.includes("wasm") ||
+        ct.includes("binary")
+    ) {
+        return true
+    }
+
+    return false
+}
+
+const formatHeaderKey = (key: string): string => {
+    if (/[A-Z]/.test(key)) return key
+    return key
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join("-")
+}
+
 const ResponseView: React.FC = () => {
     const dispatch = useAppDispatch()
     const activeTabId = useAppSelector(selectEditorActiveTabId)
@@ -148,7 +203,6 @@ const ResponseView: React.FC = () => {
     const currResponse = useAppSelector((state) => selectResponseByRequestId(state, activeTabId))
     const {
         request,
-        saveResponse,
         addExampleResponse,
         deleteExampleResponse,
         updateExampleResponse,
@@ -192,6 +246,102 @@ const ResponseView: React.FC = () => {
         }
     }, [responseBody])
 
+    const rawResponse = useMemo(() => {
+        const target = activeExample
+            ? {
+                protocol: "HTTP/1.1",
+                statusCode: activeExample.code || 200,
+                statusText: activeExample.status || getHttpStatusText(activeExample.code) || "OK",
+                headers: (activeExample.header || [])
+                    .filter((h: any) => !h.disabled && h.key)
+                    .reduce<Record<string, string>>((acc, h: any) => {
+                        acc[h.key] = h.value ?? ""
+                        return acc
+                    }, {}),
+                data: activeExample.body,
+                rawText: activeExample.body,
+                contentType: (activeExample.header as any[])?.find(
+                    (h) => !h.disabled && h.key?.toLowerCase() === "content-type"
+                )?.value,
+                isBinary: false,
+            }
+            : currResponse
+                ? {
+                    protocol: currResponse.protocol || "HTTP/1.1",
+                    statusCode: currResponse.statusCode,
+                    statusText: currResponse.statusText || getHttpStatusText(currResponse.statusCode) || "OK",
+                    headers: currResponse.headers || {},
+                    data: currResponse.data,
+                    rawText: currResponse.rawText,
+                    contentType: currResponse.contentType,
+                    isBinary: currResponse.isBinary,
+                }
+                : null
+
+        if (!target || (!target.statusCode && !target.data && Object.keys(target.headers).length === 0)) {
+            return ""
+        }
+
+        const statusLine = `${target.protocol || "HTTP/1.1"} ${target.statusCode || 200} ${target.statusText || "OK"}`
+
+        const headerLines: string[] = []
+        const seenHeaderKeys = new Set<string>()
+
+        for (const [key, value] of Object.entries(target.headers)) {
+            if (!key) continue
+            seenHeaderKeys.add(key.toLowerCase())
+            const formattedVal = Array.isArray(value) ? value.join(", ") : String(value ?? "")
+            headerLines.push(`${formatHeaderKey(key)}: ${formattedVal}`)
+        }
+
+        if (target.contentType && !seenHeaderKeys.has("content-type")) {
+            headerLines.push(`Content-Type: ${target.contentType}`)
+        }
+
+        const effectiveContentType =
+            target.contentType ||
+            Object.entries(target.headers).find(([k]) => k.toLowerCase() === "content-type")?.[1]
+
+        let formattedBody = ""
+        if (isBinaryContentType(effectiveContentType, target.data, target.isBinary)) {
+            formattedBody = "note: cannot show binary data"
+        } else if (target.data !== undefined && target.data !== null) {
+            if (typeof target.data === "object") {
+                try {
+                    formattedBody = JSON.stringify(target.data, null, 2)
+                } catch {
+                    formattedBody = String(target.data)
+                }
+            } else if (typeof target.data === "string") {
+                try {
+                    formattedBody = JSON.stringify(JSON.parse(target.data), null, 2)
+                } catch {
+                    formattedBody = target.data
+                }
+            } else {
+                formattedBody = String(target.data)
+            }
+        } else if (target.rawText) {
+            try {
+                formattedBody = JSON.stringify(JSON.parse(target.rawText), null, 2)
+            } catch {
+                formattedBody = target.rawText
+            }
+        }
+
+        const headersBlock = headerLines.join("\n")
+        if (headersBlock && formattedBody) {
+            return `${statusLine}\n${headersBlock}\n\n${formattedBody}`
+        }
+        if (headersBlock) {
+            return `${statusLine}\n${headersBlock}`
+        }
+        if (formattedBody) {
+            return `${statusLine}\n\n${formattedBody}`
+        }
+        return statusLine
+    }, [activeExample, currResponse])
+
     const normalizedScriptResults = useMemo((): Array<{ type?: string; display: string }> => {
         if (scriptResult === null || scriptResult === undefined) return []
         const list = Array.isArray(scriptResult) ? scriptResult : [scriptResult]
@@ -222,15 +372,21 @@ const ResponseView: React.FC = () => {
     const hasResult = normalizedScriptResults.length > 0
 
     const [editorBody, setEditorBody] = useState(prettyResponse)
+    const [prevSourceTab, setPrevSourceTab] = useState(sourceTab)
+
+    if (prevSourceTab !== sourceTab) {
+        setPrevSourceTab(sourceTab)
+        setEditorBody(prettyResponse)
+    }
 
     useEffect(() => {
         setEditorBody(prettyResponse)
     }, [prettyResponse])
 
-    const debouncedSaveBody = useDebouncedCallback(async (val: string) => {
-        if (!activeExample?.id) return
+    const debouncedSaveBody = useDebouncedCallback(async (val: string, exId: string) => {
+        if (!exId) return
         try {
-            await updateExampleResponse(activeExample.id, { body: val })
+            await updateExampleResponse(exId, { body: val })
         } catch (err) {
             console.error("Failed to update example body:", err)
         }
@@ -239,11 +395,12 @@ const ResponseView: React.FC = () => {
     const handleBodyChange = (val: string) => {
         setEditorBody(val)
         if (activeExample?.id) {
-            debouncedSaveBody(val)
+            debouncedSaveBody(val, activeExample.id)
         }
     }
 
     const [responseOpen, setResponseOpen] = useState(true)
+    const [rawResponseOpen, setRawResponseOpen] = useState(true)
     const [resultOpen, setResultOpen] = useState(true)
     const [mutationsOpen, setMutationsOpen] = useState(true)
     const [logsOpen, setLogsOpen] = useState(true)
@@ -278,32 +435,48 @@ const ResponseView: React.FC = () => {
         setExcelData([])
     }, [currResponse])
 
+    const getCurrentResponseInitial = useCallback(() => {
+        if (!currResponse) return undefined
+        const headers = currResponse.headers
+            ? Object.entries(currResponse.headers).map(([key, value]) => ({
+                id: crypto.randomUUID(),
+                key,
+                value: Array.isArray(value) ? value.join(", ") : String(value ?? ""),
+                disabled: false,
+            }))
+            : undefined
+        const currentBody = currResponse.data != null
+            ? (typeof currResponse.data === "string"
+                ? currResponse.data
+                : JSON.stringify(currResponse.data, null, 2))
+            : undefined
+        let formattedBody = currentBody
+        if (currentBody) {
+            try {
+                formattedBody = JSON.stringify(JSON.parse(currentBody), null, 2)
+            } catch {
+                formattedBody = currentBody
+            }
+        }
+        return {
+            status: currResponse.statusText || getHttpStatusText(currResponse.statusCode) || "OK",
+            code: currResponse.statusCode || 200,
+            body: formattedBody,
+            header: headers,
+        }
+    }, [currResponse])
+
     const handleSaveExample = async () => {
         if (!activeTabId || !collectionId || !exampleName.trim() || !currResponse) return
         try {
             setIsSaving(true)
-            const headers = currResponse.headers
-                ? Object.entries(currResponse.headers).map(([key, value]) => ({ key, value }))
-                : []
-            const body = prettyResponse || (typeof currResponse.data === "string"
-                ? currResponse.data
-                : JSON.stringify(currResponse.data, null, 2))
-
-            const saved = await saveResponse({
-                name: exampleName.trim(),
-                status: currResponse.statusText || "OK",
-                code: currResponse.statusCode,
-                body,
-                header: headers,
-            })
+            const initial = getCurrentResponseInitial()
+            const {id} = await addExampleResponse(exampleName.trim(), initial)
             CustomToast.success("Example response saved")
             setExampleName("")
             setDialogOpen(false)
-            if (saved?.responses && saved.responses.length > 0) {
-                const latest = saved.responses[saved.responses.length - 1]
-                if (latest?.id) {
-                    dispatch(setActiveExampleId({ tabId: activeTabId, exampleId: latest.id }))
-                }
+            if (id) {
+                dispatch(setActiveExampleId({ tabId: activeTabId, exampleId: id }))
             }
         } catch (err) {
             CustomToast.error(err instanceof Error ? err.message : "Failed to save response")
@@ -317,7 +490,8 @@ const ResponseView: React.FC = () => {
         try {
             setIsSaving(true)
             const name = newExampleName.trim() || "New Example"
-            const {id} = await addExampleResponse(name)
+            const initial = getCurrentResponseInitial()
+            const {id} = await addExampleResponse(name, initial)
             dispatch(setActiveExampleId({tabId: activeTabId, exampleId: id}))
             CustomToast.success("New example created")
             setNewExampleName("")
@@ -332,6 +506,7 @@ const ResponseView: React.FC = () => {
     const handleDeleteExample = async (exampleId: string) => {
         if (!activeTabId || !collectionId) return
         try {
+            debouncedSaveBody.cancel()
             await deleteExampleResponse(exampleId)
             if (activeExampleId === exampleId) {
                 dispatch(setActiveExampleId({tabId: activeTabId, exampleId: null}))
@@ -405,11 +580,12 @@ const ResponseView: React.FC = () => {
     }, [isExcel, currResponse?.data, visualizeExcel])
 
     const onSourceChange = useCallback((value: string) => {
+        debouncedSaveBody.cancel()
         dispatch(setActiveExampleId({
             tabId: activeTabId,
             exampleId: value === "actual" ? null : value,
         }))
-    }, [activeTabId, dispatch])
+    }, [activeTabId, debouncedSaveBody, dispatch])
 
     const handleCopyResponseBody = useCallback(async () => {
         const textToCopy = editorBody || prettyResponse
@@ -671,6 +847,7 @@ const ResponseView: React.FC = () => {
                         ) : (
                             <div className="h-[300px] overflow-hidden rounded-md">
                                 <SandpackScriptEditor
+                                    editorKey={sourceTab}
                                     readOnly={!activeExample}
                                     value={editorBody}
                                     onChange={handleBodyChange}
@@ -687,8 +864,27 @@ const ResponseView: React.FC = () => {
 
                 <TabsContent value="console" className="h-[calc(100%-3.2rem)] overflow-auto">
                     {activeExample ? (
-                        <div className="flex items-center justify-center h-full text-sm text-slate-400">
-                            No console data for example responses
+                        <div className="space-y-2">
+                            {rawResponse && (
+                                <Collapsible open={rawResponseOpen} onOpenChange={setRawResponseOpen}
+                                    className="rounded-lg border border-border">
+                                    <SectionHeader
+                                        label="Response Raw"
+                                        open={rawResponseOpen}
+                                        onToggle={() => setRawResponseOpen(!rawResponseOpen)}
+                                    />
+                                    <CollapsibleContent className="px-3 pb-3">
+                                        <pre className="font-mono text-xs text-slate-300 bg-[#272822] rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap">
+                                            {rawResponse}
+                                        </pre>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            )}
+                            {!rawResponse && (
+                                <div className="flex items-center justify-center h-full text-sm text-slate-400 py-12">
+                                    No console data for example responses
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -704,6 +900,23 @@ const ResponseView: React.FC = () => {
                                     <CollapsibleContent className="px-3 pb-3">
                                         <pre className="font-mono text-xs text-slate-300 bg-[#272822] rounded-md p-3 overflow-auto max-h-[200px] whitespace-pre-wrap">
                                             {currResponse.rawRequest}
+                                        </pre>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            )}
+
+                            {/* Response Raw */}
+                            {rawResponse && (
+                                <Collapsible open={rawResponseOpen} onOpenChange={setRawResponseOpen}
+                                    className="rounded-lg border border-border">
+                                    <SectionHeader
+                                        label="Response Raw"
+                                        open={rawResponseOpen}
+                                        onToggle={() => setRawResponseOpen(!rawResponseOpen)}
+                                    />
+                                    <CollapsibleContent className="px-3 pb-3">
+                                        <pre className="font-mono text-xs text-slate-300 bg-[#272822] rounded-md p-3 overflow-auto max-h-[300px] whitespace-pre-wrap">
+                                            {rawResponse}
                                         </pre>
                                     </CollapsibleContent>
                                 </Collapsible>
@@ -795,7 +1008,7 @@ const ResponseView: React.FC = () => {
                                 </Collapsible>
                             )}
 
-                            {!currResponse?.rawRequest && !hasResult && !hasMutations && !hasLogs && (
+                            {!currResponse?.rawRequest && !rawResponse && !hasResult && !hasMutations && !hasLogs && (
                                 <div className="flex items-center justify-center h-full text-sm text-slate-400 py-12">
                                     Send a request to see console output
                                 </div>

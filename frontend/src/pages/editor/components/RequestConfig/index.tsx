@@ -14,6 +14,7 @@ import {selectEditorActiveTabId, setActiveExampleId} from "@/app/slices/editorTa
 import {useQueryClient} from "@tanstack/react-query"
 import {type Collection} from "@/layout/services/collection"
 import {useRequestConfig} from "@/pages/editor/hooks/useRequestConfig.ts"
+import type {ItemUrl} from "@/pages/editor/types/api.ts"
 
 const RequestConfigTabs: React.FC = () => {
     const dispatch = useAppDispatch()
@@ -26,15 +27,64 @@ const RequestConfigTabs: React.FC = () => {
         saveScript,
     } = useRequestConfig(activeCollection?.id ?? "", activeTabId)
 
-    const [contentType, setContentType] = useState<ContentType>(request?.body?.mode === "formdata" ? "multipart/form-data" : "application/json")
-
-    useEffect(() => {
-        setContentType(request?.body?.mode === "formdata" ? "multipart/form-data" : "application/json")
-    }, [request?.body?.mode])
-
     const headers = request?.headers ?? []
     const contentTypeHeader = headers.find((item) => item.key.toLowerCase() === "content-type")
     const hasBody = !!contentTypeHeader && !contentTypeHeader.disabled
+
+    const getContentTypeFromHeaderOrBody = (
+        headerValue?: string,
+        bodyMode?: string
+    ): ContentType => {
+        const val = headerValue?.toLowerCase().trim() ?? ""
+        if (val.includes("form-data") || val.includes("multipart")) {
+            return "multipart/form-data"
+        }
+        if (val.includes("json")) {
+            return "application/json"
+        }
+        return bodyMode === "formdata" ? "multipart/form-data" : "application/json"
+    }
+
+    const [contentType, setContentType] = useState<ContentType>(() =>
+        getContentTypeFromHeaderOrBody(contentTypeHeader?.value, request?.body?.mode)
+    )
+
+    useEffect(() => {
+        setContentType(getContentTypeFromHeaderOrBody(contentTypeHeader?.value, request?.body?.mode))
+    }, [contentTypeHeader?.value, request?.body?.mode])
+
+    const handleContentTypeChange = (newType: ContentType) => {
+        setContentType(newType)
+        const currentHeaders = request?.headers ?? []
+        const hasHeader = currentHeaders.some(
+            (item) => item.key.toLowerCase() === "content-type"
+        )
+        let updatedHeaders: ItemUrl[]
+        if (hasHeader) {
+            updatedHeaders = currentHeaders.map((item) =>
+                item.key.toLowerCase() === "content-type"
+                    ? { ...item, value: newType }
+                    : item
+            )
+        } else {
+            updatedHeaders = [
+                ...currentHeaders,
+                {
+                    id: crypto.randomUUID(),
+                    key: "Content-Type",
+                    value: newType,
+                    disabled: false,
+                },
+            ]
+        }
+        updateHeaders(updatedHeaders)
+
+        if (newType === "multipart/form-data" && request?.body?.mode !== "formdata") {
+            updateFormDataBody(request?.body?.formdata ?? [])
+        } else if (newType === "application/json" && request?.body?.mode !== "raw") {
+            updateJsonBody(request?.body?.raw ?? "")
+        }
+    }
 
     const handleToggleBody = () => {
         const existingHeader = headers.find((item) => item.key.toLowerCase() === "content-type")
@@ -42,7 +92,7 @@ const RequestConfigTabs: React.FC = () => {
             updateHeaders(
                 headers.map((item) =>
                     item.key.toLowerCase() === "content-type"
-                        ? {...item, disabled: hasBody}
+                        ? {...item, disabled: hasBody, value: !hasBody ? contentType : item.value}
                         : item
                 )
             )
@@ -122,7 +172,7 @@ const RequestConfigTabs: React.FC = () => {
                 <TabsContent value="body" className="p-4">
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <Select value={contentType} onValueChange={(value) => setContentType(value as ContentType)}>
+                            <Select value={contentType} onValueChange={(value) => handleContentTypeChange(value as ContentType)}>
                                 <SelectTrigger>
                                     <SelectValue/>
                                 </SelectTrigger>
@@ -151,7 +201,7 @@ const RequestConfigTabs: React.FC = () => {
                         </div>
                         {hasBody ?
                             <BodyEditor contentType={contentType} body={request?.body} onJsonChange={updateJsonBody}
-                                        onFormDataChange={updateFormDataBody}/> :
+                                        onFormDataChange={updateFormDataBody} onContentTypeChange={handleContentTypeChange}/> :
                             <div className="flex items-center justify-center py-12 text-sm text-slate-400">
                                 Body disabled
                             </div>

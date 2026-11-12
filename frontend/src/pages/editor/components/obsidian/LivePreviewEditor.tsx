@@ -32,6 +32,7 @@ import { CodeBlockWidget } from './CodeBlockWidget.tsx';
 import { TransclusionEmbed } from './TransclusionEmbed.tsx';
 import { ImageWidget } from './ImageWidget.tsx';
 import { FormattedInlineText } from './FormattedInlineText.tsx';
+import { parseWikiLinkInner } from './linkResolver.ts';
 import {
   AutocompletePopover,
   getAutocompleteOptions,
@@ -1311,13 +1312,7 @@ export const LivePreviewEditor = forwardRef<
         // 4. Check for Transclusion Embed: ![[Target]] or ![[Target#Heading]]
         const embedMatch = line.trim().match(/^!\[\[(.*?)\]\]$/);
         if (embedMatch && !isCursorOnLine && !isLineSelected(i)) {
-          let target = embedMatch[1];
-          let subpath: string | undefined = undefined;
-          if (target.includes('#')) {
-            const parts = target.split('#');
-            target = parts[0].trim();
-            subpath = parts[1].trim();
-          }
+          const { target, subpath } = parseWikiLinkInner(embedMatch[1]);
           renderedElements.push(
             <div
               key={`embed-${i}`}

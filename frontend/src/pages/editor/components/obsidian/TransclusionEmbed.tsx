@@ -2,6 +2,7 @@ import React from 'react';
 import type { FileItem } from './types.ts';
 import { ExternalLink, Layers } from 'lucide-react';
 import { parseFrontmatter } from './markdownUtils.ts';
+import { resolveLinkTarget } from './linkResolver.ts';
 
 interface TransclusionEmbedProps {
   rawEmbed: string;
@@ -18,12 +19,7 @@ export const TransclusionEmbed: React.FC<TransclusionEmbedProps> = ({
   files,
   onNavigate,
 }) => {
-  const matchedFile = files.find(
-    (f) =>
-      f.title.toLowerCase() === target.trim().toLowerCase() ||
-      f.path.toLowerCase() === target.trim().toLowerCase() ||
-      f.id === target.trim()
-  );
+  const matchedFile = resolveLinkTarget(files, target);
 
   if (!matchedFile) {
     return (
@@ -32,7 +28,11 @@ export const TransclusionEmbed: React.FC<TransclusionEmbedProps> = ({
           <Layers size={13} /> {rawEmbed} (Target document not found)
         </span>
         <button
-          onClick={() => onNavigate(target)}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigate(target);
+          }}
           className="text-red-600 dark:text-red-400 hover:underline font-sans text-[11px]"
         >
           Create "{target}"
@@ -74,7 +74,10 @@ export const TransclusionEmbed: React.FC<TransclusionEmbedProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => onNavigate(matchedFile.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigate(matchedFile.id);
+          }}
           className="opacity-0 group-hover/embed:opacity-100 flex items-center gap-1 text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 transition-opacity"
         >
           <span>Open File</span>
