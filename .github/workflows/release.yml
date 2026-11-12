@@ -157,7 +157,9 @@ jobs:
 
           $release = Find-Release
           if (-not $release) {
-            gh release create $env:RELEASE_TAG $installer --generate-notes --verify-tag --draft
+            $emptyNotes = Join-Path $env:RUNNER_TEMP 'empty-release-notes.txt'
+            [IO.File]::WriteAllText($emptyNotes, '')
+            gh release create $env:RELEASE_TAG $installer --title $env:RELEASE_TAG --notes-file $emptyNotes --verify-tag --draft
             if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
           }
 

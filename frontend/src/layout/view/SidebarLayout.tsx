@@ -463,6 +463,12 @@ const SidebarLayout: React.FC = () => {
         setRenameValue(node.name)
     }
 
+    const handleRenameKeyDown = (e: React.KeyboardEvent, node: RequestTree) => {
+        if (e.key !== "F2" || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+        e.preventDefault()
+        handleStartRename(node)
+    }
+
     const handleRenameSubmit = async (node: RequestTree) => {
         if (isSubmittingRenameRef.current) return
         const trimmed = renameValue.trim()
@@ -598,6 +604,7 @@ const SidebarLayout: React.FC = () => {
                 onDelete={() => setNodeToDelete(node)}
                 onContextMenu={(e) => handleOpenContextMenu(e, node)}
                 onDoubleClick={(e) => handleOpenContextMenu(e, node)}
+                onKeyDown={(e) => handleRenameKeyDown(e, node)}
                 isRenaming={renamingId === node.id}
                 renameValue={renamingId === node.id ? renameValue : node.name}
                 onRenameChange={setRenameValue}

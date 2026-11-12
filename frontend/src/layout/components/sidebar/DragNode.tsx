@@ -19,6 +19,7 @@ const DragNode: React.FC<{
     onDelete?: () => void
     onContextMenu?: (e: React.MouseEvent) => void
     onDoubleClick?: (e: React.MouseEvent) => void
+    onKeyDown?: (e: React.KeyboardEvent) => void
     isRenaming?: boolean
     renameValue?: string
     onRenameChange?: (value: string) => void
@@ -37,6 +38,7 @@ const DragNode: React.FC<{
     onDelete,
     onContextMenu,
     onDoubleClick,
+    onKeyDown,
     isRenaming,
     renameValue = "",
     onRenameChange,
@@ -123,6 +125,7 @@ const DragNode: React.FC<{
                     <button
                         type="button"
                         onClick={onToggle}
+                        onKeyDown={onKeyDown}
                         className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                         {isOpen ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0"/> :
@@ -173,6 +176,7 @@ const DragNode: React.FC<{
             <button
                 type="button"
                 onClick={onClick}
+                onKeyDown={onKeyDown}
                 className={cn('flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent', isActive && 'bg-indigo-100 dark:bg-indigo-950/60')}
             >
                 <FileCode2 className="h-4 w-4 text-slate-400 shrink-0"/>

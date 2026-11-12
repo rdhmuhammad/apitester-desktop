@@ -78,6 +78,29 @@ const Editor: React.FC = () => {
     const contextTab = allTabs.find(tab => tab.id === contextMenu?.tabId)
 
     useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return
+
+            if (event.key.toLowerCase() === 'w') {
+                event.preventDefault()
+                event.stopPropagation()
+                if (effectiveActiveTabId) dispatch(removeEditorTab(effectiveActiveTabId))
+                return
+            }
+
+            if (event.key !== 'PageDown' && event.key !== 'PageUp') return
+            event.preventDefault()
+            event.stopPropagation()
+            const index = allTabs.findIndex(tab => tab.id === effectiveActiveTabId)
+            if (index < 0 || allTabs.length < 2) return
+            const nextIndex = (index + (event.key === 'PageDown' ? 1 : -1) + allTabs.length) % allTabs.length
+            dispatch(setEditorActiveTab(allTabs[nextIndex].id))
+        }
+        window.addEventListener('keydown', onKeyDown, true)
+        return () => window.removeEventListener('keydown', onKeyDown, true)
+    }, [allTabs, dispatch, effectiveActiveTabId])
+
+    useEffect(() => {
         if (!contextMenu) return
         const close = () => setContextMenu(null)
         const onKeyDown = (event: KeyboardEvent) => {

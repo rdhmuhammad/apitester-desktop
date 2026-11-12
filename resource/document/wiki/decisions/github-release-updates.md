@@ -2,13 +2,15 @@
 
 **Summary**: Electron checks the public GitHub latest release, shows an update badge for newer versions, verifies the downloaded Inno installer, and launches it to upgrade the UI and backend service.
 **Sources**: `frontend/electron/release.ts`, `frontend/electron/updater.ts`, `frontend/electron/main.ts`, `frontend/electron/preload.cjs`, `frontend/src/layout/components/header/TitleBar.tsx`, `deployment/desktop/setup.iss`, `.github/workflows/release.yml`
-**Last updated**: 2026-11-09
+**Last updated**: 2026-11-12
 
 ---
 
 ## Release contract
 
 `frontend/package.json` provides the version. A stable tag `vX.Y.Z` publishes an exact asset named `Apitester-Setup-vX.Y.Z.exe`. The Windows release workflow builds the Go service and portable Electron UI, signs the binaries and installer, verifies the asset digest in a draft release, then publishes it. Since GitHub's release-by-tag API hides draft releases, the workflow locates its draft through the authenticated release list and publishes it by release ID.
+
+The workflow titles the release with its version tag and leaves the release body empty. The installer asset is the published download; no generated "What's new" notes are added.
 
 The workflow currently accepts a temporary self-signed PFX through the `WINDOWS_SIGNING_CERT_BASE64` and `WINDOWS_SIGNING_CERT_PASSWORD` secrets. It validates the PFX lifetime, private key, and Code Signing enhanced key usage before use. The runner signs the frontend, backend, and installer with the same thumbprint and a timestamp, verifies each Authenticode signature while allowing only the expected untrusted-root result, then removes the temporary PFX before publishing. It does not add the self-signed certificate to the runner's trusted root store. See [[decisions/self-signed-windows-release-signing]] for the owner setup and release checklist.
 

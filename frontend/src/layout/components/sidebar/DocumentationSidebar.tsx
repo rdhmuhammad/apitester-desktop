@@ -15,6 +15,7 @@ import {
     GripVertical,
     LoaderCircle,
     Pencil,
+    RefreshCw,
     Trash2,
 } from "lucide-react"
 import {cn} from "@/lib/utils.ts"
@@ -120,6 +121,7 @@ const DocTreeNode: React.FC<{
     onDelete: () => void
     onContextMenu: (e: React.MouseEvent) => void
     onDoubleClick: (e: React.MouseEvent) => void
+    onKeyDown: (e: React.KeyboardEvent) => void
     isRenaming: boolean
     renameValue: string
     onRenameChange: (val: string) => void
@@ -138,6 +140,7 @@ const DocTreeNode: React.FC<{
     onDelete,
     onContextMenu,
     onDoubleClick,
+    onKeyDown,
     isRenaming,
     renameValue,
     onRenameChange,
@@ -217,6 +220,7 @@ const DocTreeNode: React.FC<{
                     <button
                         type="button"
                         onClick={onToggle}
+                        onKeyDown={onKeyDown}
                         className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                         {isOpen ? (
@@ -275,6 +279,7 @@ const DocTreeNode: React.FC<{
             <button
                 type="button"
                 onClick={onClick}
+                onKeyDown={onKeyDown}
                 className={cn(
                     "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-sidebar-accent",
                     isActive && "bg-sky-100 dark:bg-sky-950/60",
@@ -649,6 +654,12 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
         setRenameValue(node.name)
     }
 
+    const handleRenameKeyDown = (e: React.KeyboardEvent, node: DocumentTree) => {
+        if (e.key !== "F2" || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+        e.preventDefault()
+        handleStartRename(node)
+    }
+
     const handleRenameSubmit = async (node: DocumentTree) => {
         if (isSubmittingRenameRef.current) return
         const trimmed = renameValue.trim()
@@ -812,6 +823,7 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
                 onDelete={() => setNodeToDelete(node)}
                 onContextMenu={(e) => handleOpenContextMenu(e, node)}
                 onDoubleClick={(e) => handleOpenContextMenu(e, node)}
+                onKeyDown={(e) => handleRenameKeyDown(e, node)}
                 isRenaming={renamingId === node.id}
                 renameValue={renamingId === node.id ? renameValue : node.name}
                 onRenameChange={setRenameValue}
@@ -933,6 +945,17 @@ const DocumentationSidebar: React.FC<{searchQuery: string}> = ({searchQuery}) =>
                             </button>
                         </>
                     )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setContextMenu(null)
+                            void refetchDocumentTree()
+                        }}
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                    >
+                        <RefreshCw className="h-3.5 w-3.5 text-muted-foreground"/>
+                        <span>Reload</span>
+                    </button>
                     <button
                         type="button"
                         onClick={() => void handleCopyAbsolutePath(contextMenu.node)}

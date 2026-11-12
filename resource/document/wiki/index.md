@@ -44,7 +44,7 @@ This index lists the maintained knowledge pages for the API Tester codebase. Rep
 
 - [[decisions/index]] - Technical decisions recorded for the codebase.
 - [[decisions/desktop-production-build]] - Windows packaging pipeline with in-place upgrades, optional data purge, and shared runtime backend-port configuration.
-- [[decisions/github-release-updates]] - Direct GitHub release checks, title-bar update status, verified installer download, and Windows upgrade flow.
+- [[decisions/github-release-updates]] - Version-tag releases with empty notes, direct GitHub update checks, verified installer download, and Windows upgrade flow.
 - [[decisions/self-signed-windows-release-signing]] - Temporary self-signed PFX preparation, configured GitHub secrets, draft-safe release verification, and remaining owner checklist.
 - [[decisions/file-backed-restrequest-editing]] - Filesystem-backed request editing with serialized direct writes and no current version check.
 - [[decisions/collection-history-for-restrequest-mutations]] - `collection_history` audit records preserving old and new content hashes for successful mutations.
